@@ -109,6 +109,33 @@ final class GameFixture {
     var traveled: [String] { statuses.filter { $0.0 == "traveling" }.map(\.1) }
 }
 
+final class BoosterTests: XCTestCase {
+    func testRotationGoesRoundAndSkipsBoostersOnCooldown() {
+        let all = Booster.allCases
+        var cooling: Set<Booster> = [.coconut]
+        func ready(_ b: Booster) -> Bool { !cooling.contains(b) }
+        XCTAssertEqual(Booster.next(after: nil, enabled: all, ready: ready), .red)
+        XCTAssertEqual(Booster.next(after: .red, enabled: all, ready: ready), .blue)
+        XCTAssertEqual(Booster.next(after: .blue, enabled: all, ready: ready), .mountain)
+        XCTAssertEqual(Booster.next(after: .mountain, enabled: all, ready: ready), .red)
+        cooling.insert(.blue)
+        XCTAssertEqual(Booster.next(after: .red, enabled: all, ready: ready), .mountain)       // blue is cooling down
+        cooling = Set(all)
+        XCTAssertNil(Booster.next(after: .red, enabled: all, ready: ready))
+    }
+
+    func testCoconutComesFirstWhenReadyAndOnlyEnabledBoostersAreUsed() {
+        XCTAssertEqual(Booster.next(after: .red, enabled: Booster.allCases, ready: { _ in true }), .coconut)
+        XCTAssertEqual(Booster.next(after: nil, enabled: [.mountain], ready: { _ in true }), .mountain)
+        XCTAssertNil(Booster.next(after: nil, enabled: [], ready: { _ in true }))
+    }
+
+    func testIconNamesMatchTheExtractedFiles() {
+        XCTAssertEqual(Booster.iconName(for: "pine tree"), "boost/pinetree1")
+        XCTAssertEqual(Booster.iconName(for: "blue flower"), "boost/blueflower1")
+    }
+}
+
 final class GameLoopTests: XCTestCase {
     func testResetSendsKeysWaitsForRespawnAndFixesCamera() {
         let f = GameFixture()
@@ -587,6 +614,34 @@ extension GameLoopTests {
         let (g, act) = pickupGame(prompts: ["use the treat dispenser"])
         guard case .failed = g.collect("treat dispenser") else { return XCTFail("should fail") }
         XCTAssertEqual(act.taps("e"), 2)
+    }
+
+    final class BoosterRunner: ExtraRunner {
+        var used: [Booster] = []
+        func due(_ step: ExtraStep, now: TimeInterval) -> [String] { [] }
+        func perform(_ step: ExtraStep, due: [String], game: Game) {}
+        func boosterReady(_ booster: Booster) -> Bool { !used.contains(booster) }
+        func boosterUsed(_ booster: Booster) { used.append(booster) }
+    }
+
+    func testBoosterModeGathersTheBoostedFieldAndFallsBackWhenNoneIsReady() {
+        let f = GameFixture(fillPerS: 50)
+        let pw = PictureWorld(f.world, visible: ["boost/rose1"])                 // the red booster boosted Rose
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { kind, name, _ in
+                         kind == "to_field" ? PathFile(name: name, steps: [Step(type: "gotoramp"), .walk(["s"], tiles: 9), .rotate("right", count: 2), .walk(["d"], tiles: 29)])
+                                            : PathFile(name: name, steps: [.walk(["a"], tiles: 3)])
+                     })
+        var sunflower = FieldConfig(name: "sunflower"); sunflower.backpackPercent = 90; sunflower.returnMethod = "reset"
+        var profile = Profile(fields: [sunflower])
+        profile.boosterMode = true; profile.boosters = ["red"]
+        let runner = BoosterRunner()
+        let loop = FarmLoop(g, profile: profile, extras: runner, maxCycles: 2)
+        XCTAssertEqual(loop.run(), "cycles_done")
+        XCTAssertEqual(runner.used, [.red])                                        // used once, then on cooldown
+        let fields = f.log.items.filter { $0.0 == "traveling" }.map(\.1)
+        XCTAssertTrue(fields.contains("boosted field: rose"), "\(fields)")
     }
 }
 

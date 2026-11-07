@@ -106,6 +106,9 @@ public struct Profile: Equatable {
     public var fields: [FieldConfig]
     public var notes: String
     public var extras: [ExtraStep]
+    /// Booster mode: cycle through the field boosters and gather in the field that gets boosted.
+    public var boosterMode = false
+    public var boosters: [String] = Booster.allCases.map(\.rawValue)
 
     public init(name: String = "default", fields: [FieldConfig] = [FieldConfig(name: "sunflower")], notes: String = "", extras: [ExtraStep] = []) {
         self.name = name; self.fields = fields; self.notes = notes; self.extras = extras
@@ -140,15 +143,19 @@ public struct Profile: Equatable {
     public static func load(_ url: URL) throws -> Profile {
         let obj = (try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]) ?? [:]
         let fields = ((obj["fields"] as? [[String: Any]]) ?? []).map(FieldConfig.init(json:))
-        return Profile(name: (obj["name"] as? String) ?? url.deletingPathExtension().lastPathComponent,
-                       fields: fields.isEmpty ? [FieldConfig(name: "sunflower")] : fields,
-                       notes: (obj["notes"] as? String) ?? "",
-                       extras: ((obj["extras"] as? [[String: Any]]) ?? []).map(ExtraStep.init(json:)))
+        var profile = Profile(name: (obj["name"] as? String) ?? url.deletingPathExtension().lastPathComponent,
+                              fields: fields.isEmpty ? [FieldConfig(name: "sunflower")] : fields,
+                              notes: (obj["notes"] as? String) ?? "",
+                              extras: ((obj["extras"] as? [[String: Any]]) ?? []).map(ExtraStep.init(json:)))
+        profile.boosterMode = (obj["booster_mode"] as? NSNumber)?.boolValue ?? false
+        if let list = obj["boosters"] as? [String] { profile.boosters = list.filter { Booster(rawValue: $0) != nil } }
+        return profile
     }
 
     public func save(to url: URL) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let obj: [String: Any] = ["name": name, "fields": fields.map(\.json), "notes": notes, "extras": extras.map(\.json)]
+        let obj: [String: Any] = ["name": name, "fields": fields.map(\.json), "notes": notes, "extras": extras.map(\.json),
+                                  "booster_mode": boosterMode, "boosters": boosters]
         try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
     }
 }

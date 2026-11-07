@@ -10,10 +10,16 @@ public protocol ExtraRunner: AnyObject {
     func perform(_ step: ExtraStep, due: [String], game: Game)
     /// Called after a field was gathered for `seconds`: mobs that live there were dealt with on the way.
     func fieldGathered(_ field: String, seconds: Double)
+    /// Booster mode: is this booster's cooldown over?
+    func boosterReady(_ booster: Booster) -> Bool
+    /// Booster mode: record that it was used (so its cooldown starts).
+    func boosterUsed(_ booster: Booster)
 }
 
 public extension ExtraRunner {
     func fieldGathered(_ field: String, seconds: Double) {}
+    func boosterReady(_ booster: Booster) -> Bool { false }
+    func boosterUsed(_ booster: Booster) {}
 }
 
 /// The runner HiveMac ships today: it knows what is due but the game actions are not built yet,

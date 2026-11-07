@@ -32,6 +32,8 @@ struct FieldsView: View {
 
             HiveSlotPicker()
                 .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
+            BoosterModeRow()
+                .padding(.horizontal, Theme.s6).padding(.top, Theme.s2)
 
             HStack(spacing: Theme.s2) {
                 Color.clear.frame(width: 24, height: 1)

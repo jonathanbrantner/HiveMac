@@ -21,6 +21,12 @@ public final class FarmLoop {
     let items: [Item]
     let extras: ExtraRunner?
     let unixNow: () -> TimeInterval
+    let boosterMode: Bool
+    let boosters: [Booster]
+    let profileFields: [FieldConfig]
+    /// The boosted field being gathered, while its boost lasts.
+    private var boost: (field: FieldConfig, since: TimeInterval)?
+    private var lastBooster: Booster?
     public private(set) var stats = LoopStats()
     public var onStats: (LoopStats) -> Void = { _ in }
     private let maxCycles: Int?
@@ -33,6 +39,9 @@ public final class FarmLoop {
         self.items = self.fields.map { Item.field($0) }
         self.extras = nil
         self.unixNow = { Date().timeIntervalSince1970 }
+        self.boosterMode = false
+        self.boosters = []
+        self.profileFields = fields
         self.maxCycles = maxCycles
         self.maxFailed = maxFailedResets
     }
@@ -49,9 +58,49 @@ public final class FarmLoop {
         }
         self.extras = extras
         self.unixNow = unixNow
+        self.boosterMode = profile.boosterMode
+        self.boosters = profile.boosters.compactMap(Booster.init(rawValue:))
+        self.profileFields = profile.fields
         self.maxCycles = maxCycles
         self.maxFailed = maxFailedResets
     }
+
+    /// Booster mode: keep gathering the boosted field while its boost lasts; when it is over, use the next
+    /// ready booster and go to the field it boosted. Returns nil to use the normal field list.
+    private func boostedItem() -> FieldConfig? {
+        guard boosterMode, let runner = extras else { return nil }
+        let g = game
+        if let b = boost {
+            // The icon tells when the boost ends. If it could never be read, assume the usual 15 minutes.
+            if g.boostActive(field: b.field.name) || (usedFallback && unixNow() - b.since < 15 * 60) { return b.field }
+            g.status("converting", "the boost on \(b.field.name) is over")
+            boost = nil
+        }
+        guard let next = Booster.next(after: lastBooster, enabled: boosters, ready: runner.boosterReady) else { return nil }
+        switch g.collect(next.pickup) {
+        case .failed(let why):
+            g.status("warning", "\(next.title) booster: \(why)")
+            runner.boosterUsed(next)                         // do not try it again for a full cooldown
+            return nil
+        case .collected, .onCooldown:
+            runner.boosterUsed(next)
+        }
+        lastBooster = next
+        var name: String?
+        for _ in 0..<10 where name == nil {
+            name = g.boostedField(by: next)
+            if name == nil { g.walker.wait(1) }
+        }
+        usedFallback = name == nil
+        let fieldName = name ?? profileFields.first(where: { next.fields.contains($0.name) && $0.enabled })?.name ?? next.fallbackField
+        var field = profileFields.first(where: { $0.name == fieldName }) ?? FieldConfig(name: fieldName)
+        if !profileFields.contains(where: { $0.name == fieldName }) { field.minutes = 15; field.backpackPercent = 90 }
+        field.enabled = true
+        g.status("traveling", "boosted field: \(fieldName)" + (name == nil ? " (could not read the buff bar)" : ""))
+        boost = (field, unixNow())
+        return field
+    }
+    private var usedFallback = false
 
     private func nextItem() -> Item {
         let item = items[index % items.count]
@@ -79,7 +128,8 @@ public final class FarmLoop {
         while !g.stopped {
             if let m = maxCycles, stats.cycles >= m { return "cycles_done" }
             let f: FieldConfig
-            switch nextItem() {
+            let upcoming: Item = boostedItem().map { Item.field($0) } ?? nextItem()
+            switch upcoming {
             case .extra(let step): visit(step); continue
             case .field(let field): f = field
             }

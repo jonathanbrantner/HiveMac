@@ -192,6 +192,10 @@ public final class GameExtraRunner: ExtraRunner {
         if !here.isEmpty { done(here) }
     }
 
+    public func boosterReady(_ booster: Booster) -> Bool { timers.isReady(booster.pickup, now: unixNow()) }
+
+    public func boosterUsed(_ booster: Booster) { done([booster.pickup]) }
+
     private func done(_ names: [String]) {
         for n in names { timers.markDone(n, at: unixNow()) }
         onTimers(timers)

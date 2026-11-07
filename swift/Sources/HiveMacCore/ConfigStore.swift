@@ -77,6 +77,8 @@ public final class ConfigStore {
         s.travel = string("game.travel", s.travel)
         s.windowMode = string("game.window_mode", s.windowMode)
         s.titleBarHeight = int("game.title_bar_height", s.titleBarHeight)
+        s.uiScale = double("game.ui_scale", s.uiScale)
+        s.uiOffsetY = int("game.ui_offset_y", s.uiOffsetY)
         s.zoomOutTaps = int("game.zoom_out_taps", s.zoomOutTaps)
         s.resetWaitS = double("game.reset_wait_s", s.resetWaitS)
         s.deathExtraWaitS = double("game.death_extra_wait_s", s.deathExtraWaitS)

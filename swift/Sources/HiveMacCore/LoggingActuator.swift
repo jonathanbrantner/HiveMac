@@ -25,5 +25,8 @@ public final class LoggingActuator: Actuator {
     public func tap(_ key: String, holdS: Double) { log("Practice: would press \(key)") }
     public func mouseDown() { if !mouse { mouse = true; log("Practice: would hold the mouse button down") } }
     public func mouseUp() { if mouse { mouse = false; log("Practice: would let the mouse button go") } }
+    public func click(_ x: Int, _ y: Int) { log("Practice: would click at \(x), \(y)") }
+    public func drag(fromX: Int, fromY: Int, toX: Int, toY: Int) { log("Practice: would drag \(fromX), \(fromY) to \(toX), \(toY)") }
+    public func scroll(_ ticks: Int) { log("Practice: would scroll \(ticks)") }
     public func releaseAll() { held.removeAll(); mouse = false }
 }

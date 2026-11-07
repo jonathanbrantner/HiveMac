@@ -47,7 +47,7 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
     public var planterFields: [String] = ["", "", ""]
     public var planterTypes: [String] = ["paper", "paper", "paper"]
     /// Natro's 12 planters.
-    public static let planters = ["paper", "ticking", "plastic", "candy", "red clay", "blue clay", "tacky",
+    public static let planters = ["paper", "ticket", "festive", "plastic", "candy", "red clay", "blue clay", "tacky",
                                   "pesticide", "heat-treated", "hydroponic", "petal", "planter of plenty"]
     public var harvestHours = 4.0
     /// One switch for all slots: plant again as soon as a slot is harvested.
@@ -64,6 +64,12 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         return max(0, planterPlanted[slot] + harvestHours * 3600 - now)
     }
 
+    /// Slots with a field chosen and nothing planted yet.
+    public func planterSlotsToPlant() -> [Int] {
+        (0..<3).filter { planterFields.indices.contains($0) && !planterFields[$0].isEmpty
+                         && !(planterPlanted.indices.contains($0) && planterPlanted[$0] > 0) }
+    }
+
     /// The slots worth a visit now: planted and grown. A round skips every other slot.
     public func planterSlotsReady(now: Double) -> [Int] {
         (0..<3).filter { planterRemaining($0, now: now) == 0 }
@@ -77,7 +83,7 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         if let v = (d["every_minutes"] as? NSNumber)?.doubleValue { everyMinutes = v }
         if let v = d["bugs"] as? [String] { bugs = v }
         if let v = d["planter_fields"] as? [String] { planterFields = (v + ["", "", ""]).prefix(3).map { $0 } }
-        if let v = d["planter_types"] as? [String] { planterTypes = (v + ["paper", "paper", "paper"]).prefix(3).map { $0 } }
+        if let v = d["planter_types"] as? [String] { planterTypes = (v + ["paper", "paper", "paper"]).prefix(3).map { $0 == "ticking" ? "ticket" : $0 } }
         if let v = (d["harvest_hours"] as? NSNumber)?.doubleValue { harvestHours = v }
         if let v = (d["after"] as? NSNumber)?.intValue { after = v }
         if let v = (d["planter_replant"] as? NSNumber)?.boolValue { planterReplant = v }

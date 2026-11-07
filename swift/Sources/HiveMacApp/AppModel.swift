@@ -18,6 +18,7 @@ final class ReportingSensors: Sensors {
     func hiveViewVisible() -> Bool? { inner.hiveViewVisible() }
     func cannonPromptVisible() -> Bool? { inner.cannonPromptVisible() }
     func deathTextVisible() -> Bool? { inner.deathTextVisible() }
+    func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { inner.find(template, in: region, tolerance: tolerance) }
 }
 
 enum RunState: String {
@@ -125,6 +126,7 @@ final class AppModel: ObservableObject {
     }
 
     static func findBuiltInPaths() -> URL { resource("paths", dev: "config/paths/natro") }
+    static var builtInImages: URL { resource("images", dev: "config/images/natro") }
     static func findDefaultConfig() -> URL { resource("default_config.json", dev: "config/default_config.json") }
 
     static func openLog(_ url: URL) -> FileHandle? {
@@ -164,7 +166,10 @@ final class AppModel: ObservableObject {
         stopSignal.clear(); pauseSignal.clear()
 
         let hud = HudConfig(store: store) { name in ScreenCapture.loadPNG(self.dirs.templates.appendingPathComponent(name)) }
-        let screenSensors = ScreenSensors(screen: capture, window: { [store] in Self.bounds(store) }, config: hud)
+        let images = Self.builtInImages, templates = dirs.templates
+        let screenSensors = ScreenSensors(screen: capture, window: { [store] in Self.bounds(store) }, config: hud) { name in
+            ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
+        }
         let sensors = ReportingSensors(screenSensors)
         sensors.onBackpack = { [weak self] p in self?.beat(); DispatchQueue.main.async { self?.backpack = p } }
 
@@ -180,9 +185,16 @@ final class AppModel: ObservableObject {
                          dirs.findPath(kind: kind, field: field, variant: variant, builtIn: builtIn).flatMap { try? PathFile.load($0) }
                      })
         game = g
-        let loop = FarmLoop(g, profile: profile, extras: GameExtraRunner(timers: mobTimers) { [weak self] t in
+        let runner = GameExtraRunner(timers: mobTimers) { [weak self] t in
             DispatchQueue.main.async { self?.mobTimers = t; t.save(to: dirs.data.appendingPathComponent("mob_timers.json")) }
-        })
+        }
+        runner.onPlanter = { [weak self] id, slot, time in
+            DispatchQueue.main.async {
+                guard let self, let i = self.profile.extras.firstIndex(where: { $0.id == id }) else { return }
+                self.profile.extras[i].planterPlanted[slot] = time
+            }
+        }
+        let loop = FarmLoop(g, profile: profile, extras: runner)
         loop.onStats = { [weak self] s in DispatchQueue.main.async { self?.stats = s } }
 
         watchdog = Watchdog(timeout: store.double("timing.watchdog_timeout_sec", 90), now: Date().timeIntervalSince1970)

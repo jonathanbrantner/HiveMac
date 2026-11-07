@@ -18,3 +18,7 @@ are rescaled at run time. `gotoramp` expands to Natro's "forward 5, right
 `to_pickup/` holds the walks to the wealth clock, the dispensers, the passes, honeystorm and the field
 boosters (Natro's `gtc-*` and `gtb-*` files). `honey_dispenser_s1..s6` is one file per hive slot because
 Natro's route there is a formula of the slot.
+
+`to_planter/` holds the walks to each field's planter spot (Natro's `gtp-*` files). The pictures in
+`config/images/natro/` (planter names, the Yes button, the E prompt, the inventory marker) are Natro's
+`nm_image_assets`, also GPL-3.0.

@@ -50,6 +50,37 @@ public final class KeyInput: Actuator {
         CGAssociateMouseAndMouseCursorPosition(1)
     }
 
+    public func click(_ x: Int, _ y: Int) {
+        moveMouse(x, y)
+        Thread.sleep(forTimeInterval: 0.08)
+        mouseEvent(.leftMouseDown)
+        Thread.sleep(forTimeInterval: 0.06)
+        mouseEvent(.leftMouseUp)
+    }
+
+    public func drag(fromX: Int, fromY: Int, toX: Int, toY: Int) {
+        moveMouse(fromX, fromY)
+        Thread.sleep(forTimeInterval: 0.1)
+        lock.lock(); mouseIsDown = true; lock.unlock()
+        mouseEvent(.leftMouseDown)
+        let steps = 12
+        for i in 1...steps {
+            let x = fromX + (toX - fromX) * i / steps, y = fromY + (toY - fromY) * i / steps
+            CGWarpMouseCursorPosition(CGPoint(x: x, y: y))
+            let pos = CGPoint(x: x, y: y)
+            CGEvent(mouseEventSource: source, mouseType: .leftMouseDragged, mouseCursorPosition: pos, mouseButton: .left)?.post(tap: .cghidEventTap)
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        Thread.sleep(forTimeInterval: 0.1)
+        lock.lock(); mouseIsDown = false; lock.unlock()
+        mouseEvent(.leftMouseUp)
+    }
+
+    public func scroll(_ ticks: Int) {
+        CGEvent(scrollWheelEvent2Source: source, units: .line, wheelCount: 1, wheel1: Int32(ticks), wheel2: 0, wheel3: 0)?
+            .post(tap: .cghidEventTap)
+    }
+
     /// Lets go of everything the macro might have held, plus the movement keys, then the mouse.
     public func releaseAll() {
         lock.lock()

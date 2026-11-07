@@ -21,6 +21,7 @@ cp "$BIN" "$APP/Contents/MacOS/${APP_NAME}"
 
 # Natro's routes and the default settings ship inside the app.
 rsync -a "$REPO/config/paths/natro/" "$RES/paths/"
+mkdir -p "$RES/images" && rsync -a "$REPO/config/images/natro/" "$RES/images/"
 cp "$REPO/config/default_config.json" "$RES/default_config.json"
 
 # Icon: the HiveMac honeycomb.

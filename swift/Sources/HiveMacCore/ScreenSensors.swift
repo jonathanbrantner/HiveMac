@@ -72,8 +72,12 @@ public final class ScreenSensors: Sensors {
     private var filter: BackpackFilter
     public private(set) var lastBackpackRGB: (r: Int, g: Int, b: Int)?
 
-    public init(screen: ScreenReading, window: @escaping () -> WindowBounds?, config: HudConfig) {
-        self.screen = screen; self.window = window; self.cfg = config
+    private let loadImage: (String) -> RGBImage?
+    private var imageCache: [String: RGBImage] = [:]
+
+    public init(screen: ScreenReading, window: @escaping () -> WindowBounds?, config: HudConfig,
+                loadImage: @escaping (String) -> RGBImage? = { _ in nil }) {
+        self.screen = screen; self.window = window; self.cfg = config; self.loadImage = loadImage
         filter = BackpackFilter(size: config.filterSize)
     }
 
@@ -127,6 +131,18 @@ public final class ScreenSensors: Sensors {
         let white = ImageSearch.countHLS(strip, low: (0, 40, 0), high: (40, 100, 30))
         let blue = ImageSearch.countHLS(strip, low: (105, 55, 82), high: (120, 86, 100))
         return white + blue >= cfg.hiveStripMinPixels
+    }
+
+    public func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? {
+        guard let w = bounds() else { return nil }
+        let image: RGBImage
+        if let cached = imageCache[template] { image = cached }
+        else if let loaded = loadImage(template) { imageCache[template] = loaded; image = loaded }
+        else { return nil }
+        let area = region?.absolute(in: w) ?? w
+        guard let shot = screen.grab(area),
+              let hit = ImageSearch.find(shot, template: image, tolerance: tolerance, step: 1) else { return nil }
+        return (area.left + hit.x + image.width / 2, area.top + hit.y + image.height / 2)
     }
 
     public func cannonPromptVisible() -> Bool? { templateIn(cfg.hivePromptRegion, cfg.cannonPromptTemplate) }

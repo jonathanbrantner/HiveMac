@@ -310,4 +310,87 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(runner.due(bug, now: unix), ["ladybug"])
         XCTAssertTrue(f.traveled.contains("clover"))
     }
+
+    /// The real world plus a screen that shows only the pictures in `visible`.
+    final class PictureWorld: Sensors {
+        let inner: FakeWorld
+        var visible: Set<String>
+        var finds: [String] = []
+        /// Pictures that only show up after a drag, like the Yes dialog.
+        var afterDrag: Set<String> = []
+        var act: FakeActuator?
+        init(_ inner: FakeWorld, visible: Set<String>) { self.inner = inner; self.visible = visible }
+        func robloxPresent() -> Bool { inner.robloxPresent() }
+        func backpackPercent() -> Int { inner.backpackPercent() }
+        func backpackUnreadableStreak() -> Int { inner.backpackUnreadableStreak() }
+        func resetBackpackFilter() { inner.resetBackpackFilter() }
+        func healthGrey() -> Bool { inner.healthGrey() }
+        func hivePromptVisible() -> Bool? { inner.hivePromptVisible() }
+        func hiveViewVisible() -> Bool? { inner.hiveViewVisible() }
+        func cannonPromptVisible() -> Bool? { nil }
+        func deathTextVisible() -> Bool? { nil }
+        func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? {
+            finds.append(template)
+            if afterDrag.contains(template), !(act?.events.contains { $0.hasPrefix("drag ") } ?? false) { return nil }
+            return visible.contains(template) ? (400, 300) : nil
+        }
+    }
+
+    private func planterGame(visible: Set<String>, yesNeedsDrag: Bool = true) -> (Game, FakeActuator, PictureWorld) {
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: visible)
+        pw.afterDrag = yesNeedsDrag ? ["yes"] : []; pw.act = f.act
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { _, name, _ in PathFile(name: name, steps: [.walk(["a"], tiles: 3)]) })
+        return (g, f.act, pw)
+    }
+
+    func testPlacingNeedsTheInventoryAndThenDragsAndClicksYes() {
+        let (g, act, _) = planterGame(visible: ["item", "PaperPlanter", "yes"])
+        XCTAssertEqual(g.placePlanter("paper", field: "rose", atField: false), .done)
+        XCTAssertTrue(act.events.contains { $0.hasPrefix("drag ") })
+        XCTAssertEqual(act.events.filter { $0.hasPrefix("click ") }.count, 2)      // the menu, then Yes
+    }
+
+    func testPlacingDoesNothingWhenTheInventoryDoesNotOpen() {
+        let (g, act, _) = planterGame(visible: [])
+        guard case .failed = g.placePlanter("paper", field: "rose", atField: false) else { return XCTFail("should fail") }
+        XCTAssertFalse(act.events.contains { $0.hasPrefix("drag ") })
+        XCTAssertEqual(act.events.filter { $0.hasPrefix("click ") }.count, 1)      // only the menu button
+    }
+
+    func testMissingPlanterIsReportedAndNothingIsDragged() {
+        let (g, act, _) = planterGame(visible: ["item"])
+        XCTAssertEqual(g.placePlanter("paper", field: "rose", atField: false), .missing("paper"))
+        XCTAssertFalse(act.events.contains { $0.hasPrefix("drag ") })
+    }
+
+    func testHarvestPressesEOnlyWhenThePromptIsThere() {
+        var (g, act, _) = planterGame(visible: [])
+        guard case .failed = g.harvestPlanter(field: "rose") else { return XCTFail("should fail") }
+        XCTAssertEqual(act.taps("e"), 0)
+        (g, act, _) = planterGame(visible: ["e_button", "yes"], yesNeedsDrag: false)
+        XCTAssertEqual(g.harvestPlanter(field: "rose"), .done)
+        XCTAssertEqual(act.taps("e"), 1)
+    }
+
+    func testPlanterRunnerPlantsEmptySlotsThenHarvestsAndReplants() {
+        let (g, _, _) = planterGame(visible: ["item", "PaperPlanter", "yes", "e_button"])
+        var step = ExtraStep(kind: "planters")
+        step.planterFields = ["rose", "", ""]; step.harvestHours = 1
+        var unix = 1_000.0
+        var log: [(Int, Double)] = []
+        let r = GameExtraRunner(unixNow: { unix })
+        r.onPlanter = { _, slot, t in log.append((slot, t)) }
+        XCTAssertEqual(r.due(step, now: unix), ["plant 1"])
+        r.perform(step, due: ["plant 1"], game: g)
+        XCTAssertEqual(log.map(\.1), [1_000])
+        step.planterPlanted[0] = 1_000
+        XCTAssertEqual(r.due(step, now: unix + 100), [])
+        unix += 3_700
+        XCTAssertEqual(r.due(step, now: unix), ["harvest 1"])
+        r.perform(step, due: ["harvest 1"], game: g)
+        XCTAssertEqual(log.map(\.1), [1_000, 0, 4_700])                 // planted, emptied, replanted
+    }
 }

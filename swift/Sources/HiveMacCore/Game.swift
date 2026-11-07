@@ -12,6 +12,13 @@ public protocol Sensors: AnyObject {
     func hiveViewVisible() -> Bool?
     func cannonPromptVisible() -> Bool?
     func deathTextVisible() -> Bool?
+    /// Centre of a named picture (a file in the templates or built-in images) inside a part of the
+    /// window, in screen coordinates (ready to click). nil when it is not there or there is no such picture.
+    func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)?
+}
+
+public extension Sensors {
+    func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
@@ -22,6 +29,9 @@ public struct GameSettings: Equatable, Sendable {
     public var travel = "walk"              // default path variant: walk or cannon
     public var windowMode = "windowed"
     public var titleBarHeight = 28
+    /// Natro measures its menu spots in window pixels. Scale and the top bar height can be tuned if a Mac window differs.
+    public var uiScale = 1.0
+    public var uiOffsetY = 36
     public var zoomOutTaps = 6
     public var resetWaitS = 2.0             // minimum time between reset and the next walk
     public var deathExtraWaitS = 18.0       // the death screen is longer than a plain reset

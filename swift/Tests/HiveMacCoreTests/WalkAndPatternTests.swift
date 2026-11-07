@@ -20,6 +20,9 @@ final class FakeActuator: Actuator {
     func mouseDown() { mouse = true; events.append("mouse down") }
     func mouseUp() { mouse = false; events.append("mouse up") }
     func moveMouse(_ x: Int, _ y: Int) { events.append("move \(x) \(y)") }
+    func click(_ x: Int, _ y: Int) { events.append("click \(x) \(y)") }
+    func drag(fromX: Int, fromY: Int, toX: Int, toY: Int) { events.append("drag \(fromX) \(fromY) \(toX) \(toY)") }
+    func scroll(_ ticks: Int) { events.append("scroll \(ticks)") }
     func releaseAll() { down.removeAll(); mouse = false; events.append("release") }
     func taps(_ key: String) -> Int { events.filter { $0 == "tap \(key)" }.count }
 }

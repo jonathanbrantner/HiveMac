@@ -63,12 +63,13 @@ extension Game {
     }
 }
 
-/// The runner HiveMac uses: it collects pickups and hunts mobs. Planters are not built (placing one
-/// needs the inventory), so a planter step only reports that it is due.
+/// The runner HiveMac uses: it collects pickups, hunts mobs and tends planters (plant, harvest, replant).
 public final class GameExtraRunner: ExtraRunner {
     public var timers: MobTimers
     public var onTimers: (MobTimers) -> Void
     public var huntSeconds: Double
+    /// Called with (step id, slot, unix time planted; 0 = emptied) so the app can save the planter timers.
+    public var onPlanter: (UUID, Int, TimeInterval) -> Void = { _, _, _ in }
     private let unixNow: () -> TimeInterval
 
     public init(timers: MobTimers = MobTimers(), huntSeconds: Double = 90,
@@ -79,7 +80,8 @@ public final class GameExtraRunner: ExtraRunner {
 
     public func due(_ step: ExtraStep, now: TimeInterval) -> [String] {
         switch step.kind {
-        case "planters": return step.planterSlotsReady(now: now).map { "slot \($0 + 1)" }
+        case "planters":
+            return step.planterSlotsReady(now: now).map { "harvest \($0 + 1)" } + step.planterSlotsToPlant().map { "plant \($0 + 1)" }
         case "bug_run": return timers.due(step.bugs.filter { !MobFields.notBuilt.contains($0) }, now: now)
         default: return timers.due(step.bugs, now: now)
         }
@@ -104,7 +106,32 @@ public final class GameExtraRunner: ExtraRunner {
                 if game.hunt(field: group.field, seconds: huntSeconds) { done(group.mobs) }
             }
         default:
-            game.status("warning", "\(due.joined(separator: ", ")) due, but planters are not built yet")
+            for name in due {
+                if game.stopped { return }
+                let parts = name.split(separator: " ")
+                guard parts.count == 2, let n = Int(parts[1]), (1...3).contains(n) else { continue }
+                planter(step, slot: n - 1, harvest: parts[0] == "harvest", game: game)
+            }
+        }
+    }
+
+    private func planter(_ step: ExtraStep, slot: Int, harvest: Bool, game: Game) {
+        let field = step.planterFields[slot], type = step.planterTypes[slot]
+        func report(_ r: PlanterResult, _ what: String) -> Bool {
+            switch r {
+            case .done: return true
+            case .missing(let p): game.status("warning", "\(p) planter is not in your inventory")
+            case .failed(let why): game.status("warning", "\(what) at \(field) failed: \(why)")
+            }
+            return false
+        }
+        if harvest {
+            guard report(game.harvestPlanter(field: field), "harvest") else { return }
+            onPlanter(step.id, slot, 0)
+            guard step.planterReplant, !game.stopped else { return }
+            if report(game.placePlanter(type, field: field, atField: true), "replant") { onPlanter(step.id, slot, unixNow()) }
+        } else if report(game.placePlanter(type, field: field, atField: false), "plant") {
+            onPlanter(step.id, slot, unixNow())
         }
     }
 }

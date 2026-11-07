@@ -60,10 +60,6 @@ struct FieldsView: View {
                         .zIndex(reorder.dragging == key ? 1 : 0)
                         .shadow(color: .black.opacity(reorder.dragging == key ? 0.35 : 0), radius: 8, y: 2)
                     }
-                    if model.profile.extras.contains(where: { $0.kind == "planters" }) {
-                        Text("Planters are saved with this run but not run yet: placing one needs the game.")
-                            .font(Theme.caption).foregroundStyle(Theme.dust).frame(maxWidth: .infinity, alignment: .leading)
-                    }
                 }
                 .padding(.horizontal, Theme.s6)
                 .coordinateSpace(name: "rows")

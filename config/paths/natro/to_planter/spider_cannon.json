@@ -1,0 +1,80 @@
+{
+ "name": "spider_cannon",
+ "source": "NatroMacro paths/gtp-spider.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "s"
+   ],
+   "seconds": 1.05
+  },
+  {
+   "type": "tap",
+   "key": "space",
+   "count": 2
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "s"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "type": "rotate",
+   "direction": "left",
+   "count": 4
+  },
+  {
+   "type": "wait",
+   "seconds": 1.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 20.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w",
+    "a"
+   ],
+   "tiles": 10.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 10.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "d"
+   ],
+   "tiles": 9.0
+  }
+ ]
+}

@@ -33,12 +33,8 @@ struct FieldsView: View {
 
             HiveSlotPicker()
                 .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
-            DisclosureGroup(isExpanded: $showBoosts) {
-                ModeRow().padding(.top, Theme.s2)
-            } label: {
-                Text("Run mode" + boostSummary).font(Theme.body).foregroundStyle(Theme.wax)
-            }
-            .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
+            Fold(title: "Run mode" + boostSummary, isOpen: $showBoosts) { ModeRow().padding(.leading, 14) }
+                .padding(.horizontal, Theme.s6).padding(.top, Theme.s2)
 
             if model.profile.isSpecialMode {
                 Text("When there is nothing else to do").font(Theme.caption).foregroundStyle(Theme.dust)

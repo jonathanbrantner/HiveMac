@@ -20,7 +20,7 @@ struct SettingsView: View {
     }
 
     @State private var savedAt: Date?
-    @State private var showMore = false
+    @State private var showMore = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
 
     static let hotbarItems: [(String, String)] = [
         ("", "Empty"), ("sprinkler", "Sprinkler"), ("micro-converter", "Micro-Converter"), ("glitter", "Glitter"),
@@ -95,12 +95,12 @@ struct SettingsView: View {
                     }
                 }
 
-                DisclosureGroup(isExpanded: $showMore) {
+                Fold(title: "More", tint: Theme.honeyText, isOpen: $showMore) {
                     VStack(alignment: .leading, spacing: 0) {
                         SettingRow(label: "Practice mode") { Toggle("Press nothing, only read the screen", isOn: flag("app.practice_mode")).toggleStyle(.checkbox) }
                         MoreAppSettings()
-                    }.padding(.top, Theme.s2)
-                } label: { Text("More").font(Theme.bodyStrong).foregroundStyle(Theme.honeyText) }
+                    }
+                }
                 .padding(.top, Theme.s6)
             HStack {
                 Button("Save") { model.set("game.saved", Date().timeIntervalSince1970); model.saveSettings(); savedAt = Date() }

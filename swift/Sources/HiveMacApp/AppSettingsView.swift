@@ -100,35 +100,21 @@ struct AppSettingsView: View {
 }
 
 /// Recording walks and picking pictures ship ready in HiveMac. Changing them can break reading the screen or walking,
-/// so they sit behind a fold marked as a danger zone.
+/// so they sit under a red "Danger zone" title inside More, in the same flow as the other settings.
 struct MoreAppSettings: View {
-    @State private var open = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button { withAnimation(.snappy(duration: 0.15)) { open.toggle() } } label: {
-                HStack(spacing: Theme.s2) {
-                    Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
-                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11))
-                    Text("Danger zone").font(Theme.bodyStrong)
-                    Text("not recommended to change").font(Theme.caption)
-                    Spacer()
-                }
-                .foregroundStyle(Theme.ember)
+            HStack(spacing: Theme.s2) {
+                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11))
+                Text("Danger zone").font(Theme.serif(17, .semibold))
+                Text("not recommended to change").font(Theme.caption)
             }
-            .buttonStyle(.plain).padding(.vertical, Theme.s2)
-            if open {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Walks and pictures come with HiveMac and work for most people. Only change them if something does not work, and take a snapshot first.")
-                        .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
-                        .padding(.bottom, Theme.s2)
-                    RecordWalkSection()
-                    PicturesSection()
-                }
-                .padding(Theme.s4)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.ember.opacity(0.6), lineWidth: 1))
-            }
+            .foregroundStyle(Theme.ember).padding(.top, Theme.s6)
+            Text("Walks and pictures come with HiveMac and work for most people. Only change them if something does not work, and take a snapshot first.")
+                .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
+                .padding(.top, Theme.s1)
+            RecordWalkSection()
+            PicturesSection()
         }
-        .padding(.top, Theme.s4)
     }
 }

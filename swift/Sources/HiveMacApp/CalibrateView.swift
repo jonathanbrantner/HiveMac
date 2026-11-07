@@ -148,15 +148,16 @@ struct PicturesSection: View {
 }
 
 enum PictureKind: String, CaseIterable, Identifiable {
-    case backpack = "backpack_bar", hivePrompt = "hive_prompt", hiveView = "hive_view", cannonPrompt = "cannon_prompt"
+    case backpack = "backpack_bar", hivePrompt = "hive_prompt", hivePromptStop = "hive_prompt_stop", hiveView = "hive_view", cannonPrompt = "cannon_prompt"
     var id: String { rawValue }
     var title: String {
-        switch self { case .backpack: "Backpack bar"; case .hivePrompt: "Hive prompt"; case .hiveView: "Hive view"; case .cannonPrompt: "Cannon prompt" }
+        switch self { case .backpack: "Backpack bar"; case .hivePrompt: "Hive prompt"; case .hivePromptStop: "Hive prompt, honey on"; case .hiveView: "Hive view"; case .cannonPrompt: "Cannon prompt" }
     }
     var help: String {
         switch self {
         case .backpack: "Drag a box around the whole Pollen bar at the top (the grey bar with the numbers). HiveMac reads how far it is filled."
-        case .hivePrompt: "Stand at your hive until the prompt shows (Make Honey or Stop Making Honey). Drag a small box around only the grey E key square on the left, not the words. It looks the same in both."
+        case .hivePrompt: "Stand at your hive when it says Make Honey (honey making off), then drag a box around the whole prompt, the E square and the words."
+        case .hivePromptStop: "Press E at your hive so it says Stop Making Honey, then drag a box around the whole prompt. Press E again afterwards to turn it back off. HiveMac never presses E while it says this."
         case .hiveView: "Face the hive from the ramp and drag a box around something that only shows there, like the hive's front."
         case .cannonPrompt: "Stand on the cannon button until its prompt shows, then drag a box around it."
         }

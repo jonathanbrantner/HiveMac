@@ -23,6 +23,8 @@ public struct HudConfig {
     public var filterSize = 6
     public var tolerance = 12
     public var hivePromptTemplate: RGBImage?
+    /// The same prompt while honey is being made ("Stop Making Honey"): still at the hive, but E must not be pressed.
+    public var hivePromptStopTemplate: RGBImage?
     public var hiveViewTemplate: RGBImage?
     public var cannonPromptTemplate: RGBImage?
     public var deathTemplate: RGBImage?
@@ -35,7 +37,7 @@ public struct HudConfig {
         return RelPoint(fx: fx, fy: fy)
     }
 
-    static func region(_ any: Any?) -> RelRegion? {
+    public static func region(_ any: Any?) -> RelRegion? {
         guard let d = any as? [String: Any], let fx = (d["fx"] as? NSNumber)?.doubleValue,
               let fy = (d["fy"] as? NSNumber)?.doubleValue, let fw = (d["fw"] as? NSNumber)?.doubleValue,
               let fh = (d["fh"] as? NSNumber)?.doubleValue else { return nil }
@@ -60,6 +62,7 @@ public struct HudConfig {
             return name.isEmpty ? nil : loadTemplate(name)
         }
         hivePromptTemplate = tpl("hud.hive_prompt_template")
+        hivePromptStopTemplate = tpl("hud.hive_prompt_stop_template")
         hiveViewTemplate = tpl("hud.hive_view_template")
         cannonPromptTemplate = tpl("hud.cannon_prompt_template")
         deathTemplate = tpl("hud.death_template")
@@ -129,7 +132,16 @@ public final class ScreenSensors: Sensors {
         return Hud.isGrey(r: c.r, g: c.g, b: c.b)
     }
 
-    public func hivePromptVisible() -> Bool? { templateIn(cfg.hivePromptRegion, cfg.hivePromptTemplate) }
+    /// At the hive when either prompt is on screen. nil when no prompt picture is saved at all.
+    public func hivePromptVisible() -> Bool? {
+        let make = templateIn(cfg.hivePromptRegion, cfg.hivePromptTemplate)
+        let stop = templateIn(cfg.hivePromptRegion, cfg.hivePromptStopTemplate)
+        if make == nil && stop == nil { return nil }
+        return make == true || stop == true
+    }
+
+    /// True while the prompt reads "Stop Making Honey". nil when that picture is not saved.
+    public func honeyRunning() -> Bool? { templateIn(cfg.hivePromptRegion, cfg.hivePromptStopTemplate) }
 
     public func hiveViewVisible() -> Bool? {
         if let r = templateIn(cfg.hiveViewRegion, cfg.hiveViewTemplate) { return r }

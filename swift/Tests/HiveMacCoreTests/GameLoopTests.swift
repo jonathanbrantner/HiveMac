@@ -318,6 +318,8 @@ final class GameLoopTests: XCTestCase {
         var finds: [String] = []
         /// Pictures that only show up after a drag, like the Yes dialog.
         var afterDrag: Set<String> = []
+        var honey: Bool?
+        func honeyRunning() -> Bool? { honey }
         var act: FakeActuator?
         init(_ inner: FakeWorld, visible: Set<String>) { self.inner = inner; self.visible = visible }
         func robloxPresent() -> Bool { inner.robloxPresent() }
@@ -392,5 +394,18 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(r.due(step, now: unix), ["harvest 1"])
         r.perform(step, due: ["harvest 1"], game: g)
         XCTAssertEqual(log.map(\.1), [1_000, 0, 4_700])                 // planted, emptied, replanted
+    }
+
+    func testConvertNeverPressesEWhileTheHivePromptSaysStopMakingHoney() {
+        let (g, act, pw) = planterGame(visible: [])
+        pw.honey = true
+        pw.inner.atHive = true; pw.inner.backpack = 80
+        _ = g.convert()
+        XCTAssertEqual(act.taps("e"), 0)
+        let (g2, act2, pw2) = planterGame(visible: [])
+        pw2.honey = false
+        pw2.inner.atHive = true; pw2.inner.backpack = 80
+        XCTAssertTrue(g2.convert())
+        XCTAssertGreaterThan(act2.taps("e"), 0)
     }
 }

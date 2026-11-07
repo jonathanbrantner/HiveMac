@@ -18,6 +18,7 @@ final class ReportingSensors: Sensors {
     func healthGrey() -> Bool { practice ? false : inner.healthGrey() }
     func hivePromptVisible() -> Bool? { practice ? nil : inner.hivePromptVisible() }
     func hiveViewVisible() -> Bool? { practice ? nil : inner.hiveViewVisible() }
+    func honeyRunning() -> Bool? { practice ? nil : inner.honeyRunning() }
     func cannonPromptVisible() -> Bool? { inner.cannonPromptVisible() }
     func deathTextVisible() -> Bool? { inner.deathTextVisible() }
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { inner.find(template, in: region, tolerance: tolerance) }

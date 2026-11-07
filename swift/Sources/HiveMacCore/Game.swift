@@ -15,10 +15,13 @@ public protocol Sensors: AnyObject {
     /// Centre of a named picture (a file in the templates or built-in images) inside a part of the
     /// window, in screen coordinates (ready to click). nil when it is not there or there is no such picture.
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)?
+    /// True while the hive prompt says "Stop Making Honey" (converting is already on). nil when unknown.
+    func honeyRunning() -> Bool?
 }
 
 public extension Sensors {
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { nil }
+    func honeyRunning() -> Bool? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
@@ -249,7 +252,8 @@ public final class Game {
         while !stopped && clock.now() - t0 < s.convertTimeoutS {
             let pct = sensors.backpackPercent()
             if lastPct == nil || (clock.now() - lastPress > s.convertPressRetryS && pct >= lastPct! && pct > 0) {
-                tap("e")
+                // E toggles honey making: when the prompt already says "Stop Making Honey", pressing it would stop it.
+                if sensors.honeyRunning() != true { tap("e") }
                 lastPress = clock.now()
                 lastPct = pct
             }

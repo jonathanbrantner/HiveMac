@@ -66,7 +66,17 @@ extension AppModel {
         let name = "\(key).png"
         guard ScreenCapture.savePNG(crop, to: dirs.templates.appendingPathComponent(name)) else { calibMessage = "Could not save the picture."; return }
         store.set("hud.\(key)_template", name)
-        if key != "cannon_prompt" {                                        // the cannon prompt looks in the hive prompt area
+        if key == "hive_prompt_stop" {                                     // same place as the hive prompt: widen that area
+            let pad = 24
+            let rx = max(0, x - pad), ry = max(0, y - pad)
+            let rw = min(snapshot.width - rx, w + 2 * pad), rh = min(snapshot.height - ry, h + 2 * pad)
+            var l = Double(rx) / Double(snapshot.width), t = Double(ry) / Double(snapshot.height)
+            var r = l + Double(rw) / Double(snapshot.width), b = t + Double(rh) / Double(snapshot.height)
+            if let old = HudConfig.region(store.get("hud.hive_prompt_region")) {
+                l = min(l, old.fx); t = min(t, old.fy); r = max(r, old.fx + old.fw); b = max(b, old.fy + old.fh)
+            }
+            store.set("hud.hive_prompt_region", ["fx": l, "fy": t, "fw": r - l, "fh": b - t])
+        } else if key != "cannon_prompt" {                                 // the cannon prompt looks in the hive prompt area
             let pad = 24
             let rx = max(0, x - pad), ry = max(0, y - pad)
             let rw = min(snapshot.width - rx, w + 2 * pad), rh = min(snapshot.height - ry, h + 2 * pad)

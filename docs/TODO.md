@@ -1,5 +1,24 @@
 # HiveMac to do
 
+## Next (written 2026-11-07, in the order to do it)
+1. **Live test the new things**, with the stop key ready, then send `hivemac.log` and the newest `snapshots/`:
+   Quests mode (Black Bear first, then the other four givers), Booster mode, memory match (16 and 20 tiles),
+   the reworked pickup routes (treat, blueberry, strawberry, honeystorm), Keep balloon blessing.
+2. **Take the "Balloon blessing" picture** (Settings, More, Danger zone, Pictures) and bundle it as
+   `config/images/hud/balloon_blessing.png`, so nobody has to take it.
+3. **Auto login back (reconnect)** after Wi-Fi drops or Roblox crashes: notice the drop, reopen Roblox or the private
+   server link, walk to the hive, carry on; retry limit, pause between tries, log line and snapshot each time.
+   Details in `docs/NATRO_GAP.md`. This decides whether an overnight run survives.
+4. **Walk speed correction** (haste and buffs change walk speed, so timed routes miss).
+5. **Quest objectives not built yet:** petals, rage tokens, fire ants, tokens, Honey Bee, "The Trick To Tickets".
+6. **Coconut crab and king beetle**, then royal jelly and glue dispensers.
+7. **Automatic UI scale** detection for other displays (an external monitor can make corner clicks miss).
+8. Interrupt a long gather when something is due; start and pause hotkeys.
+9. **Release housekeeping:** decide on Apple Developer ID signing and notarization (today the download is signed
+   with a development certificate and macOS may block it on other Macs), and decide the licence.
+
+## Older notes
+
 What is not built yet, in the order to build it. Everything here is OFF by default and code only
 until it has been tried in the real game. Source of the inventory: Natro Macro (GPLv3). Game facts
 (timers, field lists, planter numbers) are free to use. Natro's path and pattern files are not:

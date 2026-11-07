@@ -8,14 +8,16 @@ import HiveMacPlatform
 final class ReportingSensors: Sensors {
     let inner: Sensors
     var onBackpack: (Int) -> Void = { _ in }
+    /// Practice mode: nothing is really reset, so the hive and respawn checks must not hold the run up.
+    var practice = false
     init(_ inner: Sensors) { self.inner = inner }
     func robloxPresent() -> Bool { inner.robloxPresent() }
     func backpackPercent() -> Int { let p = inner.backpackPercent(); onBackpack(p); return p }
     func backpackUnreadableStreak() -> Int { inner.backpackUnreadableStreak() }
     func resetBackpackFilter() { inner.resetBackpackFilter() }
-    func healthGrey() -> Bool { inner.healthGrey() }
-    func hivePromptVisible() -> Bool? { inner.hivePromptVisible() }
-    func hiveViewVisible() -> Bool? { inner.hiveViewVisible() }
+    func healthGrey() -> Bool { practice ? false : inner.healthGrey() }
+    func hivePromptVisible() -> Bool? { practice ? nil : inner.hivePromptVisible() }
+    func hiveViewVisible() -> Bool? { practice ? nil : inner.hiveViewVisible() }
     func cannonPromptVisible() -> Bool? { inner.cannonPromptVisible() }
     func deathTextVisible() -> Bool? { inner.deathTextVisible() }
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { inner.find(template, in: region, tolerance: tolerance) }
@@ -165,7 +167,8 @@ final class AppModel: ObservableObject {
             setStatus(.error, "No field is switched on. Turn one on in Fields.")
             return
         }
-        let settings = store.gameSettings()
+        var settings = store.gameSettings()
+        if store.bool("app.practice_mode", false) { settings.respawnTimeoutS = 0.3; settings.resetWaitS = 0.5; settings.convertTimeoutS = 5 }
         stopSignal.clear(); pauseSignal.clear()
 
         let hud = HudConfig(store: store) { name in ScreenCapture.loadPNG(self.dirs.templates.appendingPathComponent(name)) }
@@ -174,6 +177,7 @@ final class AppModel: ObservableObject {
             ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
         }
         let sensors = ReportingSensors(screenSensors)
+        sensors.practice = store.bool("app.practice_mode", false)
         sensors.onBackpack = { [weak self] p in self?.beat(); DispatchQueue.main.async { self?.backpack = p } }
 
         let builtIn = builtInPaths, dirs = self.dirs

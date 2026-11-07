@@ -649,3 +649,64 @@ extension ExtraStep {
     func with(bugs: [String]) -> ExtraStep { var s = self; s.bugs = bugs; return s }
 
 }
+
+final class MemoryMatchTests: XCTestCase {
+    /// A board of `pairs` pairs laid out by a shuffle; each card is a flat colour so equal cards look equal.
+    private func board(pairs: Int, seed: Int) -> [RGBImage] {
+        var order = Array(0..<pairs) + Array(0..<pairs)
+        var s = UInt64(seed &* 2654435761 &+ 12345)
+        for i in stride(from: order.count - 1, to: 0, by: -1) {
+            s = s &* 6364136223846793005 &+ 1442695040888963407
+            order.swapAt(i, Int((s >> 33) % UInt64(i + 1)))
+        }
+        return order.map { RGBImage(width: 50, height: 50, fill: (UInt8(20 + $0 * 11), UInt8(240 - $0 * 9), UInt8(40 + $0 * 7))) }
+    }
+
+    func testSolvesSixteenAndTwentyTileBoardsInFewFlips() {
+        for (tiles, limit) in [(16, 40), (20, 52)] {
+            for seed in 0..<25 {
+                let cards = board(pairs: tiles / 2, seed: seed)
+                let solver = MemoryMatchSolver(tiles: tiles)
+                var seen: [Int] = []
+                let flips = solver.play(maxFlips: 80) { tile in seen.append(tile); return cards[tile] }
+                XCTAssertTrue(solver.finished, "\(tiles) tiles, seed \(seed)")
+                XCTAssertLessThanOrEqual(flips, limit, "\(tiles) tiles, seed \(seed): \(flips) flips")
+                XCTAssertEqual(seen.count, flips)
+            }
+        }
+    }
+
+    func testNeverFlipsAMatchedTileAgain() {
+        let cards = board(pairs: 8, seed: 3)
+        let solver = MemoryMatchSolver(tiles: 16)
+        var flipped: [Int] = []
+        solver.play(maxFlips: 80) { tile in
+            XCTAssertFalse(solver.matched.contains(tile), "flipped matched tile \(tile)")
+            flipped.append(tile); return cards[tile]
+        }
+        XCTAssertTrue(solver.finished)
+    }
+
+    func testStopsWhenARevealFails() {
+        let solver = MemoryMatchSolver(tiles: 16)
+        XCTAssertEqual(solver.play(maxFlips: 80) { _ in nil }, 0)
+    }
+
+    func testTileSpotsFollowNatrosGrid() {
+        let f = GameFixture()
+        let g = f.game       // window 1600 x 900 at 0,0 in the fixture: middle is 800, 450
+        XCTAssertEqual(g.memoryTilePoint(0, wide: false)?.x, 800 - 200 + 80)
+        XCTAssertEqual(g.memoryTilePoint(0, wide: false)?.y, 450 - 200 + 80)
+        XCTAssertEqual(g.memoryTilePoint(5, wide: false)?.x, 800 - 200 + 160)       // second column
+        XCTAssertEqual(g.memoryTilePoint(5, wide: true)?.x, 800 - 200 + 160 - 40)   // the wide board sits 40 px left
+        XCTAssertEqual(MemoryMatchKind.extreme.tiles, 20)
+        XCTAssertEqual(MemoryMatchKind.normal.pickup, "normal memory match")
+    }
+
+    func testMachineThatCannotBeOpenedIsReportedWithoutClickingTiles() {
+        let f = GameFixture()
+        let g = f.game
+        guard case .failed = g.playMemoryMatch(.normal) else { return XCTFail("should fail without the title on screen") }
+        XCTAssertFalse(f.act.events.contains { $0.hasPrefix("click ") })
+    }
+}

@@ -9,7 +9,7 @@ struct ExtraRow: View {
     @State private var open = true
 
     private var title: String {
-        switch step.kind { case "planters": "Planters"; case "pickups": "Clock and dispensers"; case "mondo": "Mondo Chick"; default: "Bug run" }
+        switch step.kind { case "planters": "Planters"; case "pickups": "Clock and dispensers"; case "mondo": "Mondo Chick"; case "memory": "Memory match"; default: "Bug run" }
     }
 
     var body: some View {
@@ -48,8 +48,8 @@ struct ExtraRow: View {
 
     private var bugRun: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
-            Text(step.kind == "pickups" ? "Each one is only collected once its own timer has run out." : "A mob is only visited once its own timer has run out.").font(Theme.caption).foregroundStyle(Theme.dust)
-            ForEach(step.kind == "pickups" ? MobTimers.pickups : ExtraStep.bugs, id: \.self) { bug in
+            Text(step.kind == "pickups" ? "Each one is only collected once its own timer has run out." : step.kind == "memory" ? "Each machine is only played once its own cooldown is over." : "A mob is only visited once its own timer has run out.").font(Theme.caption).foregroundStyle(Theme.dust)
+            ForEach(step.kind == "pickups" ? MobTimers.pickups : step.kind == "memory" ? MemoryMatchKind.allCases.map(\.pickup) : ExtraStep.bugs, id: \.self) { bug in
                 HStack(spacing: Theme.s3) {
                     Toggle(bug.capitalized, isOn: Binding(
                         get: { step.bugs.contains(bug) },
@@ -63,7 +63,7 @@ struct ExtraRow: View {
                         .foregroundStyle(timed && left == 0 ? Theme.leaf : Theme.dust)
                     Spacer(minLength: 0)
                     if let wait = MobTimers.respawn[bug] {
-                        Text((step.kind == "pickups" ? "every " : "respawns every ") + (wait < 3600 ? "\(Int(wait / 60)) min" : "\(Int(wait / 3600)) h"))
+                        Text((step.kind == "bug_run" ? "respawns every " : "every ") + (wait < 3600 ? "\(Int(wait / 60)) min" : "\(Int(wait / 3600)) h"))
                             .font(Theme.caption).foregroundStyle(Theme.dust)
                     }
                 }

@@ -1,0 +1,70 @@
+{
+ "name": "memory_match_mega_cannon",
+ "source": "NatroMacro paths/gtc-megamm.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d",
+    "s"
+   ],
+   "seconds": 0.925
+  },
+  {
+   "type": "tap",
+   "key": "space",
+   "count": 2
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d",
+    "s"
+   ],
+   "seconds": 2.85
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d"
+   ],
+   "seconds": 1.45
+  },
+  {
+   "type": "wait",
+   "seconds": 0.6
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w",
+    "a"
+   ],
+   "tiles": 10.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a",
+    "w"
+   ],
+   "tiles": 10.0
+  }
+ ]
+}

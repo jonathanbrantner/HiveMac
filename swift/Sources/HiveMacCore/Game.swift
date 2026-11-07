@@ -26,6 +26,8 @@ public protocol Sensors: AnyObject {
     func mobBars() -> [Double]?
     /// Words of the prompt at the top of the screen ("Use the Strawberry Dispenser (3:59:58)"). nil when unreadable.
     func promptText() -> String?
+    /// A picture of an absolute screen rectangle. nil when unreadable.
+    func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage?
 }
 
 public extension Sensors {
@@ -35,6 +37,7 @@ public extension Sensors {
     func hiveViewShare() -> Double? { nil }
     func mobBars() -> [Double]? { nil }
     func promptText() -> String? { nil }
+    func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {

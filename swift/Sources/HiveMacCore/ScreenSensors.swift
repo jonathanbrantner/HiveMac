@@ -184,6 +184,10 @@ public final class ScreenSensors: Sensors {
         return Hud.honeycombShare(img)
     }
 
+    public func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? {
+        screen.grab(WindowBounds(left: left, top: top, width: width, height: height))
+    }
+
     public func promptText() -> String? {
         guard let read = textReader, let w = bounds() else { return nil }
         // A tall band across the top middle: the prompt sits there, whatever its height.

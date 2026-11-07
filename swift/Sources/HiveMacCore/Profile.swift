@@ -77,7 +77,7 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         (0..<3).filter { planterRemaining($0, now: now) == 0 }
     }
 
-    public init(kind: String) { self.kind = kind; if kind == "pickups" { bugs = ["wealth clock", "honey dispenser"] } else if kind == "mondo" { bugs = [] } }
+    public init(kind: String) { self.kind = kind; if kind == "pickups" { bugs = ["wealth clock", "honey dispenser"] } else if kind == "mondo" { bugs = [] } else if kind == "memory" { bugs = ["normal memory match"] } }
 
     public init(json d: [String: Any]) {
         self.init(kind: (d["kind"] as? String) ?? "bug_run")

@@ -220,6 +220,16 @@ public final class GameExtraRunner: ExtraRunner {
                 let result = game.hunt(field: group.field)
                 if result == .killed || result == .none { done(group.mobs) }
             }
+        case "memory":
+            for name in due {
+                if game.stopped { return }
+                guard let kind = MemoryMatchKind.allCases.first(where: { $0.pickup == name }) else { continue }
+                switch game.playMemoryMatch(kind) {
+                case .played: done([name])
+                case .onCooldown(let left): timers.setRemaining(name, seconds: left, now: unixNow()); onTimers(timers)
+                case .failed(let why): game.status("warning", "\(kind.title) memory match: \(why)")
+                }
+            }
         case "mondo":
             let result = game.mondo(kill: step.mondoAction == "kill")
             if result == .killed || result == .none { done(["mondo chick"]) }

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.3.0 (beta, 2026-11-07)
+
+Beta: part of this release has not been tried in the real game yet. See the list below and the README.
+
 - **New, untested in the real game (may not work):** run modes None, Booster mode and Quests with one idle field; quests for five givers (read from the quest log by OCR, with mob-aware waits for Polar Bear); Wealth clock and Keep balloon blessing in the modes; memory match by tile colour; pickup routes rewritten (cannon and walking fallback) with the prompt checked; log and snapshot size limits; two settings places (gear for the app, Settings tab for the macro).
 - The stop key is now armed only during a run, so it can be typed in text fields otherwise.
 - Tested in the real game: fields, bug runs and collecting pickups work. Planters and Mondo Chick are built and still in beta.

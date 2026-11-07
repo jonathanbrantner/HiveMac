@@ -180,7 +180,9 @@ public final class GameExtraRunner: ExtraRunner {
         case "mondo":
             let utcMinute = Int(now / 60) % 60
             return utcMinute < 14 ? timers.due(["mondo chick"], now: now) : []
-        case "bug_run": return timers.due(step.bugs.filter { !MobFields.notBuilt.contains($0) }, now: now)
+        case "bug_run":
+            let utcMinute = Int(now / 60) % 60
+            return timers.due(step.bugs.filter { !MobFields.notBuilt.contains($0) && ($0 != "mondo chick" || utcMinute < 14) }, now: now)
         default: return timers.due(step.bugs, now: now)
         }
     }
@@ -206,6 +208,14 @@ public final class GameExtraRunner: ExtraRunner {
         case "pickups":
             for p in due {
                 if game.stopped { return }
+                if let kind = MemoryMatchKind.allCases.first(where: { $0.pickup == p }) {
+                    switch game.playMemoryMatch(kind) {
+                    case .played: done([p])
+                    case .onCooldown(let left): timers.setRemaining(p, seconds: left, now: unixNow()); onTimers(timers)
+                    case .failed(let why): game.status("warning", "\(kind.title) memory match: \(why)")
+                    }
+                    continue
+                }
                 switch game.collect(p) {
                 case .collected: done([p])
                 case .onCooldown(let left):                          // the game's own countdown wins
@@ -214,6 +224,10 @@ public final class GameExtraRunner: ExtraRunner {
                 }
             }
         case "bug_run":
+            if due.contains("mondo chick") {
+                let result = game.mondo(kill: step.mondoAction == "kill")
+                if result == .killed || result == .none { done(["mondo chick"]) }
+            }
             for name in due where Bosses.spec(name) != nil {
                 if game.stopped { return }
                 guard let spec = Bosses.spec(name) else { continue }

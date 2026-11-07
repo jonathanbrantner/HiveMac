@@ -37,7 +37,7 @@ extension FieldConfig {
 /// A step in a run besides a field. Saved with the run; the engine does not run these yet.
 public struct ExtraStep: Equatable, Identifiable, Sendable {
     public static let bugs = ["ladybug", "rhino beetle", "spider", "mantis", "scorpion", "werewolf",
-                              "coconut crab", "king beetle", "tunnel bear", "stump snail", "black bear"]
+                              "coconut crab", "king beetle", "tunnel bear", "stump snail", "black bear", "mondo chick"]
     public var id = UUID()
     public var kind: String                 // bug_run, planters, pickups
     public var enabled = true

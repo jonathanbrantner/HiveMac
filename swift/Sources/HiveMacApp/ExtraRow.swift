@@ -49,7 +49,7 @@ struct ExtraRow: View {
     private var bugRun: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
             Text(step.kind == "pickups" ? "Each one is only collected once its own timer has run out." : step.kind == "memory" ? "Each machine is only played once its own cooldown is over." : "A mob is only visited once its own timer has run out.").font(Theme.caption).foregroundStyle(Theme.dust)
-            ForEach(step.kind == "pickups" ? MobTimers.pickups : step.kind == "memory" ? MemoryMatchKind.allCases.map(\.pickup) : ExtraStep.bugs, id: \.self) { bug in
+            ForEach(step.kind == "pickups" ? MobTimers.pickups + MemoryMatchKind.allCases.map(\.pickup) : step.kind == "memory" ? MemoryMatchKind.allCases.map(\.pickup) : ExtraStep.bugs, id: \.self) { bug in
                 HStack(spacing: Theme.s3) {
                     Toggle(bug.capitalized, isOn: Binding(
                         get: { step.bugs.contains(bug) },
@@ -67,6 +67,13 @@ struct ExtraRow: View {
                             .font(Theme.caption).foregroundStyle(Theme.dust)
                     }
                 }
+            }
+            if step.kind == "bug_run", step.bugs.contains("mondo chick") {
+                HStack(spacing: Theme.s3) {
+                    Text("Mondo Chick").font(Theme.body).foregroundStyle(Theme.resin).frame(width: 110, alignment: .leading)
+                    Choice(options: [("buff", "Stand by it for the buff"), ("kill", "Kill it")], selection: $step.mondoAction, width: 200)
+                }
+                Text("Only in the first 14 minutes of each hour (UTC).").font(Theme.caption).foregroundStyle(Theme.dust)
             }
         }
     }

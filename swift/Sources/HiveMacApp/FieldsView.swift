@@ -97,7 +97,7 @@ struct FieldsView: View {
 extension FieldsView {
     @ViewBuilder func rowView(_ key: String) -> some View {
         if key.hasPrefix("f:"), let i = model.profile.fields.firstIndex(where: { "f:" + $0.name == key }) {
-            FieldRow(field: $model.profile.fields[i], key: key) { model.profile.fields.remove(at: i) }
+            FieldRow(field: $model.profile.fields[i], key: key, taken: model.profile.fields.map(\.name)) { model.profile.fields.remove(at: i) }
         } else if let i = model.profile.extras.firstIndex(where: { "e:" + $0.id.uuidString == key }) {
             ExtraRow(step: $model.profile.extras[i], key: key) { model.profile.extras.remove(at: i) }
         }

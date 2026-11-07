@@ -4,6 +4,8 @@ import HiveMacCore
 struct FieldRow: View {
     @Binding var field: FieldConfig
     var key: String
+    /// Names of all fields in this run, so the same field is not picked twice.
+    var taken: [String] = []
     var remove: () -> Void
     @State private var open = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
 
@@ -49,11 +51,25 @@ struct FieldRow: View {
         })
     }
 
+    /// Switching to another field gives it that field's own pattern, size and sprinkler, but keeps
+    /// the minutes, backpack percent, return, travel and on/off you already set.
+    private var nameBinding: Binding<String> {
+        Binding(get: { field.name }, set: { new in
+            guard new != field.name else { return }
+            var f = FieldConfig(name: new)
+            f.minutes = field.minutes; f.backpackPercent = field.backpackPercent
+            f.returnMethod = field.returnMethod; f.travel = field.travel; f.enabled = field.enabled
+            field = f
+        })
+    }
+
     private var more: some View {
         Grid(alignment: .leading, horizontalSpacing: Theme.s3, verticalSpacing: Theme.s2) {
             GridRow {
-                Color.clear.frame(width: 1, height: 1)
-                Toggle("Use this field", isOn: $field.enabled).toggleStyle(.checkbox).font(Theme.body).gridCellColumns(3)
+                label("Field")
+                Choice(options: FieldDefaults.order.filter { $0 == field.name || !taken.contains($0) }.map { ($0, $0.capitalized) },
+                       selection: nameBinding, width: 110)
+                Toggle("Use this field", isOn: $field.enabled).toggleStyle(.checkbox).font(Theme.body).gridCellColumns(2)
             }
             GridRow {
                 label("Size")

@@ -314,7 +314,7 @@ final class GameLoopTests: XCTestCase {
     }
 
     func testHuntPlanSharesFields() {
-        let plan = MobFields.plan(["ladybug", "rhino beetle", "werewolf", "king beetle"])
+        let plan = MobFields.plan(["ladybug", "rhino beetle", "werewolf", "black bear"])
         XCTAssertEqual(plan.map(\.field), ["clover", "pumpkin"])
         XCTAssertEqual(plan[0].mobs, ["ladybug", "rhino beetle"])
     }
@@ -322,11 +322,11 @@ final class GameLoopTests: XCTestCase {
     func testRunnerMarksPickupsAndMobsDoneThenSkipsThemUntilBack() {
         let f = GameFixture(fillPerS: 20)
         var pick = ExtraStep(kind: "pickups"); pick.bugs = ["wealth clock"]
-        var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug", "coconut crab"]
+        var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug", "black bear"]
         var saved = 0
         var unix = 5_000.0
         let runner = GameExtraRunner(huntSeconds: 20, unixNow: { unix }, onTimers: { _ in saved += 1 })
-        XCTAssertEqual(runner.due(bug, now: unix), ["ladybug"])            // coconut crab is not hunted yet
+        XCTAssertEqual(runner.due(bug, now: unix), ["ladybug"])            // black bear is not hunted yet
         runner.perform(pick, due: ["wealth clock"], game: f.game)
         runner.perform(bug, due: ["ladybug"], game: f.game)
         XCTAssertEqual(saved, 2)
@@ -336,6 +336,46 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(runner.due(pick, now: unix), ["wealth clock"])
         XCTAssertEqual(runner.due(bug, now: unix), ["ladybug"])
         XCTAssertTrue(f.traveled.contains("clover"))
+    }
+
+    private func bossGame(_ bars: [[Double]]?) -> (Game, PictureWorld) {
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: [])
+        pw.barScript = bars; pw.act = f.act
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { kind, name, _ in
+                         kind == "to_field" ? PathFile(name: name, steps: [.walk(["a"], tiles: 3)]) : PathFile(name: name, steps: [.walk(["a"], tiles: 3)])
+                     })
+        return (g, pw)
+    }
+
+    func testBossIsKilledWhenItsHealthBarStaysGone() {
+        let (g, _) = bossGame([[0.9], [0.8], [0.4], [], [], [], []])
+        XCTAssertEqual(g.boss(Bosses.spec("king beetle")!), .killed)
+    }
+
+    func testBossThatIsNotThereIsMissedAndNoFightStarts() {
+        let (g, pw) = bossGame([[]])
+        XCTAssertEqual(g.boss(Bosses.spec("coconut crab")!), .none)
+        XCTAssertEqual(pw.finds, [])
+    }
+
+    func testBossWithAnUnreadableScreenIsSkipped() {
+        let (g, _) = bossGame(nil)
+        XCTAssertEqual(g.boss(Bosses.spec("stump snail")!), .none)
+    }
+
+    func testBossThatWillNotDieTimesOut() {
+        var spec = Bosses.spec("stump snail")!; spec.maxSeconds = 30
+        let (g, _) = bossGame([[0.9]])
+        XCTAssertEqual(g.boss(spec), .timeout)
+    }
+
+    func testBossDeadPictureEndsTheFightEvenWithABarStillShowing() {
+        let (g, pw) = bossGame([[0.9]])
+        pw.visible = ["crab"]
+        XCTAssertEqual(g.boss(Bosses.spec("coconut crab")!), .killed)
     }
 
     /// The real world plus a screen that shows only the pictures in `visible`.

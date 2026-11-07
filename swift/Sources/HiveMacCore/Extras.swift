@@ -12,7 +12,7 @@ public enum MobFields {
         "werewolf": ["pumpkin"],
     ]
     /// In the bug run picker but not hunted yet.
-    public static let notBuilt = ["coconut crab", "king beetle", "black bear"]
+    public static let notBuilt = ["black bear"]
 
     /// mob -> field for the mobs that are due, sharing fields where possible.
     public static func plan(_ mobs: [String]) -> [(field: String, mobs: [String])] {
@@ -214,6 +214,16 @@ public final class GameExtraRunner: ExtraRunner {
                 }
             }
         case "bug_run":
+            for name in due where Bosses.spec(name) != nil {
+                if game.stopped { return }
+                guard let spec = Bosses.spec(name) else { continue }
+                switch game.boss(spec) {
+                case .killed: done([name])
+                case .none: timers.setRemaining(name, seconds: spec.missRetryS, now: unixNow()); onTimers(timers)
+                case .timeout: timers.setRemaining(name, seconds: spec.timeoutRetryS, now: unixNow()); onTimers(timers)
+                case .interrupted: return
+                }
+            }
             for group in MobFields.plan(due) {
                 if game.stopped { return }
                 game.status("traveling", "bug run: \(group.mobs.joined(separator: ", ")) at \(group.field)")

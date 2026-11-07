@@ -61,6 +61,28 @@ extension AppModel {
         if gone == activeRunFile, let next = runs.first?.file { activeRunFile = ""; switchRun(next) }
     }
 
+    // MARK: Field defaults (Settings tab): used for new fields, and by "Apply to all fields"
+    static let defaultKeys = ["fields.minutes", "fields.size", "fields.width", "fields.return"]
+
+    /// Gives a new field the defaults the user has set in Settings (only the ones they set).
+    func applyFieldDefaults(to f: inout FieldConfig) {
+        if store.get("fields.minutes") != nil { f.minutes = store.double("fields.minutes", f.minutes) }
+        if let size = store.get("fields.size") as? String, size != f.size {
+            let ratio = Patterns.sizeFactor(size) / Patterns.sizeFactor(f.size)
+            f.sprinklerDistance = max(1, Int((Double(f.sprinklerDistance) * ratio).rounded())); f.size = size
+        }
+        if store.get("fields.width") != nil { f.width = store.int("fields.width", f.width) }
+        if let r = store.get("fields.return") as? String { f.returnMethod = r }
+        f.backpackPercent = hive.backpackPercent
+    }
+
+    func applyFieldDefaultsToAll() {
+        guard !running else { return }
+        // What Settings shows counts as set, even if it was never touched.
+        for (k, v) in [("fields.minutes", 10.0 as Any), ("fields.size", "m"), ("fields.width", 4), ("fields.return", "walk")] where store.get(k) == nil { store.set(k, v) }
+        for i in profile.fields.indices { applyFieldDefaults(to: &profile.fields[i]) }
+    }
+
     func saveSettings() {
         hive.write(to: store)
         try? store.save()

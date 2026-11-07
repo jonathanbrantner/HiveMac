@@ -49,51 +49,32 @@ struct FieldRow: View {
         })
     }
 
-    /// Switching to another field gives it that field's own pattern, size and sprinkler, but keeps
-    /// the minutes, backpack percent, return, travel and on/off you already set.
-    private var nameBinding: Binding<String> {
-        Binding(get: { field.name }, set: { new in
-            guard new != field.name else { return }
-            var f = FieldConfig(name: new)
-            f.minutes = field.minutes; f.backpackPercent = field.backpackPercent
-            f.returnMethod = field.returnMethod; f.travel = field.travel; f.enabled = field.enabled
-            field = f
-        })
-    }
-
     @State private var showMore = false
 
-    /// One setting: a name, the control, and one plain sentence about what it does.
-    private func setting<Control: View>(_ name: String, _ hint: String, @ViewBuilder _ control: () -> Control) -> some View {
+    /// One setting: a name and the control. No explanations; the names say it.
+    private func setting<Control: View>(_ name: String, @ViewBuilder _ control: () -> Control) -> some View {
         HStack(alignment: .center, spacing: Theme.s3) {
             Text(name).font(Theme.body).foregroundStyle(Theme.resin).frame(width: 150, alignment: .leading)
             control()
-            Text(hint).font(Theme.caption).foregroundStyle(Theme.dust).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .frame(minHeight: 30)
+        .frame(minHeight: 28)
     }
 
     private var more: some View {
-        VStack(alignment: .leading, spacing: Theme.s1) {
-            setting("Field", "Which field this row is for.") {
-                Choice(options: FieldDefaults.order.filter { $0 == field.name || !taken.contains($0) }.map { ($0, $0.capitalized) },
-                       selection: nameBinding, width: 120)
+        VStack(alignment: .leading, spacing: 0) {
+            setting("Use this field") { Toggle("", isOn: $field.enabled).toggleStyle(.checkbox).labelsHidden() }
+            setting("Pattern size") {
+                Choice(options: [("xs", "Tiny"), ("s", "Small"), ("m", "Medium"), ("l", "Large"), ("xl", "Huge")], selection: sizeBinding, width: 120)
             }
-            setting("Use this field", "Untick to skip it without deleting it.") {
-                Toggle("", isOn: $field.enabled).toggleStyle(.checkbox).labelsHidden()
+            setting("Sprinkler spot") {
+                Choice(options: Self.locations.map { ($0, $0.capitalized) }, selection: $field.sprinklerLocation, width: 120)
             }
-            setting("Pattern size", "How wide the walking pattern spreads. Bigger covers more of the field.") {
-                Choice(options: [("xs", "Tiny"), ("s", "Small"), ("m", "Medium"), ("l", "Large"), ("xl", "Huge")], selection: sizeBinding, width: 90)
-            }
-            setting("Back to hive", "Walk back, or respawn with Esc, R, Enter.") {
+            setting("Back to hive") {
                 Choice(options: [("walk", "Walk back"), ("reset", "Respawn")], selection: $field.returnMethod, width: 120)
             }
-            setting("Get there", "Usual follows the Macro tab.") {
+            setting("Get there") {
                 Choice(options: [("default", "Usual"), ("walk", "Walk"), ("cannon", "Cannon")], selection: $field.travel, width: 120)
-            }
-            setting("Sprinkler spot", "Where in the field the sprinkler goes.") {
-                Choice(options: Self.locations.map { ($0, $0.capitalized) }, selection: $field.sprinklerLocation, width: 120)
             }
 
             Button { withAnimation(.snappy(duration: 0.15)) { showMore.toggle() } } label: {
@@ -102,38 +83,25 @@ struct FieldRow: View {
                     Text("More").font(Theme.bodyStrong)
                 }.foregroundStyle(Theme.honeyText)
             }
-            .buttonStyle(.plain).padding(.top, Theme.s2)
+            .buttonStyle(.plain).padding(.vertical, Theme.s2)
 
             if showMore {
-                setting("Turn the camera", "After arriving, turn the camera this way so the pattern lines up with the field.") {
-                    Choice(options: [("none", "Don't"), ("left", "Left"), ("right", "Right")], selection: $field.camera, width: 90)
+                setting("Camera turn") {
+                    Choice(options: [("none", "None"), ("left", "Left"), ("right", "Right")], selection: $field.camera, width: 90)
+                    TextField("", value: $field.turns, format: .number).fieldStyle(width: 48)
                 }
-                setting("Camera turn steps", "How many small turns. Two turns is a quarter circle.") {
-                    TextField("", value: $field.turns, format: .number).fieldStyle(width: 56)
-                }
-                setting("Sprinkler distance", "How far from the middle of the field the sprinkler goes.") {
-                    TextField("", value: $field.sprinklerDistance, format: .number).fieldStyle(width: 56)
-                }
-                setting("Pattern repeats", "How many times the pattern is walked before it starts again.") {
-                    TextField("", value: $field.width, format: .number).fieldStyle(width: 56)
-                }
-                setting("Shift lock", "Gather with shift lock on. Some patterns need it.") {
-                    Toggle("", isOn: $field.shiftLock).toggleStyle(.checkbox).labelsHidden()
-                }
-                setting("Mirror forward and back", "Swap the pattern's forward and back. Only if it walks the wrong way in this field.") {
-                    Toggle("", isOn: $field.invertFB).toggleStyle(.checkbox).labelsHidden()
-                }
-                setting("Mirror left and right", "Swap the pattern's left and right. Only if it walks the wrong way in this field.") {
-                    Toggle("", isOn: $field.invertLR).toggleStyle(.checkbox).labelsHidden()
-                }
-                Button("Reset these to Natro's values") {
+                setting("Sprinkler distance") { TextField("", value: $field.sprinklerDistance, format: .number).fieldStyle(width: 56) }
+                setting("Pattern repeats") { TextField("", value: $field.width, format: .number).fieldStyle(width: 56) }
+                setting("Shift lock") { Toggle("", isOn: $field.shiftLock).toggleStyle(.checkbox).labelsHidden() }
+                setting("Mirror forward and back") { Toggle("", isOn: $field.invertFB).toggleStyle(.checkbox).labelsHidden() }
+                setting("Mirror left and right") { Toggle("", isOn: $field.invertLR).toggleStyle(.checkbox).labelsHidden() }
+                Button("Reset to Natro's values") {
                     var d = FieldConfig(name: field.name)
                     d.enabled = field.enabled; d.minutes = field.minutes; d.backpackPercent = field.backpackPercent
                     d.returnMethod = field.returnMethod; d.travel = field.travel
                     field = d
                 }
                 .buttonStyle(QuietButtonStyle()).padding(.top, Theme.s2)
-                .help("Puts pattern, size, camera and sprinkler back to Natro's values for this field")
             }
         }
     }

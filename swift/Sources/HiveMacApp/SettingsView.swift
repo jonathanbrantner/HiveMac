@@ -55,6 +55,21 @@ struct SettingsView: View {
                 }
                 SettingRow(label: "Backpack percent") { TextField("", value: $model.hive.backpackPercent, format: .number).fieldStyle(width: 64) }
 
+                SectionTitle("Every field")
+                SettingRow(label: "Minutes") { TextField("", value: num("fields.minutes", 10), format: .number).fieldStyle(width: 64) }
+                SettingRow(label: "Pattern size") {
+                    Choice(options: [("xs", "Tiny"), ("s", "Small"), ("m", "Medium"), ("l", "Large"), ("xl", "Huge")], selection: str("fields.size", "m"), width: 120)
+                }
+                SettingRow(label: "Pattern repeats") { TextField("", value: int("fields.width", 4), format: .number).fieldStyle(width: 64) }
+                SettingRow(label: "Back to hive") {
+                    Choice(options: [("walk", "Walk back"), ("reset", "Respawn")], selection: str("fields.return", "walk"), width: 120)
+                }
+                HStack {
+                    Button("Apply to all fields in this run") { model.applyFieldDefaultsToAll() }
+                        .buttonStyle(QuietButtonStyle()).disabled(model.running)
+                    Text("New fields get these too, and the backpack percent above.").font(Theme.caption).foregroundStyle(Theme.dust)
+                }.padding(.top, Theme.s2)
+
                 SectionTitle("Walking")
                 SettingRow(label: "Walk speed, no buffs") { TextField("", value: num("game.walk_speed", 28), format: .number).fieldStyle(width: 64) }
                 SettingRow(label: "Default travel") {

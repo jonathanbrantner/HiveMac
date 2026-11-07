@@ -76,7 +76,7 @@ struct FieldsView: View {
                         ForEach(FieldDefaults.order, id: \.self) { name in
                             Button(name.capitalized + (!FieldColors.recommended(for: model.hive.color).isEmpty && FieldColors.table[name] == model.hive.color ? "  (fits your bees)" : "")) {
                                 var f = FieldConfig(name: name)
-                                f.backpackPercent = model.hive.backpackPercent
+                                model.applyFieldDefaults(to: &f)
                                 model.profile.fields.append(f)
                             }
                             .disabled(model.profile.fields.contains { $0.name == name })

@@ -95,8 +95,8 @@ struct FieldRow: View {
             Button { withAnimation(.snappy(duration: 0.15)) { showMore.toggle() } } label: {
                 HStack(spacing: Theme.s1) {
                     Image(systemName: showMore ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
-                    Text("More").font(Theme.body)
-                }.foregroundStyle(Theme.resin)
+                    Text("More").font(Theme.bodyStrong)
+                }.foregroundStyle(Theme.honeyText)
             }
             .buttonStyle(.plain).padding(.top, Theme.s2)
 

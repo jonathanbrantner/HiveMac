@@ -126,7 +126,7 @@ final class GameLoopTests: XCTestCase {
         let f = GameFixture()
         f.world.hivePromptOverride = false
         XCTAssertFalse(f.game.resetToHive())
-        XCTAssertEqual(f.world.resets, f.game.settings.resetAttempts)
+        XCTAssertEqual(f.world.resets, 2)                      // never more than two resets in a row
     }
 
     func testConvertPressesEAndWaitsForEmpty() {

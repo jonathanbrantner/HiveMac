@@ -27,7 +27,7 @@ public final class FarmLoop {
     private let maxFailed: Int
     private var index = 0
 
-    public init(_ game: Game, fields: [FieldConfig], maxCycles: Int? = nil, maxFailedResets: Int = 3) {
+    public init(_ game: Game, fields: [FieldConfig], maxCycles: Int? = nil, maxFailedResets: Int = 2) {
         self.game = game
         self.fields = fields.filter(\.enabled)
         self.items = self.fields.map { Item.field($0) }
@@ -38,7 +38,7 @@ public final class FarmLoop {
     }
 
     /// A whole run: fields and extras in the order of the profile.
-    public init(_ game: Game, profile: Profile, extras: ExtraRunner, maxCycles: Int? = nil, maxFailedResets: Int = 3,
+    public init(_ game: Game, profile: Profile, extras: ExtraRunner, maxCycles: Int? = nil, maxFailedResets: Int = 2,
                 unixNow: @escaping () -> TimeInterval = { Date().timeIntervalSince1970 }) {
         self.game = game
         self.fields = profile.fields.filter(\.enabled)

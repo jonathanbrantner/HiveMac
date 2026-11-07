@@ -38,7 +38,10 @@ public struct GameSettings: Equatable, Sendable {
     public var zoomOutTaps = 6
     public var resetWaitS = 2.0             // minimum time between reset and the next walk
     public var deathExtraWaitS = 18.0       // the death screen is longer than a plain reset
-    public var resetAttempts = 5
+    /// Resets tried before giving up. Capped at 2: a third Esc, R, Enter never fixes a check that is wrong.
+    public var resetAttempts = 2
+    /// After a reset the hive prompt may show a moment late: look this long before calling it a miss.
+    public var hivePromptRecheckS = 4.0
     public var respawnTimeoutS = 12.0
     public var convertTimeoutS = 300.0
     public var convertPressRetryS = 6.0
@@ -178,7 +181,7 @@ public final class Game {
         let s = settings
         releaseEverything()
         setShiftLock(false)
-        for attempt in 1...max(1, s.resetAttempts) {
+        for attempt in 1...min(2, max(1, s.resetAttempts)) {
             if stopped { return false }
             status("resetting", "attempt \(attempt)")
             parkMouse()
@@ -191,16 +194,21 @@ public final class Game {
             wait(s.resetWaitS + extra)
             if stopped { return false }
             sensors.resetBackpackFilter()
-            let atHive = sensors.hivePromptVisible()
+            var atHive = sensors.hivePromptVisible()
+            let looked = clock.now()
+            while atHive == false && clock.now() - looked < s.hivePromptRecheckS && !stopped {
+                wait(0.5)
+                atHive = sensors.hivePromptVisible()
+            }
             if atHive == false {
-                status("resetting", "hive prompt not seen, retrying")
+                status("resetting", attempt < min(2, max(1, s.resetAttempts)) ? "hive prompt not seen, trying one more reset" : "hive prompt not seen")
                 continue
             }
             if atHive == nil { status("resetting", "no hive prompt template, assuming at hive") }
             _ = fixCamera()
             return true
         }
-        status("error", "could not confirm the hive after reset")
+        status("error", "could not see the hive prompt after the reset. Check that you are not stuck somewhere, and check the Hive prompt pictures in Calibrate.")
         return false
     }
 

@@ -72,9 +72,8 @@ struct HeaderView: View {
 
     var body: some View {
         HStack(spacing: Theme.s3) {
-            Spacer().frame(width: 68)          // clears the window buttons
             HiveMark(size: 24)
-            Text("HiveMac").font(Theme.serif(20, .semibold)).foregroundStyle(Theme.wax)
+            Text(model.profile.name).font(Theme.serif(20, .semibold)).foregroundStyle(Theme.wax).lineLimit(1)
             Spacer()
             HexDot(color: dot)
             Text(model.state.label).font(Theme.bodyStrong).foregroundStyle(Theme.wax)
@@ -82,7 +81,7 @@ struct HeaderView: View {
             Button { showSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 15)) }
                 .buttonStyle(.plain).foregroundStyle(Theme.resin).help("App settings")
         }
-        .padding(.trailing, Theme.s6)
+        .padding(.horizontal, Theme.s6)
         .frame(height: 52)
         .sheet(isPresented: $showSettings) { AppSettingsView() }
     }

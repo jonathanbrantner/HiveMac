@@ -32,7 +32,8 @@ struct WindowChrome: NSViewRepresentable {
         DispatchQueue.main.async {
             guard let w = v.window else { return }
             w.titlebarAppearsTransparent = true
-            w.titleVisibility = .hidden
+            w.titleVisibility = .visible
+            w.title = "HiveMac"
             w.styleMask.insert(.fullSizeContentView)
             w.isMovableByWindowBackground = true
             w.backgroundColor = NSColor(name: nil) { a in a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

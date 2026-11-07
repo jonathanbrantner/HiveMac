@@ -447,3 +447,49 @@ extension GameLoopTests {
         XCTAssertEqual(w.reads, 5)
     }
 }
+
+extension GameLoopTests {
+    /// The camera turns an eighth per tap of ".". The honeycomb is biggest at heading 0.
+    final class HeadingWorld: Sensors {
+        let inner: FakeWorld
+        let act: FakeActuator
+        let start: Int
+        init(_ inner: FakeWorld, act: FakeActuator, start: Int) { self.inner = inner; self.act = act; self.start = start }
+        var heading: Int { (start + act.taps(".")) % 8 }
+        func robloxPresent() -> Bool { true }
+        func backpackPercent() -> Int { 0 }
+        func backpackUnreadableStreak() -> Int { 0 }
+        func resetBackpackFilter() {}
+        func healthGrey() -> Bool { false }
+        func hivePromptVisible() -> Bool? { true }
+        func hiveViewVisible() -> Bool? { nil }
+        func cannonPromptVisible() -> Bool? { nil }
+        func deathTextVisible() -> Bool? { nil }
+        func hiveViewShare() -> Double? {
+            switch heading { case 0: return 0.13; case 1, 7: return 0.06; default: return 0.02 }
+        }
+    }
+
+    func testCameraEndsFacingAwayFromTheHiveFromEverySpawnDirection() {
+        for start in 0..<8 {
+            let f = GameFixture()
+            let w = HeadingWorld(f.world, act: f.act, start: start)
+            let g = Game(actuator: f.act, sensors: w, settings: f.game.settings, clock: f.clock, status: { _, _ in })
+            XCTAssertTrue(g.fixCamera())
+            XCTAssertEqual(w.heading, 4, "spawned at heading \(start)")             // half a circle from the hive
+        }
+    }
+
+    func testCameraLeavesTheViewAloneWhenNoHiveIsSeen() {
+        let f = GameFixture()
+        final class Blind: Sensors {
+            func robloxPresent() -> Bool { true }; func backpackPercent() -> Int { 0 }; func backpackUnreadableStreak() -> Int { 0 }
+            func resetBackpackFilter() {}; func healthGrey() -> Bool { false }; func hivePromptVisible() -> Bool? { true }
+            func hiveViewVisible() -> Bool? { nil }; func cannonPromptVisible() -> Bool? { nil }; func deathTextVisible() -> Bool? { nil }
+            func hiveViewShare() -> Double? { 0.01 }
+        }
+        let g = Game(actuator: f.act, sensors: Blind(), settings: f.game.settings, clock: f.clock, status: { _, _ in })
+        XCTAssertFalse(g.fixCamera())
+        XCTAssertEqual(f.act.taps(".") % 8, 0)                                        // one full circle, no extra turn
+    }
+}

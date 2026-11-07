@@ -171,17 +171,17 @@ public final class ScreenSensors: Sensors {
     }
 
     public func hiveViewVisible() -> Bool? {
-        let picture = templateIn(cfg.hiveViewRegion, cfg.hiveViewTemplate)
-        if picture == true { return true }
-        // Natro's "existance" check: the white respawn pad or the blue balloon in a strip at the bottom.
-        // A picture of a whole 3D scene rarely matches twice, so this backs it up even when it is not switched on.
-        let area = cfg.hiveStripRegion ?? bounds().map { Layout.natroDefaults($0, offsetY: 36).hiveStripRegion }
-        if let strip = region(area) {
-            let white = ImageSearch.countHLS(strip, low: (0, 40, 0), high: (40, 100, 30))
-            let blue = ImageSearch.countHLS(strip, low: (105, 55, 82), high: (120, 86, 100))
-            return white + blue >= cfg.hiveStripMinPixels
-        }
-        return picture
+        if let r = templateIn(cfg.hiveViewRegion, cfg.hiveViewTemplate) { return r }
+        guard cfg.hiveStripEnabled, let strip = region(cfg.hiveStripRegion) else { return nil }
+        // Existance macro: white respawn pad or blue balloon colours in the bottom strip.
+        let white = ImageSearch.countHLS(strip, low: (0, 40, 0), high: (40, 100, 30))
+        let blue = ImageSearch.countHLS(strip, low: (105, 55, 82), high: (120, 86, 100))
+        return white + blue >= cfg.hiveStripMinPixels
+    }
+
+    public func hiveViewShare() -> Double? {
+        guard let w = bounds(), let img = screen.grab(w) else { return nil }
+        return Hud.honeycombShare(img)
     }
 
     /// True while the message says "Stop Making Honey" (E would turn converting off); false when it says

@@ -81,3 +81,12 @@ final class PollenTextTests: XCTestCase {
         XCTAssertNil(Hud.pollenPercent(fromText: "(+3,683/sec)"))
     }
 }
+
+final class HoneycombTests: XCTestCase {
+    func testGoldMassMeansFacingTheHive() {
+        let gold = RGBImage(width: 120, height: 80, fill: (214, 150, 40))        // honeycomb orange/gold
+        let grass = RGBImage(width: 120, height: 80, fill: (60, 150, 60))
+        XCTAssertGreaterThan(Hud.honeycombShare(gold), 0.9)
+        XCTAssertEqual(Hud.honeycombShare(grass), 0, accuracy: 0.001)
+    }
+}

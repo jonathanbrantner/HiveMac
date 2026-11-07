@@ -94,6 +94,23 @@ public enum Hud {
         return min(100, Int((Double(best) / Double(bar.width) * 20).rounded()) * 5)
     }
 
+    /// How much of the middle of the screen is the honeycomb's gold and orange, 0 to 1. Facing your hive
+    /// it is about 0.12 to 0.14; facing the field about 0.02 (measured on real screenshots).
+    public static func honeycombShare(_ image: RGBImage) -> Double {
+        let x0 = image.width / 5, x1 = image.width * 4 / 5, y0 = image.height / 8, y1 = image.height * 3 / 4
+        guard x1 > x0, y1 > y0 else { return 0 }
+        var gold = 0, total = 0
+        for y in stride(from: y0, to: y1, by: 3) {
+            for x in stride(from: x0, to: x1, by: 3) {
+                let p = image.pixel(x, y)
+                let c = ImageSearch.hls(r: p.r, g: p.g, b: p.b)
+                total += 1
+                if c.h >= 28 && c.h <= 52 && c.s > 60 && c.l > 35 && c.l < 70 { gold += 1 }
+            }
+        }
+        return total == 0 ? 0 : Double(gold) / Double(total)
+    }
+
     /// Natro's health bar check: dead when all three channels sit in the grey band.
     public static func isGrey(r: Int, g: Int, b: Int, low: Int = 0x4D, high: Int = 0x83) -> Bool {
         [r, g, b].allSatisfy { (low...high).contains($0) }

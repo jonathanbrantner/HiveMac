@@ -20,12 +20,15 @@ public protocol Sensors: AnyObject {
     /// What the hive message says: "make" (E starts converting), "stop" (converting now), "empty" (nothing
     /// left to convert, balloon included). nil when it cannot be read.
     func hiveMessage() -> String?
+    /// Share of the screen that is honeycomb gold, 0 to 1: high when the camera faces the hive. nil when unreadable.
+    func hiveViewShare() -> Double?
 }
 
 public extension Sensors {
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { nil }
     func honeyRunning() -> Bool? { nil }
     func hiveMessage() -> String? { nil }
+    func hiveViewShare() -> Double? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
@@ -50,6 +53,8 @@ public struct GameSettings: Equatable, Sendable {
     public var convertTimeoutS = 300.0
     /// After the bag is empty, keep converting until the hive balloon is empty too (Natro's "convert balloon").
     public var convertBalloon = true
+    /// The honeycomb share that counts as "the hive is in view".
+    public var hiveShareMin = 0.05
     public var convertPressRetryS = 6.0
     public var cameraSearchTaps = 2         // yaw step while looking for the hive view
     public var cameraAfterFoundTaps = 4     // Natro: 180 degrees once the hive is in view
@@ -229,27 +234,43 @@ public final class Game {
         if !seenGrey { wait(1.0) }
     }
 
-    /// Rotate until the hive is in view (when a check exists), face away, zoom out.
+    /// Face away from the hive, whichever way the character spawned, then zoom out.
+    /// Turn one full circle in eighths (one tap is an eighth), measure the honeycomb at each step, and
+    /// finish by turning to half a circle past the heading where it was biggest.
     @discardableResult
     public func fixCamera() -> Bool {
         let s = settings
-        var found = sensors.hiveViewVisible()
-        if found != nil {
+        var faced = true
+        if sensors.hiveViewShare() != nil {
+            var best = -1.0, bestStep = 0
+            for step in 0..<8 {
+                if stopped { return false }
+                let share = sensors.hiveViewShare() ?? 0
+                if share > best { best = share; bestStep = step }
+                walker.rotate("right", taps: 1, leftKey: s.rotLeft, rightKey: s.rotRight)
+                wait(0.3)
+            }
+            if best >= s.hiveShareMin {
+                walker.rotate("right", taps: (bestStep + 4) % 8, leftKey: s.rotLeft, rightKey: s.rotRight)
+            } else {
+                faced = false
+                status("warning", "the hive was not seen while turning the camera")
+            }
+        } else if let first = sensors.hiveViewVisible() {
+            var found = first
+            // Older check: turn until the hive picture shows, then half a circle.
             var taps = 0
             while found == false && taps < 16 && !stopped {
                 walker.rotate("right", taps: s.cameraSearchTaps, leftKey: s.rotLeft, rightKey: s.rotRight)
                 taps += s.cameraSearchTaps
                 wait(0.25)
-                found = sensors.hiveViewVisible()
+                found = sensors.hiveViewVisible() ?? true
             }
-            if found == true {
-                walker.rotate("right", taps: s.cameraAfterFoundTaps, leftKey: s.rotLeft, rightKey: s.rotRight)
-            } else {
-                status("warning", "hive view not found while rotating")
-            }
+            if found { walker.rotate("right", taps: s.cameraAfterFoundTaps, leftKey: s.rotLeft, rightKey: s.rotRight) }
+            else { faced = false; status("warning", "hive view not found while rotating") }
         }
         walker.taps(s.zoomOut, count: s.zoomOutTaps)
-        return found ?? true
+        return faced
     }
 
     // MARK: Convert

@@ -20,6 +20,7 @@ final class ReportingSensors: Sensors {
     func hiveViewVisible() -> Bool? { practice ? nil : inner.hiveViewVisible() }
     func honeyRunning() -> Bool? { practice ? nil : inner.honeyRunning() }
     func hiveMessage() -> String? { practice ? nil : inner.hiveMessage() }
+    func hiveViewShare() -> Double? { practice ? nil : inner.hiveViewShare() }
     func cannonPromptVisible() -> Bool? { inner.cannonPromptVisible() }
     func deathTextVisible() -> Bool? { inner.deathTextVisible() }
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { inner.find(template, in: region, tolerance: tolerance) }
@@ -44,6 +45,8 @@ struct LiveReadings: Equatable {
     var barText: String?
     /// The words read from the hive message area.
     var hiveText: String?
+    /// How much of the screen is honeycomb gold (0 to 1): high when the camera faces the hive.
+    var hiveShare: Double?
     var calibrated = false
 }
 

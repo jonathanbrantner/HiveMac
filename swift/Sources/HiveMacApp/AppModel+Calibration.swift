@@ -153,6 +153,7 @@ extension AppModel {
                 r.healthGrey = s.healthGrey()
                 r.hivePrompt = s.hivePromptVisible()
                 r.hiveText = s.lastHiveText
+                r.hiveShare = s.hiveViewShare()
             }
             DispatchQueue.main.async {
                 guard let self else { return }

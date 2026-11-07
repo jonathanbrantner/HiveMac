@@ -14,9 +14,11 @@ public struct MobTimers: Equatable, Sendable {
         "mondo chick": 16 * 60,
         "normal memory match": 2 * 3600, "mega memory match": 4 * 3600, "extreme memory match": 8 * 3600, "blue booster": 45 * 60, "red booster": 45 * 60, "mountain booster": 45 * 60,
     ]
+    /// What the Clock and dispensers step offers. The boosters are in Booster mode, not here.
     public static let pickups = ["wealth clock", "honey dispenser", "treat dispenser", "blueberry dispenser",
-                                 "strawberry dispenser", "coconut dispenser", "honeystorm", "ant pass", "robo pass",
-                                 "blue booster", "red booster", "mountain booster"]
+                                 "strawberry dispenser", "honeystorm", "ant pass", "robo pass"]
+    /// The ones bought with tickets.
+    public static let ticketPickups = ["ant pass", "robo pass"]
 
     public private(set) var lastDone: [String: TimeInterval] = [:]
 

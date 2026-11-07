@@ -41,15 +41,28 @@ struct ExtraRow: View {
                 Text("What to do").font(Theme.body).foregroundStyle(Theme.resin).frame(width: 110, alignment: .leading)
                 Choice(options: [("buff", "Stand by it for the buff"), ("kill", "Kill it")], selection: $step.mondoAction, width: 200)
             }
-            Text("Only in the first 14 minutes of each hour (UTC). It goes to Mountain Top, finds Mondo Chick by its health bar, and does this. Buff takes 2 minutes.")
-                .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var listItems: [String] {
+        step.kind == "pickups" ? MobTimers.pickups
+            : step.kind == "memory" ? MemoryMatchKind.allCases.map(\.pickup)
+            : ExtraStep.bugs.filter { !MobFields.notBuilt.contains($0) }
     }
 
     private var bugRun: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
-            Text(step.kind == "pickups" ? "Each one is only collected once its own timer has run out." : step.kind == "memory" ? "Each machine is only played once its own cooldown is over." : "A mob is only visited once its own timer has run out.").font(Theme.caption).foregroundStyle(Theme.dust)
-            ForEach(step.kind == "pickups" ? MobTimers.pickups + MemoryMatchKind.allCases.map(\.pickup) : step.kind == "memory" ? MemoryMatchKind.allCases.map(\.pickup) : ExtraStep.bugs, id: \.self) { bug in
+            HStack(spacing: Theme.s2) {
+                Button("All") { step.bugs = listItems }.buttonStyle(QuietButtonStyle())
+                if step.kind == "pickups" { Button("Tickets only") { step.bugs = MobTimers.ticketPickups }.buttonStyle(QuietButtonStyle()) }
+                if step.kind == "bug_run" {
+                    Button("Mobs") { step.bugs = listItems.filter { Bosses.spec($0) == nil && $0 != "mondo chick" && !MobFields.notBuilt.contains($0) } }.buttonStyle(QuietButtonStyle())
+                    Button("Bosses") { step.bugs = listItems.filter { Bosses.spec($0) != nil } }.buttonStyle(QuietButtonStyle())
+                }
+                Button("None") { step.bugs = [] }.buttonStyle(QuietButtonStyle())
+                Spacer(minLength: 0)
+            }
+            ForEach(listItems, id: \.self) { bug in
                 HStack(spacing: Theme.s3) {
                     Toggle(bug.capitalized, isOn: Binding(
                         get: { step.bugs.contains(bug) },
@@ -62,10 +75,6 @@ struct ExtraRow: View {
                     Text(unbuilt ? "not hunted yet" : MobTimers.describe(remaining: left, timed: timed)).font(Theme.caption)
                         .foregroundStyle(timed && left == 0 ? Theme.leaf : Theme.dust)
                     Spacer(minLength: 0)
-                    if let wait = MobTimers.respawn[bug] {
-                        Text((step.kind == "bug_run" ? "respawns every " : "every ") + (wait < 3600 ? "\(Int(wait / 60)) min" : "\(Int(wait / 3600)) h"))
-                            .font(Theme.caption).foregroundStyle(Theme.dust)
-                    }
                 }
             }
             if step.kind == "bug_run", step.bugs.contains("mondo chick") {
@@ -73,15 +82,12 @@ struct ExtraRow: View {
                     Text("Mondo Chick").font(Theme.body).foregroundStyle(Theme.resin).frame(width: 110, alignment: .leading)
                     Choice(options: [("buff", "Stand by it for the buff"), ("kill", "Kill it")], selection: $step.mondoAction, width: 200)
                 }
-                Text("Only in the first 14 minutes of each hour (UTC).").font(Theme.caption).foregroundStyle(Theme.dust)
             }
         }
     }
 
     private var planters: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
-            Text("Each slot has its own timer. A round only visits slots that are grown and skips the rest.")
-                .font(Theme.caption).foregroundStyle(Theme.dust)
             ForEach(0..<3, id: \.self) { i in
                 HStack(spacing: Theme.s2) {
                     Text("Slot \(i + 1)").font(Theme.caption).foregroundStyle(Theme.dust).frame(width: 44, alignment: .leading)

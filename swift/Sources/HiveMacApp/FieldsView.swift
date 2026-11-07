@@ -21,6 +21,7 @@ struct FieldsView: View {
                 } label: { Text("Manage") }
                 .menuStyle(.button).buttonStyle(QuietButtonStyle()).fixedSize().disabled(model.running)
                 Spacer()
+                AllFieldsButton().disabled(model.running)
             }
             .padding(.horizontal, Theme.s6).padding(.top, Theme.s4)
             .alert("Name this run", isPresented: $renaming) {
@@ -84,6 +85,7 @@ struct FieldsView: View {
                     }
                     Button("Bug run") { model.profile.extras.append(ExtraStep(kind: "bug_run")) }
                     Button("Clock and dispensers") { model.profile.extras.append(ExtraStep(kind: "pickups")) }
+                    Button("Memory match") { model.profile.extras.append(ExtraStep(kind: "memory")) }
                     Button("Planters") { model.profile.extras.append(ExtraStep(kind: "planters")) }
                 } label: { Text("Add") }
                 .menuStyle(.button).buttonStyle(QuietButtonStyle()).fixedSize()

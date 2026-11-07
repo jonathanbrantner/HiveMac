@@ -26,10 +26,6 @@ struct AutoBoostRow: View {
                 }
                 Spacer()
             }
-            if model.profile.autoBoost.enabled {
-                Text("Uses your dice and glitter (hotbar slots 2 to 7) when a field is not boosted.")
-                    .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 }

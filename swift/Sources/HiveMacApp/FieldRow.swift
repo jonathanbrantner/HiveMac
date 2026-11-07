@@ -101,16 +101,6 @@ struct FieldRow: View {
             .buttonStyle(.plain).padding(.vertical, Theme.s2)
 
             if showMore {
-                setting("Back to hive, this field") {
-                    Choice(options: [("walk", "Walk back"), ("reset", "Respawn")], selection: $field.returnMethod, width: 120)
-                }
-                setting("Get there, this field") {
-                    Choice(options: [("default", "Usual"), ("walk", "Walk"), ("cannon", "Cannon")], selection: $field.travel, width: 120)
-                }
-                setting("Camera turn") {
-                    Choice(options: [("none", "None"), ("left", "Left"), ("right", "Right")], selection: $field.camera, width: 90)
-                    TextField("", value: $field.turns, format: .number).fieldStyle(width: 48)
-                }
                 setting("Sprinkler distance") { TextField("", value: $field.sprinklerDistance, format: .number).fieldStyle(width: 56) }
                 setting("Pattern repeats") { TextField("", value: $field.width, format: .number).fieldStyle(width: 56) }
                 setting("Shift lock") { Toggle("", isOn: $field.shiftLock).toggleStyle(.checkbox).labelsHidden() }

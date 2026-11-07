@@ -69,18 +69,23 @@ extension Game {
         }
         for attempt in 0..<2 {
             actuator.tap("e", holdS: 0.1)
-            wait(1.2)
-            if let t = sensors.promptText() {
-                if let left = Hud.cooldownSeconds(fromText: t) {
+            wait(0.8)
+            // The countdown is the proof. Look for it for a few seconds.
+            var last: String?
+            let t0 = clock.now()
+            while !stopped && clock.now() - t0 < 3.5 {
+                last = sensors.promptText()
+                if let t = last, let left = Hud.cooldownSeconds(fromText: t) {
                     status("traveling", "collected \(pickup)")
                     return .onCooldown(left)                        // counting down now: it worked
                 }
-                if !t.contains("use") {                             // the "Use the ..." prompt is gone: it was taken
-                    status("traveling", "collected \(pickup)")
-                    return .collected
-                }
+                wait(0.4)
             }
             if stopped { return .failed("stopped") }
+            if let t = last, !t.contains("use") {                   // the "Use the ..." prompt went away, but no countdown was read
+                status("warning", "\(pickup): the prompt went away after E but no countdown was read (prompt said: \(t.prefix(80)))")
+                return .collected
+            }
             if attempt == 0 { status("warning", "\(pickup): no countdown after E, trying once more") }
         }
         return .failed("no countdown showed after pressing E at \(pickup)")

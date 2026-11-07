@@ -90,23 +90,47 @@ extension Game {
                          fw: Double(width) / Double(ws.width), fh: Double(height) / Double(ws.height))
     }
 
+    /// The back of a tile: brown (177, 128, 62) on a gold panel. Measured on a real board, so it does not
+    /// depend on Natro's pictures, which do not match this game's rendering.
+    static func isTileBack(_ r: Int, _ g: Int, _ b: Int) -> Bool {
+        abs(r - 177) < 28 && abs(g - 128) < 28 && abs(b - 62) < 28
+    }
+
+    /// Colour of a small square around a point (average), or nil when the screen cannot be read.
+    private func colour(at p: (x: Int, y: Int)) -> (Int, Int, Int)? {
+        guard let img = sensors.picture(left: p.x - 3, top: p.y - 3, width: 7, height: 7) else { return nil }
+        var r = 0, g = 0, b = 0, n = 0
+        var i = 0
+        while i + 2 < img.pixels.count { r += Int(img.pixels[i]); g += Int(img.pixels[i + 1]); b += Int(img.pixels[i + 2]); n += 1; i += 3 }
+        return n == 0 ? nil : (r / n, g / n, b / n)
+    }
+
+    private func tileIsBack(_ index: Int, wide: Bool) -> Bool {
+        guard let p = memoryTilePoint(index, wide: wide), let c = colour(at: p) else { return false }
+        return Game.isTileBack(c.0, c.1, c.2)
+    }
+
+    /// nil = no board on screen, false = 16 tile board, true = 20 tile board. All tile backs must be showing.
+    func memoryBoard() -> Bool? {
+        if (0..<16).allSatisfy({ tileIsBack($0, wide: false) }) { return false }
+        if (0..<20).allSatisfy({ tileIsBack($0, wide: true) }) { return true }
+        return nil
+    }
+
     /// Flips one tile and returns its picture once it has turned over.
     private func revealTile(_ index: Int, wide: Bool) -> RGBImage? {
         guard let p = memoryTilePoint(index, wide: wide), let ws = windowSize() else { return nil }
         let k = settings.uiScale
         actuator.click(p.x, p.y)
-        wait(0.9)
-        actuator.moveMouse(ws.left + ws.width / 2, ws.top + ws.height / 2 - Int(190 * k))
-        let area = relative(left: p.x - Int(35 * k), top: p.y - Int(20 * k), width: Int(45 * k), height: Int(30 * k))
+        actuator.moveMouse(ws.left + ws.width / 2, ws.top + ws.height / 2 - Int(190 * k))   // off the board: no hover colour
         let t0 = clock.now()
         var shown = false
         while !stopped && clock.now() - t0 < 3 {
-            if sensors.find("memorymatch/MMBorder", in: area, tolerance: 1) != nil,
-               sensors.find("memorymatch/MMEmptyTile", in: area, tolerance: 1) == nil { shown = true; break }
-            wait(0.1)
+            wait(0.15)
+            if !tileIsBack(index, wide: wide) { shown = true; break }
         }
         guard shown else { return nil }
-        wait(0.3)
+        wait(0.5)                                                                              // let the flip finish
         return sensors.picture(left: p.x - Int(25 * k), top: p.y - Int(25 * k), width: Int(50 * k), height: Int(50 * k))
     }
 
@@ -126,30 +150,36 @@ extension Game {
         wait(1.5)
 
         guard let ws = windowSize() else { return .failed("no window") }
-        let k = settings.uiScale
-        let titleArea = relative(left: ws.left + ws.width / 2 - Int(250 * k), top: ws.top + ws.height / 2 - Int(210 * k),
-                                 width: Int(500 * k), height: Int(50 * k))
         var wide = kind.tiles == 20
         let t0 = clock.now()
         var open = false
-        while !stopped && clock.now() - t0 < 4 {
-            if sensors.find("memorymatch/MMTitleWide", in: titleArea, tolerance: 8) != nil { wide = true; open = true; break }
-            if sensors.find("memorymatch/MMTitle", in: titleArea, tolerance: 8) != nil { open = true; break }
-            wait(0.3)
+        while !stopped && clock.now() - t0 < 5 {
+            if let w = memoryBoard() { wide = w; open = true; break }
+            wait(0.4)
         }
-        guard open else { return .failed("the memory match window did not open") }
+        guard open else { return .failed("the memory match board was not on screen (no tile backs found)") }
 
         status("gathering", "playing the \(kind.title) memory match")
         let solver = MemoryMatchSolver(tiles: wide ? 20 : 16)
+        var lastTry: [Int] = []
         let flips = solver.play(maxFlips: 60, stop: { self.stopped || self.clock.now() - t0 > 180 }) { tile in
-            revealTile(tile, wide: wide)
+            // After a miss both tiles turn back; clicking before that does nothing.
+            if lastTry.count == 2 {
+                let back = lastTry.filter { !solver.matched.contains($0) }
+                let w0 = self.clock.now()
+                while !self.stopped && self.clock.now() - w0 < 4 && !back.allSatisfy({ self.tileIsBack($0, wide: wide) }) { self.wait(0.2) }
+                lastTry = []
+            }
+            let img = revealTile(tile, wide: wide)
+            if img != nil { lastTry.append(tile) }
+            return img
         }
         actuator.moveMouse(ws.left + 350, ws.top + settings.uiOffsetY + 100)
         wait(1.2)
         status("converting", "memory match done after \(flips) flips, \(solver.matched.count / 2) pairs")
         // Wait for the window to close by itself.
         let end = clock.now()
-        while !stopped && clock.now() - end < 12 && sensors.find("memorymatch/MMTitle", in: titleArea, tolerance: 8) != nil { wait(0.5) }
+        while !stopped && clock.now() - end < 12 && memoryBoard() != nil { wait(0.5) }
         return .played
     }
 }

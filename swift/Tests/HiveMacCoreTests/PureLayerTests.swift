@@ -209,3 +209,12 @@ final class QuestLogOpenTests: XCTestCase {
         XCTAssertFalse(QuestLog.looksOpen("Honey 9,917,442\nPollen 128"))
     }
 }
+
+final class MemoryColourTests: XCTestCase {
+    func testTileBackColour() {
+        XCTAssertTrue(Game.isTileBack(177, 128, 62))
+        XCTAssertTrue(Game.isTileBack(170, 120, 70))
+        XCTAssertFalse(Game.isTileBack(235, 200, 76))      // the gold panel between tiles
+        XCTAssertFalse(Game.isTileBack(40, 120, 200))      // a revealed picture
+    }
+}

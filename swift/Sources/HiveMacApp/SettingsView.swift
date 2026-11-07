@@ -147,6 +147,7 @@ struct StopKeyField: View {
 
     private func begin() {
         capturing = true
+        model.capturingStopKey = true; model.syncHotKey()
         model.stopKeyMessage = nil
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 && model.stopKeyName != "esc" { finish(); return nil }      // Esc cancels
@@ -159,6 +160,7 @@ struct StopKeyField: View {
 
     private func finish() {
         capturing = false
+        model.capturingStopKey = false; model.syncHotKey()
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
     }

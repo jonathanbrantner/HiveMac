@@ -58,7 +58,7 @@ final class AppModel: ObservableObject {
     // MARK: Published state
     @Published var state: RunState = .idle
     @Published var detail = ""
-    @Published var running = false
+    @Published var running = false { didSet { syncHotKey() } }
     /// Bumped by the Collapse button; every step row folds itself shut when it changes.
     @Published var collapseTick = 0
     @Published var paused = false
@@ -87,6 +87,7 @@ final class AppModel: ObservableObject {
     @Published var hive = HiveProfile()
     @Published var stopKeyName = "f9"
     @Published var stopKeyMessage: String?
+    var capturingStopKey = false
     @Published var settingsVersion = 0
 
     // MARK: Engine
@@ -122,8 +123,7 @@ final class AppModel: ObservableObject {
         logFile = AppModel.openLog(dirs.logs.appendingPathComponent("hivemac.log"))
         stopKeyName = store.string("app.emergency_stop_key", "f9")
         hotKey.onPress = { [weak self] in self?.stop() }
-        if case .success(let code) = KeyCodes.validateStopKey(stopKeyName) { hotKey.register(keyCode: UInt32(code)) }
-        else { setStopKey("f9") }
+        if case .failure = KeyCodes.validateStopKey(stopKeyName) { setStopKey("f9") }
         append("HiveMac started. Data folder: \(dirs.data.path)")
         if !isDemo && !permissions.allGranted { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Permissions.request() } }
         if ProcessInfo.processInfo.environment["HIVEMAC_DEMO"] != nil { applyDemo() } else { startPolling() }

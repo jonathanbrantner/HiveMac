@@ -34,9 +34,27 @@ extension Game {
     /// Walks to a dispenser, clock, pass or booster and uses it. Starts from a reset so the position is known.
     /// The prompt tells the truth: "Use the Strawberry Dispenser" is ready, and "(3:59:58)" after it means
     /// it was used. So E is only pressed when it is ready, and the countdown afterwards proves it worked.
+    /// Words that must show in the prompt when you stand at the right spot. A countdown from some other
+    /// prompt (another dispenser, a wrong turn) does not count as this pickup being collected.
+    static let pickupWords: [String: [String]] = [
+        "wealth clock": ["wealth", "clock"], "honey dispenser": ["honey disp", "honey"], "treat dispenser": ["treat"],
+        "blueberry dispenser": ["blueb"], "strawberry dispenser": ["strawb"], "honeystorm": ["storm"],
+        "ant pass": ["ant p", "ant"], "robo pass": ["robo"], "coconut dispenser": ["cocon"],
+    ]
+
     public func collect(_ pickup: String) -> CollectResult {
+        let first = collectOnce(pickup, variant: settings.travel)
+        if case .failed(let why) = first, settings.travel != "walk", !stopped,
+           pathLookup("to_pickup", pickup.replacingOccurrences(of: " ", with: "_"), "walk") != nil
+            || pathLookup("to_pickup", pickup, "walk") != nil {
+            status("warning", "\(pickup): \(why). Trying the walking route once.")
+            return collectOnce(pickup, variant: "walk")
+        }
+        return first
+    }
+
+    private func collectOnce(_ pickup: String, variant: String) -> CollectResult {
         if !resetToHive() { return .failed("could not reach the hive") }
-        let variant = settings.travel
         let slotName = pickup == "honey dispenser" ? "\(pickup) s\(min(6, max(1, settings.hiveSlot)))" : pickup
         let key = pickup.replacingOccurrences(of: " ", with: "_")
         var pf = pathLookup("to_pickup", slotName, variant)
@@ -57,6 +75,12 @@ extension Game {
             return ""
         }
         let first = look(seconds: 3)
+        let needles = Game.pickupWords[pickup]
+        func atRightSpot(_ t: String) -> Bool { needles == nil || needles!.contains { t.contains($0) } }
+        if let t = first, needles != nil {
+            if t.isEmpty { return .failed("no prompt at the \(pickup) spot (it did not arrive at the right place)") }
+            if !atRightSpot(t) { return .failed("not at the \(pickup): the prompt says \"\(t.prefix(80))\"") }
+        }
         if first == nil {                                           // cannot read the screen: press E like before
             for _ in 0..<2 { actuator.tap("e", holdS: 0.1); wait(0.6) }
             wait(1.0)
@@ -75,7 +99,7 @@ extension Game {
             let t0 = clock.now()
             while !stopped && clock.now() - t0 < 3.5 {
                 last = sensors.promptText()
-                if let t = last, let left = Hud.cooldownSeconds(fromText: t) {
+                if let t = last, atRightSpot(t), let left = Hud.cooldownSeconds(fromText: t) {
                     status("traveling", "collected \(pickup)")
                     return .onCooldown(left)                        // counting down now: it worked
                 }

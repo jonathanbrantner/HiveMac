@@ -15,7 +15,7 @@ struct MainView: View {
     var body: some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: 0).onAppear(perform: installClickAway)
-            HeaderView(tab: $tab)
+            HeaderView()
             Divider().overlay(Theme.grain)
             VStack(alignment: .leading, spacing: Theme.s3) {
                 BackpackBar(percent: model.backpack, active: model.running && !model.paused)
@@ -49,7 +49,7 @@ struct MainView: View {
 
 struct HeaderView: View {
     @EnvironmentObject var model: AppModel
-    @Binding var tab: Tab
+    @State private var showApp = false
 
     private var dot: Color {
         switch model.state {
@@ -75,11 +75,13 @@ struct HeaderView: View {
             HexDot(color: dot)
             Text(model.state.label).font(Theme.bodyStrong).foregroundStyle(Theme.wax)
             Text(timer).font(Theme.figure).foregroundStyle(Theme.resin)
-            Button { tab = .settings } label: {
-                Image(systemName: "gearshape").font(.system(size: 15)).foregroundStyle(tab == .settings ? Theme.honeyText : Theme.resin)
+            Button { showApp = true } label: {
+                Image(systemName: "gearshape").font(.system(size: 15))
+                    .foregroundStyle(model.permissions.allGranted ? Theme.resin : Theme.ember)
             }
-            .buttonStyle(.plain).help("Settings").padding(.leading, Theme.s2)
+            .buttonStyle(.plain).help(model.permissions.allGranted ? "App settings" : "App settings: a permission is missing").padding(.leading, Theme.s2)
         }
+        .sheet(isPresented: $showApp) { AppSettingsView() }
         .padding(.horizontal, Theme.s6)
         .frame(height: 52)
     }

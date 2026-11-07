@@ -46,7 +46,6 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 RobloxSection()
-                EssentialAppSettings()
 
                 SectionTitle("Hive")
                 SettingRow(label: "Hive color") {

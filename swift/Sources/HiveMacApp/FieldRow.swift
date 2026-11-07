@@ -90,15 +90,7 @@ struct FieldRow: View {
             setting("Pattern size") {
                 Choice(options: [("xs", "Tiny"), ("s", "Small"), ("m", "Medium"), ("l", "Large"), ("xl", "Huge")], selection: sizeBinding, width: 120)
             }
-            setting("Sprinkler spot") {
-                Choice(options: Self.locations.map { ($0, $0.capitalized) }, selection: $field.sprinklerLocation, width: 120)
-            }
-            setting("Back to hive") {
-                Choice(options: [("walk", "Walk back"), ("reset", "Respawn")], selection: $field.returnMethod, width: 120)
-            }
-            setting("Get there") {
-                Choice(options: [("default", "Usual"), ("walk", "Walk"), ("cannon", "Cannon")], selection: $field.travel, width: 120)
-            }
+            setting("Sprinkler spot") { spotPicker }
 
             Button { withAnimation(.snappy(duration: 0.15)) { showMore.toggle() } } label: {
                 HStack(spacing: Theme.s1) {
@@ -109,6 +101,12 @@ struct FieldRow: View {
             .buttonStyle(.plain).padding(.vertical, Theme.s2)
 
             if showMore {
+                setting("Back to hive, this field") {
+                    Choice(options: [("walk", "Walk back"), ("reset", "Respawn")], selection: $field.returnMethod, width: 120)
+                }
+                setting("Get there, this field") {
+                    Choice(options: [("default", "Usual"), ("walk", "Walk"), ("cannon", "Cannon")], selection: $field.travel, width: 120)
+                }
                 setting("Camera turn") {
                     Choice(options: [("none", "None"), ("left", "Left"), ("right", "Right")], selection: $field.camera, width: 90)
                     TextField("", value: $field.turns, format: .number).fieldStyle(width: 48)
@@ -125,6 +123,49 @@ struct FieldRow: View {
                     field = d
                 }
                 .buttonStyle(QuietButtonStyle()).padding(.top, Theme.s2)
+            }
+        }
+    }
+
+    private static let spotGrid: [[String]] = [["upper left", "upper", "upper right"], ["left", "center", "right"], ["lower left", "lower", "lower right"]]
+
+    /// Natro's pick for this field: the spot its route and camera turn were tuned for.
+    private var bestSpot: String { FieldDefaults.table[field.name.lowercased()]?.sprinkler ?? "center" }
+
+    /// A 3 by 3 picture of the field as it looks when you arrive. Tap where the sprinkler goes; the star marks the best
+    /// spot for this field (Natro's own pick for its route).
+    private var spotPicker: some View {
+        HStack(alignment: .center, spacing: Theme.s3) {
+            VStack(spacing: 3) {
+                ForEach(Self.spotGrid, id: \.self) { row in
+                    HStack(spacing: 3) {
+                        ForEach(row, id: \.self) { spot in
+                            let chosen = field.sprinklerLocation == spot
+                            Button { field.sprinklerLocation = spot } label: {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 4).fill(chosen ? Theme.honeyText : Theme.plank)
+                                    if spot == bestSpot { Image(systemName: "star.fill").font(.system(size: 8)).foregroundStyle(chosen ? Theme.shed : Theme.honeyText) }
+                                }
+                                .frame(width: 26, height: 20)
+                            }
+                            .buttonStyle(.plain).help(spot.capitalized + (spot == bestSpot ? " (best for this field)" : ""))
+                        }
+                    }
+                }
+            }
+            .padding(5).background(RoundedRectangle(cornerRadius: 6).stroke(Theme.grain))
+            VStack(alignment: .leading, spacing: Theme.s1) {
+                Text(field.sprinklerLocation.capitalized).font(Theme.body).foregroundStyle(Theme.wax)
+                if field.sprinklerLocation != bestSpot {
+                    Button("Use the best spot") {
+                        field.sprinklerLocation = bestSpot
+                        if let d = FieldDefaults.table[field.name.lowercased()] {
+                            field.sprinklerDistance = max(1, Int((Double(d.distance) * Patterns.sizeFactor(field.size) / Patterns.sizeFactor(d.size)).rounded()))
+                        }
+                    }.buttonStyle(QuietButtonStyle())
+                } else {
+                    Text("Best for this field").font(Theme.caption).foregroundStyle(Theme.leaf)
+                }
             }
         }
     }

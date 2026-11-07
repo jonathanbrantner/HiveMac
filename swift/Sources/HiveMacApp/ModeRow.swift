@@ -31,7 +31,9 @@ struct ModeRow: View {
 
     private var hasBlessingPicture: Bool {
         _ = model.settingsVersion
-        return FileManager.default.fileExists(atPath: model.dirs.templates.appendingPathComponent("balloon_blessing.png").path)
+        let fm = FileManager.default
+        return fm.fileExists(atPath: model.dirs.templates.appendingPathComponent("balloon_blessing.png").path)
+            || fm.fileExists(atPath: AppModel.builtInHud.appendingPathComponent("balloon_blessing.png").path)
     }
 
     private var confirmText: String {

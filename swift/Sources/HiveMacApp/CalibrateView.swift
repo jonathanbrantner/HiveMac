@@ -105,7 +105,8 @@ struct PicturesSection: View {
     private func size(_ k: PictureKind) -> String? {
         _ = model.settingsVersion
         if k == .backpack { return model.store.get("hud.backpack_bar") != nil ? "bar set" : nil }
-        guard let img = ScreenCapture.loadPNG(model.dirs.templates.appendingPathComponent("\(k.rawValue).png")) else { return nil }
+        guard let img = ScreenCapture.loadPNG(model.dirs.templates.appendingPathComponent("\(k.rawValue).png"))
+                ?? ScreenCapture.loadPNG(AppModel.builtInHud.appendingPathComponent("\(k.rawValue).png")) else { return nil }
         return "\(img.width) by \(img.height)"
     }
 

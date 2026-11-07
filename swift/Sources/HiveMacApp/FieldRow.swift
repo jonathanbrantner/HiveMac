@@ -20,15 +20,21 @@ struct FieldRow: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.s2) {
                 DragHandle(key: key)
-                Button { open.toggle() } label: {
-                    HStack(spacing: Theme.s1) {
-                        Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
-                        Text(field.name.capitalized).font(Theme.body)
-                            .foregroundStyle(field.enabled ? Theme.wax : Theme.dust)
+                if model.profile.isSpecialMode {
+                    // One idle field and no Add button: the name is a menu to pick which field it is.
+                    Choice(options: FieldDefaults.order.map { ($0, $0.capitalized) }, selection: fieldName, width: 130)
+                        .disabled(model.running)
+                } else {
+                    Button { open.toggle() } label: {
+                        HStack(spacing: Theme.s1) {
+                            Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
+                            Text(field.name.capitalized).font(Theme.body)
+                                .foregroundStyle(field.enabled ? Theme.wax : Theme.dust)
+                        }
+                        .frame(width: 100, alignment: .leading)
                     }
-                    .frame(width: 100, alignment: .leading)
+                    .buttonStyle(.plain).help("Show every option for this field")
                 }
-                .buttonStyle(.plain).help("Show every option for this field")
                 TextField("", value: $field.minutes, format: .number).fieldStyle(width: 56)
                 TextField("", value: $field.backpackPercent, format: .number).fieldStyle(width: 56)
                 Choice(options: Patterns.names.map { ($0, Self.pretty($0)) }, selection: $field.pattern, width: 140)
@@ -40,6 +46,18 @@ struct FieldRow: View {
 
             if open { more.padding(.leading, 34).padding(.bottom, Theme.s3) }
         }
+    }
+
+    /// Picking another field keeps this row's minutes and stop percent and takes that field's own pattern defaults.
+    private var fieldName: Binding<String> {
+        Binding(get: { field.name },
+                set: { new in
+                    guard new != field.name else { return }
+                    var f = FieldConfig(name: new)
+                    f.id = field.id; f.minutes = field.minutes; f.backpackPercent = field.backpackPercent
+                    f.enabled = field.enabled; f.returnMethod = field.returnMethod; f.travel = field.travel
+                    field = f
+                })
     }
 
     private static func pretty(_ s: String) -> String { s.replacingOccurrences(of: "_", with: " ").capitalized }

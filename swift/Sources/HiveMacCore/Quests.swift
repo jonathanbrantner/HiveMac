@@ -152,16 +152,13 @@ extension Game {
 }
 
 extension Game {
-    /// Opens the quest log (the "?" button, second icon at the top left) when it is closed. The spot is a
-    /// share of the window size, so it follows a resized window; the check is the text itself, so a click is
-    /// never repeated once the log shows. Gives up after two different tries.
+    /// Opens the quest log (the "?" button, second icon at the top left) when it is closed. Roblox keeps its
+    /// top-left buttons the same size in pixels whatever the window size, so the spot is measured from the
+    /// window corner (times the UI scale), like Natro's own spots. The check is the text itself, so a click is
+    /// never repeated once the log shows. Gives up after the second try.
     func openQuestLog() -> Bool {
-        var spots: [(Double, Double)] = [(0.049, 0.141)]
-        if let ws = windowSize(), ws.width > 0, ws.height > 0, let p = windowPoint(85, 120) {
-            spots.append((Double(p.x - ws.left) / Double(ws.width), Double(p.y - ws.top) / Double(ws.height)))
-        }
-        for (fx, fy) in spots where !stopped {
-            guard let p = sensors.point(fx: fx, fy: fy) else { continue }
+        for (dx, dy) in [(88, 132), (85, 120)] where !stopped {
+            guard let p = windowPoint(dx, dy) else { continue }
             actuator.click(p.x, p.y)
             wait(1.0)
             parkMouse()

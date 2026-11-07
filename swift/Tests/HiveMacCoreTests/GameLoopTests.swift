@@ -272,7 +272,7 @@ final class GameLoopTests: XCTestCase {
 
     func testCollectWalksTheRouteAndPressesE() {
         let f = GameFixture()
-        XCTAssertTrue(f.game.collect("wealth clock"))
+        XCTAssertEqual(f.game.collect("wealth clock"), .collected)
         XCTAssertEqual(f.act.taps("e"), 2)
         XCTAssertTrue(f.traveled.contains("wealth clock"))
         XCTAssertTrue(f.traveled.contains("collected wealth clock"))
@@ -282,7 +282,7 @@ final class GameLoopTests: XCTestCase {
         let f = GameFixture()
         let g = Game(actuator: f.act, sensors: f.world, settings: f.game.settings, clock: f.clock,
                      status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) })
-        XCTAssertFalse(g.collect("wealth clock"))
+        guard case .failed = g.collect("wealth clock") else { return XCTFail("should fail") }
         XCTAssertEqual(f.act.taps("e"), 0)
     }
 
@@ -319,6 +319,14 @@ final class GameLoopTests: XCTestCase {
         /// Pictures that only show up after a drag, like the Yes dialog.
         var afterDrag: Set<String> = []
         var honey: Bool?
+        /// What the top prompt says on each look; nil = unreadable.
+        var prompts: [String]?
+        var promptLooks = 0
+        func promptText() -> String? {
+            guard let list = prompts else { return nil }
+            defer { promptLooks += 1 }
+            return promptLooks < list.count ? list[promptLooks] : list.last
+        }
         func honeyRunning() -> Bool? { honey }
         /// Health bars seen on each look; nil = the screen cannot be read.
         var barScript: [[Double]]?
@@ -546,8 +554,37 @@ extension GameLoopTests {
         XCTAssertEqual(r.due(step, now: hour + 5 * 60), ["mondo chick"])
         XCTAssertEqual(r.due(step, now: hour + 20 * 60), [])
     }
+
+    private func pickupGame(prompts: [String]) -> (Game, FakeActuator) {
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: [])
+        pw.prompts = prompts
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { _, name, _ in PathFile(name: name, steps: [.walk(["a"], tiles: 3)]) })
+        return (g, f.act)
+    }
+
+    func testPickupThatShowsACountdownIsNotPressedAndSyncsTheTimer() {
+        let (g, act) = pickupGame(prompts: ["use the strawberry dispenser (3:59:58)"])
+        XCTAssertEqual(g.collect("strawberry dispenser"), .onCooldown(3 * 3600 + 59 * 60 + 58))
+        XCTAssertEqual(act.taps("e"), 0)
+    }
+
+    func testPickupIsPressedWhenReadyAndTheCountdownProvesItWorked() {
+        let (g, act) = pickupGame(prompts: ["use the honey dispenser", "use the honey dispenser (0:59:59)"])
+        XCTAssertEqual(g.collect("honey dispenser"), .onCooldown(59 * 60 + 59))
+        XCTAssertEqual(act.taps("e"), 1)
+    }
+
+    func testPickupWithoutACountdownAfterEIsReportedAsFailed() {
+        let (g, act) = pickupGame(prompts: ["use the treat dispenser"])
+        guard case .failed = g.collect("treat dispenser") else { return XCTFail("should fail") }
+        XCTAssertEqual(act.taps("e"), 2)
+    }
 }
 
 extension ExtraStep {
     func with(bugs: [String]) -> ExtraStep { var s = self; s.bugs = bugs; return s }
+
 }

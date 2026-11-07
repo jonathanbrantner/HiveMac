@@ -111,6 +111,18 @@ public enum Hud {
         return total == 0 ? 0 : Double(gold) / Double(total)
     }
 
+    /// "Use the Strawberry Dispenser (3:59:58)" -> 14398 seconds left. nil when the prompt shows no countdown,
+    /// which is what a ready dispenser looks like.
+    public static func cooldownSeconds(fromText text: String) -> TimeInterval? {
+        let pattern = #"\(\s*(?:(\d{1,2})\s*:\s*)?(\d{1,2})\s*:\s*(\d{2})\s*\)"#
+        guard let re = try? NSRegularExpression(pattern: pattern),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let b = Range(m.range(at: 2), in: text), let c = Range(m.range(at: 3), in: text) else { return nil }
+        let h = Range(m.range(at: 1), in: text).flatMap { Int(text[$0]) } ?? 0
+        guard let mi = Int(text[b]), let se = Int(text[c]), mi < 60, se < 60 else { return nil }
+        return TimeInterval(h * 3600 + mi * 60 + se)
+    }
+
     /// Mob health bars on screen: the bright green fill (1FE744) with a dark red part (6B131A) where it
     /// lost health. Returns the percent left of each bar found. Only the middle of the screen is looked at,
     /// so the game's own bars at the top and the hotbar at the bottom are left out.

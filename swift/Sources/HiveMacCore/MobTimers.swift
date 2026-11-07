@@ -34,6 +34,12 @@ public struct MobTimers: Equatable, Sendable {
         selected.filter { isReady($0, now: now) }
     }
 
+    /// The game told us how long is left: make our timer agree with it.
+    public mutating func setRemaining(_ name: String, seconds: TimeInterval, now: TimeInterval) {
+        guard let wait = Self.respawn[name] else { return }
+        lastDone[name] = now - (wait - seconds)
+    }
+
     public mutating func markDone(_ mob: String, at now: TimeInterval) { lastDone[mob] = now }
 
     public static func load(_ url: URL) -> MobTimers {

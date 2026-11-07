@@ -113,3 +113,15 @@ final class MobBarTests: XCTestCase {
         XCTAssertTrue(Hud.mobHealthBars(screen(bars: [(5, 40, 0), (190, 40, 0)])).isEmpty)
     }
 }
+
+final class CooldownTextTests: XCTestCase {
+    func testReadsTheCountdownInThePrompt() {
+        XCTAssertEqual(Hud.cooldownSeconds(fromText: "Use the Strawberry Dispenser (3:59:58)"), 14398)
+        XCTAssertEqual(Hud.cooldownSeconds(fromText: "use the wealth clock ( 0:12:05 )"), 725)
+        XCTAssertEqual(Hud.cooldownSeconds(fromText: "use the clock (45:10)"), 2710)
+    }
+    func testReadyPromptHasNoCountdown() {
+        XCTAssertNil(Hud.cooldownSeconds(fromText: "Use the Strawberry Dispenser"))
+        XCTAssertNil(Hud.cooldownSeconds(fromText: "Honey 9,903,501,328,981 Pollen 0/234,341,250"))
+    }
+}

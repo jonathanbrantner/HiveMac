@@ -26,29 +26,58 @@ public enum MobFields {
     }
 }
 
+public enum CollectResult: Equatable { case collected, onCooldown(TimeInterval), failed(String) }
+
 public enum HuntResult: Equatable { case killed, none, timeout, interrupted }
 
 extension Game {
-    /// Walks to a dispenser, clock, pass or booster and presses E. Starts from a reset so the
-    /// position is known. Returns false when it could not get there.
-    public func collect(_ pickup: String) -> Bool {
-        if !resetToHive() { return false }
+    /// Walks to a dispenser, clock, pass or booster and uses it. Starts from a reset so the position is known.
+    /// The prompt tells the truth: "Use the Strawberry Dispenser" is ready, and "(3:59:58)" after it means
+    /// it was used. So E is only pressed when it is ready, and the countdown afterwards proves it worked.
+    public func collect(_ pickup: String) -> CollectResult {
+        if !resetToHive() { return .failed("could not reach the hive") }
         let variant = settings.travel
         let slotName = pickup == "honey dispenser" ? "\(pickup) s\(min(6, max(1, settings.hiveSlot)))" : pickup
         let key = pickup.replacingOccurrences(of: " ", with: "_")
         var pf = pathLookup("to_pickup", slotName, variant)
         if pf == nil && variant != "walk" { pf = pathLookup("to_pickup", slotName, "walk") }
         if pf == nil { pf = pathLookup("to_pickup", key, "walk") }
-        guard let path = pf else { status("warning", "no route for \(pickup)"); return false }
+        guard let path = pf else { return .failed("no route for \(pickup)") }
         status("traveling", pickup)
-        guard walkPath(path) else { return false }
-        for _ in 0..<2 {
-            actuator.tap("e", holdS: 0.1)
-            wait(0.6)
+        guard walkPath(path) else { return .failed("stopped") }
+
+        // What does the prompt say here?
+        func look(seconds: Double) -> String? {
+            let t0 = clock.now()
+            repeat {
+                guard let t = sensors.promptText() else { return nil }
+                if t.contains("use") || t.contains("(") { return t }
+                wait(0.4)
+            } while clock.now() - t0 < seconds && !stopped
+            return ""
         }
-        wait(1.0)
-        status("traveling", "collected \(pickup)")
-        return !stopped
+        let first = look(seconds: 3)
+        if first == nil {                                           // cannot read the screen: press E like before
+            for _ in 0..<2 { actuator.tap("e", holdS: 0.1); wait(0.6) }
+            wait(1.0)
+            status("traveling", "collected \(pickup)")
+            return .collected
+        }
+        if let left = Hud.cooldownSeconds(fromText: first ?? "") {
+            status("traveling", "\(pickup) is not ready yet")
+            return .onCooldown(left)
+        }
+        for attempt in 0..<2 {
+            actuator.tap("e", holdS: 0.1)
+            wait(1.2)
+            if let t = sensors.promptText(), let left = Hud.cooldownSeconds(fromText: t) {
+                status("traveling", "collected \(pickup)")
+                return .onCooldown(left)                            // counting down now: it worked
+            }
+            if stopped { return .failed("stopped") }
+            if attempt == 0 { status("warning", "\(pickup): no countdown after E, trying once more") }
+        }
+        return .failed("no countdown showed after pressing E at \(pickup)")
     }
 
     /// Goes to the mob's field and fights until its health bar is gone. Gives up quickly when no mob is
@@ -167,7 +196,12 @@ public final class GameExtraRunner: ExtraRunner {
         case "pickups":
             for p in due {
                 if game.stopped { return }
-                if game.collect(p) { done([p]) }
+                switch game.collect(p) {
+                case .collected: done([p])
+                case .onCooldown(let left):                          // the game's own countdown wins
+                    timers.setRemaining(p, seconds: left, now: unixNow()); onTimers(timers)
+                case .failed(let why): game.status("warning", "\(p): \(why)")
+                }
             }
         case "bug_run":
             for group in MobFields.plan(due) {

@@ -184,6 +184,14 @@ public final class ScreenSensors: Sensors {
         return Hud.honeycombShare(img)
     }
 
+    public func promptText() -> String? {
+        guard let read = textReader, let w = bounds() else { return nil }
+        // A tall band across the top middle: the prompt sits there, whatever its height.
+        let band = RelRegion(fx: max(0, (Double(w.width) / 2 - 320) / Double(w.width)), fy: 0, fw: min(1, 640 / Double(w.width)), fh: min(1, 230 / Double(w.height)))
+        guard let img = region(band) else { return nil }
+        return read(img)?.lowercased()
+    }
+
     public func mobBars() -> [Double]? {
         guard let w = bounds(), let img = screen.grab(w) else { return nil }
         return Hud.mobHealthBars(img)

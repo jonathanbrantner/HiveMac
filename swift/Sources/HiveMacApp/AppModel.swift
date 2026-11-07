@@ -22,6 +22,7 @@ final class ReportingSensors: Sensors {
     func hiveMessage() -> String? { practice ? nil : inner.hiveMessage() }
     func hiveViewShare() -> Double? { practice ? nil : inner.hiveViewShare() }
     func mobBars() -> [Double]? { practice ? nil : inner.mobBars() }
+    func promptText() -> String? { practice ? nil : inner.promptText() }
     func cannonPromptVisible() -> Bool? { inner.cannonPromptVisible() }
     func deathTextVisible() -> Bool? { inner.deathTextVisible() }
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { inner.find(template, in: region, tolerance: tolerance) }

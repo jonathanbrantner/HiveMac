@@ -24,6 +24,8 @@ public protocol Sensors: AnyObject {
     func hiveViewShare() -> Double?
     /// Percent left of every mob health bar on screen. nil when the screen cannot be read.
     func mobBars() -> [Double]?
+    /// Words of the prompt at the top of the screen ("Use the Strawberry Dispenser (3:59:58)"). nil when unreadable.
+    func promptText() -> String?
 }
 
 public extension Sensors {
@@ -32,6 +34,7 @@ public extension Sensors {
     func hiveMessage() -> String? { nil }
     func hiveViewShare() -> Double? { nil }
     func mobBars() -> [Double]? { nil }
+    func promptText() -> String? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {

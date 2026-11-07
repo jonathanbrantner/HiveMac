@@ -147,3 +147,12 @@ final class QuestLogTests: XCTestCase {
         XCTAssertNil(QuestLog.parse("Collect 5 Pollen"))
     }
 }
+
+final class QuestLogProgressTests: XCTestCase {
+    func testBuckoBoxProgress() {
+        let e = QuestLog.parse("Bucko Bee: Skirmish\nCollect 330,000,000 Pollen from the Blue Flower Field. 9,035,765/330,000,000\nDefeat 10 Rhino Beetles. 6/10")
+        XCTAssertEqual(e?.progress, [QuestProgress(done: 9_035_765, goal: 330_000_000), QuestProgress(done: 6, goal: 10)])
+        XCTAssertEqual(e?.complete, false)
+        XCTAssertTrue(QuestLog.isDialog("You never let me down!\nClick to continue"))
+    }
+}

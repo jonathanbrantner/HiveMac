@@ -77,7 +77,7 @@ struct PermissionRow: View {
                 Text(ok ? "On" : why).font(Theme.caption).foregroundStyle(ok ? Theme.dust : Theme.resin).fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            if !ok { Button("Open") { Permissions.openSettings(pane) }.buttonStyle(QuietButtonStyle()) }
+            if !ok { Button("Turn on") { Permissions.request(pane); Permissions.openSettings(pane) }.buttonStyle(QuietButtonStyle()) }
         }
         .frame(minHeight: Theme.rowHeight + 8)
     }

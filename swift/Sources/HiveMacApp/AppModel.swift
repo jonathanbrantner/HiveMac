@@ -107,6 +107,7 @@ final class AppModel: ObservableObject {
         if case .success(let code) = KeyCodes.validateStopKey(stopKeyName) { hotKey.register(keyCode: UInt32(code)) }
         else { setStopKey("f9") }
         append("HiveMac started. Data folder: \(dirs.data.path)")
+        if !isDemo && !permissions.allGranted { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Permissions.request() } }
         if ProcessInfo.processInfo.environment["HIVEMAC_DEMO"] != nil { applyDemo() } else { startPolling() }
     }
 

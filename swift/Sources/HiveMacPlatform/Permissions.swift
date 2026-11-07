@@ -34,6 +34,18 @@ public enum Permissions {
         }
     }
 
+    /// Asks macOS for one permission. This is what puts HiveMac into the list in System Settings:
+    /// an app that never asked is not listed there at all.
+    public static func request(_ pane: Pane) {
+        switch pane {
+        case .screenRecording: _ = CGRequestScreenCaptureAccess()
+        case .accessibility:
+            let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+            _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        case .inputMonitoring: _ = CGRequestListenEventAccess()
+        }
+    }
+
     /// Only needed to record a walk (HiveMac listens to your keys while you walk). Playing a run does not need it.
     public static var inputMonitoring: Bool { CGPreflightListenEventAccess() }
     public static func requestInputMonitoring() { _ = CGRequestListenEventAccess() }

@@ -17,11 +17,15 @@ public protocol Sensors: AnyObject {
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)?
     /// True while the hive prompt says "Stop Making Honey" (converting is already on). nil when unknown.
     func honeyRunning() -> Bool?
+    /// What the hive message says: "make" (E starts converting), "stop" (converting now), "empty" (nothing
+    /// left to convert, balloon included). nil when it cannot be read.
+    func hiveMessage() -> String?
 }
 
 public extension Sensors {
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { nil }
     func honeyRunning() -> Bool? { nil }
+    func hiveMessage() -> String? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
@@ -44,6 +48,8 @@ public struct GameSettings: Equatable, Sendable {
     public var hivePromptRecheckS = 4.0
     public var respawnTimeoutS = 12.0
     public var convertTimeoutS = 300.0
+    /// After the bag is empty, keep converting until the hive balloon is empty too (Natro's "convert balloon").
+    public var convertBalloon = true
     public var convertPressRetryS = 6.0
     public var cameraSearchTaps = 2         // yaw step while looking for the hive view
     public var cameraAfterFoundTaps = 4     // Natro: 180 degrees once the hive is in view
@@ -267,7 +273,11 @@ public final class Game {
             }
             if pct <= 0 {
                 emptyReads += 1
-                if emptyReads >= 3 { status("converting", "done"); return true }
+                if emptyReads >= 3 {
+                    if s.convertBalloon { convertBalloon() }
+                    status("converting", "done")
+                    return true
+                }
             } else {
                 emptyReads = 0
                 lastPct = lastPct.map { min($0, pct) } ?? pct
@@ -275,6 +285,32 @@ public final class Game {
             wait(s.backpackSampleS)
         }
         return false
+    }
+
+    /// With the bag empty the hive can still hold balloon pollen: while the message says Make Honey, press E,
+    /// and wait through Stop Making Honey until it shows the empty-bag message. Capped at 10 minutes.
+    public func convertBalloon() {
+        let t0 = clock.now()
+        var unreadable = 0
+        while !stopped && clock.now() - t0 < 600 {
+            switch sensors.hiveMessage() {
+            case "empty"?:
+                if clock.now() - t0 > 1 { status("converting", "balloon done") }
+                return
+            case "make"?:
+                unreadable = 0
+                status("converting", "balloon")
+                tap("e")
+                wait(1.5)
+            case "stop"?:
+                unreadable = 0
+                wait(1)
+            default:
+                unreadable += 1
+                if unreadable >= 5 { return }
+                wait(1)
+            }
+        }
     }
 
     // MARK: Travel

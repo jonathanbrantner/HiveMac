@@ -83,6 +83,7 @@ public final class ConfigStore {
         s.resetWaitS = double("game.reset_wait_s", s.resetWaitS)
         s.deathExtraWaitS = double("game.death_extra_wait_s", s.deathExtraWaitS)
         s.resetAttempts = int("game.reset_attempts", s.resetAttempts)
+        s.convertBalloon = bool("game.convert_balloon", s.convertBalloon)
         s.respawnTimeoutS = double("game.respawn_timeout_s", s.respawnTimeoutS)
         s.convertTimeoutS = double("game.convert_timeout_s", s.convertTimeoutS)
         s.convertPressRetryS = double("game.convert_press_retry_s", s.convertPressRetryS)

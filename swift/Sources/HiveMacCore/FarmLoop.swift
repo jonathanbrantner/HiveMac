@@ -71,6 +71,11 @@ public final class FarmLoop {
         let g = game
         if fields.isEmpty { g.status("error", "no enabled fields"); return "no_fields" }
         var afterDeath = false
+        // Standing at the hive with pollen: convert it first. A reset would only throw time away.
+        if g.sensors.hivePromptVisible() == true {
+            g.status("converting", "at the hive, converting before the first field")
+            if g.convert() { stats.converts += 1 }
+        }
         while !g.stopped {
             if let m = maxCycles, stats.cycles >= m { return "cycles_done" }
             let f: FieldConfig

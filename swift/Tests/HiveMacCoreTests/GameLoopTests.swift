@@ -409,3 +409,41 @@ final class GameLoopTests: XCTestCase {
         XCTAssertGreaterThan(act2.taps("e"), 0)
     }
 }
+
+extension GameLoopTests {
+    /// A hive whose message follows a script: make, make, stop, stop, empty.
+    final class MessageWorld: Sensors {
+        let inner: FakeWorld
+        var script: [String?]
+        var reads = 0
+        init(_ inner: FakeWorld, script: [String?]) { self.inner = inner; self.script = script }
+        func robloxPresent() -> Bool { true }
+        func backpackPercent() -> Int { 0 }
+        func backpackUnreadableStreak() -> Int { 0 }
+        func resetBackpackFilter() {}
+        func healthGrey() -> Bool { false }
+        func hivePromptVisible() -> Bool? { true }
+        func hiveViewVisible() -> Bool? { true }
+        func cannonPromptVisible() -> Bool? { nil }
+        func deathTextVisible() -> Bool? { nil }
+        func hiveMessage() -> String? { defer { reads += 1 }; return reads < script.count ? script[reads] : script.last ?? nil }
+    }
+
+    func testBalloonIsConvertedUntilTheHiveSaysEmpty() {
+        let f = GameFixture()
+        let w = MessageWorld(f.world, script: ["make", "stop", "stop", "make", "empty"])
+        let g = Game(actuator: f.act, sensors: w, settings: f.game.settings, clock: f.clock, status: { _, _ in })
+        g.convertBalloon()
+        XCTAssertEqual(f.act.taps("e"), 2)                  // pressed on each "make", never on "stop"
+        XCTAssertEqual(w.reads, 5)
+    }
+
+    func testBalloonGivesUpWhenTheMessageCannotBeRead() {
+        let f = GameFixture()
+        let w = MessageWorld(f.world, script: [nil])
+        let g = Game(actuator: f.act, sensors: w, settings: f.game.settings, clock: f.clock, status: { _, _ in })
+        g.convertBalloon()
+        XCTAssertEqual(f.act.taps("e"), 0)
+        XCTAssertEqual(w.reads, 5)
+    }
+}

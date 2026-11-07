@@ -79,8 +79,10 @@ final class ScreenSensorsTests: XCTestCase {
         XCTAssertEqual(on.hiveViewVisible(), true)
         screen.image = RGBImage(width: 20, height: 5, fill: (0, 0, 0))
         XCTAssertEqual(on.hiveViewVisible(), false)
+        // The strip is a backup for the picture now, so it also works when it is not switched on.
+        screen.image = RGBImage(width: 20, height: 5, fill: (255, 255, 255))
         let off = make(screen) { $0.hiveStripRegion = RelRegion(fx: 0.4, fy: 0.9, fw: 0.2, fh: 0.1); $0.hiveStripEnabled = false }
-        XCTAssertNil(off.hiveViewVisible())
+        XCTAssertEqual(off.hiveViewVisible(), true)
     }
 
     func testHudConfigReadsStoreAndLoadsTemplatesByName() {

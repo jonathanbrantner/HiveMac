@@ -73,6 +73,11 @@ struct SettingsView: View {
                     Choice(options: Sprinkler.types.map { ($0, $0.capitalized) }, selection: str("game.sprinkler_type", "none"), width: 120)
                 }
 
+                SectionTitle("Converting")
+                SettingRow(label: "Hive balloon") { Toggle("Convert it too", isOn: Binding(get: { _ = model.settingsVersion; return model.store.bool("game.convert_balloon", true) }, set: { model.set("game.convert_balloon", $0) })).toggleStyle(.checkbox) }
+                Text("After the bag is empty, keep pressing E until the hive balloon is empty too. Up to 10 minutes.")
+                    .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
+
                 SectionTitle("Practice")
                 SettingRow(label: "Practice mode") { Toggle("Press nothing", isOn: flag("app.practice_mode")).toggleStyle(.checkbox) }
                 Text("Runs the macro with the real screen reading but sends no keys or clicks. The log shows what it would have pressed. Use it to check the readings while you move by hand.")

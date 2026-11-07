@@ -146,6 +146,8 @@ public final class Walker {
             switch s.type {
             case "walk": walk(s.keys.map(mapped), tiles: s.tiles)
             case "hold": hold(s.keys.map(mapped), s.seconds)
+            case "keydown": s.keys.map(mapped).forEach { act.keyDown($0) }
+            case "keyup": s.keys.map(mapped).reversed().forEach { act.keyUp($0) }
             case "rotate": rotate(s.direction, taps: s.count, leftKey: keymap["rot_left"] ?? ",", rightKey: keymap["rot_right"] ?? ".")
             case "tap": taps(mapped(s.key), count: s.count)
             case "wait": wait(s.seconds)

@@ -19,11 +19,14 @@
    "key": "e"
   },
   {
-   "type": "hold",
+   "type": "keydown",
    "keys": [
     "a",
     "s"
-   ],
+   ]
+  },
+  {
+   "type": "wait",
    "seconds": 1.4
   },
   {
@@ -32,12 +35,19 @@
    "count": 2
   },
   {
-   "type": "hold",
+   "type": "wait",
+   "seconds": 1.1
+  },
+  {
+   "type": "keyup",
    "keys": [
     "a",
     "s"
-   ],
-   "seconds": 1.1
+   ]
+  },
+  {
+   "type": "tap",
+   "key": "space"
   },
   {
    "type": "hold",

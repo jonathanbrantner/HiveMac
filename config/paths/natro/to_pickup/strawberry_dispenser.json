@@ -2,7 +2,7 @@
  "name": "strawberry_dispenser",
  "source": "NatroMacro paths/gtc-strawberrydis.ahk (walk branch)",
  "walk_speed": 28.0,
- "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28. Fixed: second jump (space tap while holding d) was missing.",
  "steps": [
   {
    "type": "gotoramp"
@@ -92,6 +92,14 @@
     "d"
    ],
    "seconds": 0.3
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "space",
+    "d"
+   ],
+   "seconds": 0.05
   },
   {
    "type": "wait",

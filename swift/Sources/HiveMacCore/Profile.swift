@@ -109,6 +109,7 @@ public struct Profile: Equatable {
     /// Booster mode: cycle through the field boosters and gather in the field that gets boosted.
     public var boosterMode = false
     public var boosters: [String] = Booster.allCases.map(\.rawValue)
+    public var autoBoost = AutoBoost()
 
     public init(name: String = "default", fields: [FieldConfig] = [FieldConfig(name: "sunflower")], notes: String = "", extras: [ExtraStep] = []) {
         self.name = name; self.fields = fields; self.notes = notes; self.extras = extras
@@ -149,13 +150,14 @@ public struct Profile: Equatable {
                               extras: ((obj["extras"] as? [[String: Any]]) ?? []).map(ExtraStep.init(json:)))
         profile.boosterMode = (obj["booster_mode"] as? NSNumber)?.boolValue ?? false
         if let list = obj["boosters"] as? [String] { profile.boosters = list.filter { Booster(rawValue: $0) != nil } }
+        if let o = obj["auto_boost"] as? [String: Any] { profile.autoBoost = AutoBoost(json: o) }
         return profile
     }
 
     public func save(to url: URL) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let obj: [String: Any] = ["name": name, "fields": fields.map(\.json), "notes": notes, "extras": extras.map(\.json),
-                                  "booster_mode": boosterMode, "boosters": boosters]
+                                  "booster_mode": boosterMode, "boosters": boosters, "auto_boost": autoBoost.json]
         try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
     }
 }

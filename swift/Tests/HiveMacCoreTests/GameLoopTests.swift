@@ -378,6 +378,43 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(g.boss(Bosses.spec("coconut crab")!), .killed)
     }
 
+    func testAutoBoostRollsUntilTheBoostIconShows() {
+        var cfg = AutoBoost(); cfg.enabled = true; cfg.diceSlot = 2; cfg.glitterSlot = 3
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: [])
+        var rolls = 0
+        f.act.onTap = { k in if k == "2" { rolls += 1; if rolls == 3 { pw.visible.insert("boost/pinetree0") } } }
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) }, pathLookup: { _, n, _ in PathFile(name: n, steps: []) })
+        XCTAssertTrue(g.boostField("pine tree", cfg))
+        XCTAssertEqual(rolls, 3)
+        XCTAssertEqual(f.act.taps("3"), 0)                    // no glitter: the dice did it
+    }
+
+    func testAutoBoostFallsBackToGlitterAndGivesUpQuietly() {
+        var cfg = AutoBoost(); cfg.enabled = true; cfg.diceSlot = 2; cfg.glitterSlot = 3; cfg.rollsPerVisit = 2
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: [])
+        f.act.onTap = { k in if k == "3" { pw.visible.insert("boost/rose1") } }
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) }, pathLookup: { _, n, _ in PathFile(name: n, steps: []) })
+        XCTAssertTrue(g.boostField("rose", cfg))
+        XCTAssertEqual(f.act.taps("2"), 2)
+        pw.visible = []
+        XCTAssertFalse(g.boostField("pumpkin", cfg))
+        var off = cfg; off.enabled = false
+        XCTAssertFalse(g.boostField("pumpkin", off))
+    }
+
+    func testAutoBoostSettingsRoundTrip() throws {
+        var p = Profile(); p.autoBoost.enabled = true; p.autoBoost.diceSlot = 4; p.autoBoost.glitterSlot = 9
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("ab-\(UUID()).json")
+        try p.save(to: url); defer { try? FileManager.default.removeItem(at: url) }
+        let back = try Profile.load(url)
+        XCTAssertTrue(back.autoBoost.enabled); XCTAssertEqual(back.autoBoost.diceSlot, 4)
+        XCTAssertEqual(back.autoBoost.glitterSlot, 0)         // 9 is not a hotbar slot
+    }
+
     /// The real world plus a screen that shows only the pictures in `visible`.
     final class PictureWorld: Sensors {
         let inner: FakeWorld

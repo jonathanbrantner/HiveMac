@@ -23,6 +23,8 @@ public final class FarmLoop {
     let unixNow: () -> TimeInterval
     let boosterMode: Bool
     let boosters: [Booster]
+    let autoBoost: AutoBoost
+    private var lastAutoBoost: [String: TimeInterval] = [:]
     let profileFields: [FieldConfig]
     /// The boosted field being gathered, while its boost lasts.
     private var boost: (field: FieldConfig, since: TimeInterval)?
@@ -41,6 +43,7 @@ public final class FarmLoop {
         self.unixNow = { Date().timeIntervalSince1970 }
         self.boosterMode = false
         self.boosters = []
+        self.autoBoost = AutoBoost()
         self.profileFields = fields
         self.maxCycles = maxCycles
         self.maxFailed = maxFailedResets
@@ -60,6 +63,7 @@ public final class FarmLoop {
         self.unixNow = unixNow
         self.boosterMode = profile.boosterMode
         self.boosters = profile.boosters.compactMap(Booster.init(rawValue:))
+        self.autoBoost = profile.autoBoost
         self.profileFields = profile.fields
         self.maxCycles = maxCycles
         self.maxFailed = maxFailedResets
@@ -150,6 +154,10 @@ public final class FarmLoop {
             if g.convert() { stats.converts += 1 }
             if g.stopped { break }
             if !g.travelTo(f) { continue }
+            if autoBoost.enabled, unixNow() - (lastAutoBoost[f.name] ?? 0) >= autoBoost.refreshMinutes * 60 {
+                g.boostField(f.name, autoBoost)
+                lastAutoBoost[f.name] = unixNow()
+            }
             let result = g.gather(f)
             stats.cycles += 1
             extras?.fieldGathered(f.name, seconds: result.seconds)

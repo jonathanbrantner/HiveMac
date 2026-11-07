@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Practice mode (reads the screen, presses nothing), Save snapshot in the Log tab, and bug runs, planters and pickups now take their turn between fields in the order you set (the game actions behind them are not built yet).
 - Removed the older Python app. HiveMac is the native Swift app only.
 - Drag to reorder, bug runs anywhere in a run, planter timers, hotbar section, simpler Calibrate.
 

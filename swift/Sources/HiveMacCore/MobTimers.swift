@@ -11,9 +11,11 @@ public struct MobTimers: Equatable, Sendable {
         "wealth clock": 3600, "honey dispenser": 3600, "treat dispenser": 3600,
         "blueberry dispenser": 4 * 3600, "strawberry dispenser": 4 * 3600, "coconut dispenser": 4 * 3600,
         "honeystorm": 4 * 3600, "ant pass": 2 * 3600, "robo pass": 22 * 3600,
+        "blue booster": 45 * 60, "red booster": 45 * 60, "mountain booster": 45 * 60,
     ]
     public static let pickups = ["wealth clock", "honey dispenser", "treat dispenser", "blueberry dispenser",
-                                 "strawberry dispenser", "coconut dispenser", "honeystorm", "ant pass", "robo pass"]
+                                 "strawberry dispenser", "coconut dispenser", "honeystorm", "ant pass", "robo pass",
+                                 "blue booster", "red booster", "mountain booster"]
 
     public private(set) var lastDone: [String: TimeInterval] = [:]
 

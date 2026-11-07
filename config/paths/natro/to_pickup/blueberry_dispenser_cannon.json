@@ -1,0 +1,105 @@
+{
+ "name": "blueberry_dispenser_cannon",
+ "source": "NatroMacro paths/gtc-blueberrydis.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "a"
+   ],
+   "seconds": 0.7
+  },
+  {
+   "type": "tap",
+   "key": "space",
+   "count": 2
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "a"
+   ],
+   "seconds": 4.45
+  },
+  {
+   "type": "wait",
+   "seconds": 1.0
+  },
+  {
+   "type": "rotate",
+   "direction": "left",
+   "count": 2
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 10.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 8.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 10.0
+  },
+  {
+   "type": "rotate",
+   "direction": "right"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 1.6
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "w",
+    "space"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "type": "tap",
+   "key": "space"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "w"
+   ],
+   "seconds": 1.3
+  }
+ ]
+}

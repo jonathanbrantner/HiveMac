@@ -43,9 +43,10 @@ struct ExtraRow: View {
                         set: { on in
                             if on { if !step.bugs.contains(bug) { step.bugs.append(bug) } } else { step.bugs.removeAll { $0 == bug } }
                         })).toggleStyle(.checkbox).font(Theme.body).frame(width: 150, alignment: .leading)
+                    let unbuilt = step.kind == "bug_run" && MobFields.notBuilt.contains(bug)
                     let timed = MobTimers.respawn[bug] != nil
                     let left = model.mobTimers.remaining(bug, now: Date().timeIntervalSince1970)
-                    Text(MobTimers.describe(remaining: left, timed: timed)).font(Theme.caption)
+                    Text(unbuilt ? "not hunted yet" : MobTimers.describe(remaining: left, timed: timed)).font(Theme.caption)
                         .foregroundStyle(timed && left == 0 ? Theme.leaf : Theme.dust)
                     Spacer(minLength: 0)
                     if let wait = MobTimers.respawn[bug] {

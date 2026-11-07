@@ -129,19 +129,19 @@ public final class Game {
 
     public var stopped: Bool { stop.isSet }
 
-    private func wait(_ s: Double) { walker.wait(s) }
-    private func tap(_ key: String) { actuator.tap(key, holdS: 0.03) }
+    func wait(_ s: Double) { walker.wait(s) }
+    func tap(_ key: String) { actuator.tap(key, holdS: 0.03) }
 
     public func keymap() -> [String: String] {
         ["rot_left": settings.rotLeft, "rot_right": settings.rotRight,
          "zoom_in": settings.zoomIn, "zoom_out": settings.zoomOut]
     }
 
-    private func run(_ steps: [Step], _ km: [String: String]? = nil) {
+    func run(_ steps: [Step], _ km: [String: String]? = nil) {
         _ = try? walker.run(steps, keymap: km ?? keymap())
     }
 
-    private func iterSteps(_ pf: PathFile) -> [Step] {
+    func iterSteps(_ pf: PathFile) -> [Step] {
         Paths.scaleHolds(Paths.expand(pf.steps, hiveSlot: settings.hiveSlot),
                          recordedSpeed: pf.walkSpeed, actualSpeed: speed.current())
     }
@@ -267,6 +267,19 @@ public final class Game {
         }
         guard let path = pf else { status("error", "no path to \(f.name)"); return false }
         status("traveling", f.name)
+        if !walkPath(path) { return false }
+        run(Sprinkler.startLocationSteps(field: f.name, location: f.sprinklerLocation,
+                                         distance: f.sprinklerDistance, speed: speed.current()), [:])
+        run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
+                                     slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
+        if f.rotatesCamera {
+            walker.rotate(f.camera, taps: f.turns, leftKey: s.rotLeft, rightKey: s.rotRight)
+        }
+        return !stopped
+    }
+
+    /// Walks a route from the hive: shift lock off, mouse parked, every step, the cannon where the route asks.
+    public func walkPath(_ path: PathFile) -> Bool {
         setShiftLock(false)
         parkMouse()
         for step in iterSteps(path) {
@@ -276,13 +289,6 @@ public final class Game {
                 continue
             }
             run([step])
-        }
-        run(Sprinkler.startLocationSteps(field: f.name, location: f.sprinklerLocation,
-                                         distance: f.sprinklerDistance, speed: speed.current()), [:])
-        run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
-                                     slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
-        if f.rotatesCamera {
-            walker.rotate(f.camera, taps: f.turns, leftKey: s.rotLeft, rightKey: s.rotRight)
         }
         return !stopped
     }

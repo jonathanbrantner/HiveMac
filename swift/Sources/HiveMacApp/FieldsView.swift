@@ -60,8 +60,8 @@ struct FieldsView: View {
                         .zIndex(reorder.dragging == key ? 1 : 0)
                         .shadow(color: .black.opacity(reorder.dragging == key ? 0.35 : 0), radius: 8, y: 2)
                     }
-                    if !model.profile.extras.isEmpty {
-                        Text("Bug runs, planters and pickups are saved with this run. HiveMac does not run them yet.")
+                    if model.profile.extras.contains(where: { $0.kind == "planters" }) {
+                        Text("Planters are saved with this run but not run yet: placing one needs the game.")
                             .font(Theme.caption).foregroundStyle(Theme.dust).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }

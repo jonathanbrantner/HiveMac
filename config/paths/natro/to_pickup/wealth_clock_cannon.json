@@ -1,0 +1,72 @@
+{
+ "name": "wealth_clock_cannon",
+ "source": "NatroMacro paths/gtc-clock.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "w",
+    "a"
+   ],
+   "seconds": 1.5
+  },
+  {
+   "type": "tap",
+   "key": "space",
+   "count": 2
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "w",
+    "a"
+   ],
+   "seconds": 8.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 15.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 3.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d",
+    "s"
+   ],
+   "tiles": 2.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 1.0
+  }
+ ]
+}

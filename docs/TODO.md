@@ -5,7 +5,8 @@ until it has been tried in the real game. Source of the inventory: Natro Macro (
 (timers, field lists, planter numbers) are free to use. Natro's path and pattern files are not:
 keep its notice on them and do not share this repo until that is handled.
 
-## Run steps (they take their turn in the loop and skip what is not due; the game actions behind them are missing)
+## Run steps (built in code on 2026-11-06, NOT yet tried in the game)
+Pickups (clock, dispensers, passes, honeystorm, boosters): reset, Natro's route from `config/paths/natro/to_pickup`, E twice, timer. Bug runs: reset, travel to the mob's field, gather 90 s with the tool, timer. Still missing: planters (placing needs the inventory), coconut crab, king beetle, black bear, mob detection by health bar colour, loot sweep.
 - **Bug runs:** ladybug and rhino beetle first (every 330 s respawn), then spider (1830 s), mantis and
   scorpion (1230 s), werewolf (3630 s). Mobs are found by health bar colours 0x1fe744 and 0x6b131a.
   Also in the picker: coconut crab (36 h), king beetle (24 h), black bear quests.

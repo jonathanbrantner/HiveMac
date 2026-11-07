@@ -269,4 +269,45 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(r.due(pl, now: 100 + 3600), ["slot 1"])
         XCTAssertEqual(r.due(pl, now: 100 + 60), [])
     }
+
+    func testCollectWalksTheRouteAndPressesE() {
+        let f = GameFixture()
+        XCTAssertTrue(f.game.collect("wealth clock"))
+        XCTAssertEqual(f.act.taps("e"), 2)
+        XCTAssertTrue(f.traveled.contains("wealth clock"))
+        XCTAssertTrue(f.traveled.contains("collected wealth clock"))
+    }
+
+    func testCollectWithoutARouteDoesNotPressE() {
+        let f = GameFixture()
+        let g = Game(actuator: f.act, sensors: f.world, settings: f.game.settings, clock: f.clock,
+                     status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) })
+        XCTAssertFalse(g.collect("wealth clock"))
+        XCTAssertEqual(f.act.taps("e"), 0)
+    }
+
+    func testHuntPlanSharesFields() {
+        let plan = MobFields.plan(["ladybug", "rhino beetle", "werewolf", "king beetle"])
+        XCTAssertEqual(plan.map(\.field), ["clover", "pumpkin"])
+        XCTAssertEqual(plan[0].mobs, ["ladybug", "rhino beetle"])
+    }
+
+    func testRunnerMarksPickupsAndMobsDoneThenSkipsThemUntilBack() {
+        let f = GameFixture(fillPerS: 20)
+        var pick = ExtraStep(kind: "pickups"); pick.bugs = ["wealth clock"]
+        var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug", "coconut crab"]
+        var saved = 0
+        var unix = 5_000.0
+        let runner = GameExtraRunner(huntSeconds: 20, unixNow: { unix }, onTimers: { _ in saved += 1 })
+        XCTAssertEqual(runner.due(bug, now: unix), ["ladybug"])            // coconut crab is not hunted yet
+        runner.perform(pick, due: ["wealth clock"], game: f.game)
+        runner.perform(bug, due: ["ladybug"], game: f.game)
+        XCTAssertEqual(saved, 2)
+        XCTAssertEqual(runner.due(pick, now: unix + 100), [])
+        XCTAssertEqual(runner.due(bug, now: unix + 100), [])
+        unix += 3_700
+        XCTAssertEqual(runner.due(pick, now: unix), ["wealth clock"])
+        XCTAssertEqual(runner.due(bug, now: unix), ["ladybug"])
+        XCTAssertTrue(f.traveled.contains("clover"))
+    }
 }

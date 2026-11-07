@@ -180,7 +180,9 @@ final class AppModel: ObservableObject {
                          dirs.findPath(kind: kind, field: field, variant: variant, builtIn: builtIn).flatMap { try? PathFile.load($0) }
                      })
         game = g
-        let loop = FarmLoop(g, profile: profile, extras: PendingExtraRunner(timers: mobTimers))
+        let loop = FarmLoop(g, profile: profile, extras: GameExtraRunner(timers: mobTimers) { [weak self] t in
+            DispatchQueue.main.async { self?.mobTimers = t; t.save(to: dirs.data.appendingPathComponent("mob_timers.json")) }
+        })
         loop.onStats = { [weak self] s in DispatchQueue.main.async { self?.stats = s } }
 
         watchdog = Watchdog(timeout: store.double("timing.watchdog_timeout_sec", 90), now: Date().timeIntervalSince1970)

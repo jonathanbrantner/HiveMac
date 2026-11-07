@@ -14,3 +14,7 @@ Conventions: `walk` steps are in tiles (4 studs) and scale with your walk speed.
 `hold` steps are seconds at walk speed 28 (the cannon and glider branches) and
 are rescaled at run time. `gotoramp` expands to Natro's "forward 5, right
 9.2 * hive slot - 4" prefix for your hive slot.
+
+`to_pickup/` holds the walks to the wealth clock, the dispensers, the passes, honeystorm and the field
+boosters (Natro's `gtc-*` and `gtb-*` files). `honey_dispenser_s1..s6` is one file per hive slot because
+Natro's route there is a formula of the slot.

@@ -1,6 +1,6 @@
 # Paths converted from Natro Macro
 
-These JSON files were produced by `tools/convert_natro_paths.py` from the
+These JSON files were produced by a one-off converter script (since removed with the Python app; it is in the git history before commit d1f8da2) from the
 `paths/gtf-*.ahk` and `paths/wf-*.ahk` files of Natro Macro
 (https://github.com/NatroTeam/NatroMacro), which is licensed under the GNU GPL
 v3.0. They are key sequences and distances, kept here as a starting point so the

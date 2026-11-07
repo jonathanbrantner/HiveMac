@@ -2,18 +2,12 @@ import SwiftUI
 import HiveMacCore
 import HiveMacPlatform
 
-struct CalibrateView: View {
+/// Roblox detection and what HiveMac reads from it right now.
+struct RobloxSection: View {
     @EnvironmentObject var model: AppModel
-    @State private var advanced = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                if !model.permissions.allGranted {
-                    Text("Screen Recording or Accessibility is off. Turn them on with the gear at the top right.")
-                        .font(Theme.caption).foregroundStyle(Theme.ember).padding(.top, Theme.s4)
-                }
-
+        VStack(alignment: .leading, spacing: 0) {
                 SectionTitle("Roblox")
                 HStack(spacing: Theme.s3) {
                     HexDot(color: model.live.windowFound ? Theme.leaf : Theme.ember)
@@ -40,12 +34,6 @@ struct CalibrateView: View {
                         Spacer()
                     }
                     .padding(.top, Theme.s1)
-                    HStack(spacing: Theme.s4) {
-                        Text("Facing the hive").font(Theme.body).foregroundStyle(Theme.resin)
-                        Text(model.live.hiveShare.map { String(format: "%.0f%% gold", $0 * 100) } ?? "unknown").font(Theme.figure).foregroundStyle(Theme.wax)
-                        Text("About 12% or more when the camera looks at the hive, about 2% when it looks away.").font(Theme.caption).foregroundStyle(Theme.dust).lineLimit(1)
-                        Spacer()
-                    }
                     if let data = model.live.barPNG, let img = NSImage(data: data) {
                         VStack(alignment: .leading, spacing: Theme.s1) {
                             Text(model.live.barText.map { "It reads: \($0)" } ?? "It could not read numbers here, so it falls back to the fill colour. The whole Pollen bar should be in this picture.").font(Theme.caption).foregroundStyle(Theme.dust)
@@ -57,20 +45,7 @@ struct CalibrateView: View {
                     }
                 }
 
-                Button { withAnimation(.snappy(duration: 0.15)) { advanced.toggle() } } label: {
-                    HStack(spacing: Theme.s1) {
-                        Image(systemName: advanced ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
-                        Text("Advanced").font(Theme.body)
-                    }.foregroundStyle(Theme.resin)
-                }
-                .buttonStyle(.plain).padding(.top, Theme.s6)
-                if advanced {
-                    RecordWalkSection()
-                    PicturesSection()
-                }
             }
-            .padding(.horizontal, Theme.s6).padding(.bottom, Theme.s6)
-        }
         .onAppear { model.refreshLive() }
     }
 

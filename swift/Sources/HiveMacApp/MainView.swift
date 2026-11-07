@@ -3,7 +3,7 @@ import AppKit
 import HiveMacCore
 
 enum Tab: String, CaseIterable, Identifiable {
-    case fields = "Fields", settings = "Macro", calibrate = "Calibrate", log = "Log"
+    case fields = "Fields", settings = "Settings", log = "Log"
     var id: String { rawValue }
 }
 
@@ -33,7 +33,6 @@ struct MainView: View {
                 switch tab {
                 case .fields: FieldsView()
                 case .settings: SettingsView()
-                case .calibrate: CalibrateView()
                 case .log: LogView()
                 }
             }
@@ -44,7 +43,7 @@ struct MainView: View {
         .tint(Theme.honey)
         .onAppear {
             model.refreshLive()
-            if !model.live.calibrated && ProcessInfo.processInfo.environment["HIVEMAC_TAB"] == nil { tab = .calibrate }
+            if !model.live.windowFound && ProcessInfo.processInfo.environment["HIVEMAC_TAB"] == nil { tab = .settings }
         }
     }
 }
@@ -68,8 +67,6 @@ struct HeaderView: View {
         return String(format: "%d:%02d:%02d", s / 3600, (s / 60) % 60, s % 60)
     }
 
-    @State private var showSettings = ProcessInfo.processInfo.environment["HIVEMAC_SHEET"] != nil
-
     var body: some View {
         HStack(spacing: Theme.s3) {
             HiveMark(size: 24)
@@ -78,12 +75,9 @@ struct HeaderView: View {
             HexDot(color: dot)
             Text(model.state.label).font(Theme.bodyStrong).foregroundStyle(Theme.wax)
             Text(timer).font(Theme.figure).foregroundStyle(Theme.resin)
-            Button { showSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 15)) }
-                .buttonStyle(.plain).foregroundStyle(Theme.resin).help("App settings")
         }
         .padding(.horizontal, Theme.s6)
         .frame(height: 52)
-        .sheet(isPresented: $showSettings) { AppSettingsView() }
     }
 }
 

@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import HiveMacCore
 
-/// The macro's own settings. App settings (permissions, stop key, updates) are behind the gear.
+/// All settings on one page: Roblox, permissions, the macro, and a "More" fold for the rest.
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
 
@@ -20,6 +20,7 @@ struct SettingsView: View {
     }
 
     @State private var savedAt: Date?
+    @State private var showMore = false
 
     static let hotbarItems: [(String, String)] = [
         ("", "Empty"), ("sprinkler", "Sprinkler"), ("micro-converter", "Micro-Converter"), ("glitter", "Glitter"),
@@ -44,6 +45,9 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                RobloxSection()
+                EssentialAppSettings()
+
                 SectionTitle("Hive")
                 SettingRow(label: "Hive color") {
                     Choice(options: [("blue", "Blue"), ("red", "Red"), ("white", "White"), ("mixed", "Mixed")],
@@ -77,8 +81,13 @@ struct SettingsView: View {
                     }
                 }
 
-                SettingRow(label: "Practice mode") { Toggle("Press nothing, only read the screen", isOn: flag("app.practice_mode")).toggleStyle(.checkbox) }
-                    .padding(.top, Theme.s4)
+                DisclosureGroup(isExpanded: $showMore) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        SettingRow(label: "Practice mode") { Toggle("Press nothing, only read the screen", isOn: flag("app.practice_mode")).toggleStyle(.checkbox) }
+                        MoreAppSettings()
+                    }.padding(.top, Theme.s2)
+                } label: { Text("More").font(Theme.bodyStrong).foregroundStyle(Theme.honeyText) }
+                .padding(.top, Theme.s6)
             HStack {
                 Button("Save") { model.set("game.saved", Date().timeIntervalSince1970); model.saveSettings(); savedAt = Date() }
                     .buttonStyle(HoneyButtonStyle())

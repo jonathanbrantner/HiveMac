@@ -41,6 +41,8 @@ struct LiveReadings: Equatable {
     var barPNG: Data?
     /// The numbers read from the bar, e.g. "23,763/140,827,431".
     var barText: String?
+    /// The words read from the hive message area.
+    var hiveText: String?
     var calibrated = false
 }
 

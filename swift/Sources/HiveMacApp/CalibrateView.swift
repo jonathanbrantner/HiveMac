@@ -33,6 +33,13 @@ struct CalibrateView: View {
                         Spacer()
                     }
                     .padding(.top, Theme.s3)
+                    HStack(spacing: Theme.s4) {
+                        Text("At the hive").font(Theme.body).foregroundStyle(Theme.resin)
+                        Text(model.live.hivePrompt.map { $0 ? "yes" : "no" } ?? "unknown").font(Theme.figure).foregroundStyle(Theme.wax)
+                        if let t = model.live.hiveText, !t.isEmpty { Text("reads: \(t)").font(Theme.caption).foregroundStyle(Theme.dust).lineLimit(1) }
+                        Spacer()
+                    }
+                    .padding(.top, Theme.s1)
                     if let data = model.live.barPNG, let img = NSImage(data: data) {
                         VStack(alignment: .leading, spacing: Theme.s1) {
                             Text(model.live.barText.map { "It reads: \($0)" } ?? "It could not read numbers here, so it falls back to the fill colour. The whole Pollen bar should be in this picture.").font(Theme.caption).foregroundStyle(Theme.dust)

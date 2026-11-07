@@ -13,6 +13,8 @@ public struct HudConfig {
     public var backpackPixel: RelPoint?
     /// The whole backpack bar. When set it is read by length and wins over the single pixel.
     public var backpackBar: RelRegion?
+    /// Where the hive message ("Make Honey", "Stop Making Honey", "To Make Honey, Collect Pollen...") is read.
+    public var hiveMessageRegion: RelRegion?
     public var healthPixel: RelPoint?
     public var hivePromptRegion: RelRegion?
     public var hiveViewRegion: RelRegion?
@@ -50,6 +52,7 @@ public struct HudConfig {
     public init(store: ConfigStore, loadTemplate: (String) -> RGBImage?) {
         backpackPixel = Self.point(store.get("hud.backpack_pixel"))
         backpackBar = Self.region(store.get("hud.backpack_bar"))
+        hiveMessageRegion = Self.region(store.get("hud.hive_message_region"))
         healthPixel = Self.point(store.get("hud.health_pixel"))
         hivePromptRegion = Self.region(store.get("hud.hive_prompt_region"))
         hiveViewRegion = Self.region(store.get("hud.hive_view_region"))
@@ -84,6 +87,7 @@ public final class ScreenSensors: Sensors {
     /// Reads the text in an image (the Pollen bar's numbers). Provided by the platform layer.
     public var textReader: ((RGBImage) -> String?)?
     public private(set) var lastBarText: String?
+    public private(set) var lastHiveText: String?
     private let loadImage: (String) -> RGBImage?
     private var imageCache: [String: RGBImage] = [:]
 
@@ -146,16 +150,25 @@ public final class ScreenSensors: Sensors {
         return Hud.isGrey(r: c.r, g: c.g, b: c.b)
     }
 
-    /// At the hive when any of the hive messages is on screen. nil when no picture of them is saved.
-    public func hivePromptVisible() -> Bool? {
-        let all = [cfg.hivePromptTemplate, cfg.hivePromptStopTemplate, cfg.hivePromptEmptyTemplate]
-        let answers = all.map { templateIn(cfg.hivePromptRegion, $0) }
-        if answers.allSatisfy({ $0 == nil }) { return nil }
-        return answers.contains(true)
+    /// The words of the hive message, lower case, nil when text cannot be read at all.
+    private func hiveText() -> String? {
+        let area = cfg.hiveMessageRegion ?? bounds().map { Layout.natroDefaults($0, offsetY: 36).hiveMessageRegion }
+        guard let read = textReader, let img = region(area) else { return nil }
+        let text = (read(img) ?? "").lowercased()
+        lastHiveText = text
+        return text
     }
 
-    /// True while the prompt reads "Stop Making Honey". nil when that picture is not saved.
-    public func honeyRunning() -> Bool? { templateIn(cfg.hivePromptRegion, cfg.hivePromptStopTemplate) }
+    /// At the hive when a hive message is on screen. All three messages contain "honey": Make Honey,
+    /// Stop Making Honey, and "To Make Honey, Collect Pollen From Flower Fields" when the bag is empty.
+    /// The words are read from the screen; saved pictures count too. nil when neither is possible.
+    public func hivePromptVisible() -> Bool? {
+        let pictures = [cfg.hivePromptTemplate, cfg.hivePromptStopTemplate, cfg.hivePromptEmptyTemplate]
+            .map { templateIn(cfg.hivePromptRegion, $0) }
+        let text = hiveText()
+        if text == nil && pictures.allSatisfy({ $0 == nil }) { return nil }
+        return (text?.contains("honey") ?? false) || pictures.contains(true)
+    }
 
     public func hiveViewVisible() -> Bool? {
         if let r = templateIn(cfg.hiveViewRegion, cfg.hiveViewTemplate) { return r }
@@ -164,6 +177,16 @@ public final class ScreenSensors: Sensors {
         let white = ImageSearch.countHLS(strip, low: (0, 40, 0), high: (40, 100, 30))
         let blue = ImageSearch.countHLS(strip, low: (105, 55, 82), high: (120, 86, 100))
         return white + blue >= cfg.hiveStripMinPixels
+    }
+
+    /// True while the message says "Stop Making Honey" (E would turn converting off); false when it says
+    /// "Make Honey" or the empty-bag message; nil when unknown.
+    public func honeyRunning() -> Bool? {
+        if let text = hiveText(), !text.isEmpty {
+            if text.contains("stop") { return true }
+            if text.contains("honey") { return false }
+        }
+        return templateIn(cfg.hivePromptRegion, cfg.hivePromptStopTemplate)
     }
 
     public func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? {

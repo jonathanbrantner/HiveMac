@@ -103,11 +103,11 @@ extension AppModel {
         let d = Layout.natroDefaults(w, offsetY: store.int("game.ui_offset_y", 36))
         func pt(_ p: RelPoint) -> [String: Any] { ["fx": p.fx, "fy": p.fy] }
         func rg(_ r: RelRegion) -> [String: Any] { ["fx": r.fx, "fy": r.fy, "fw": r.fw, "fh": r.fh] }
-        let seeds: [(String, Any)] = [("backpack_pixel", pt(d.backpackPixel)), ("backpack_bar", rg(d.backpackBar)), ("health_pixel", pt(d.healthPixel)),
+        let seeds: [(String, Any)] = [("backpack_pixel", pt(d.backpackPixel)), ("backpack_bar", rg(d.backpackBar)), ("hive_message_region", rg(d.hiveMessageRegion)), ("health_pixel", pt(d.healthPixel)),
                                       ("hive_prompt_region", rg(d.hivePromptRegion)), ("hive_view_region", rg(d.hiveViewRegion)),
                                       ("hive_strip_region", rg(d.hiveStripRegion))]
         // The two reading spots follow the window every time Detect is pressed; the picture areas you picked stay.
-        let always: Set<String> = ["backpack_pixel", "health_pixel"]      // the picked backpack bar stays once you pick it
+        let always: Set<String> = ["backpack_pixel", "health_pixel", "hive_message_region"]      // the picked backpack bar stays once you pick it
         for (key, value) in seeds where always.contains(key) || store.get("hud.\(key)") == nil || store.get("hud.\(key)") is NSNull {
             store.set("hud.\(key)", value)
         }
@@ -152,6 +152,7 @@ extension AppModel {
                 if let c = s.lastBackpackRGB { r.backpackRGB = "rgb(\(c.r), \(c.g), \(c.b))" }
                 r.healthGrey = s.healthGrey()
                 r.hivePrompt = s.hivePromptVisible()
+                r.hiveText = s.lastHiveText
             }
             DispatchQueue.main.async {
                 guard let self else { return }

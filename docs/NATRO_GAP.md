@@ -43,3 +43,9 @@ boosters, gather the boosted field), pickups that read the prompt countdown.
 4. Royal jelly and glue dispensers (small).
 5. Quests, one giver at a time, starting with the one Jonathan uses most.
 6. Auto field boost, then the rest by interest.
+
+## Future: automatic UI scale
+The inventory and quest log buttons are clicked at pixel spots measured from the window corner, times one "UI scale" setting.
+That setting is not detected. On a display with a different scale (an external monitor) those corner clicks could land off.
+Not built. If the "?" or inventory click misses on a second display, add detection (for example by measuring the distance
+between two known icons) and set the scale from that.

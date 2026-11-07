@@ -28,7 +28,7 @@ struct AddButton: View {
                     Divider().overlay(Theme.grain)
                     HStack(spacing: Theme.s2) {
                         step("Bug run", "bug_run"); step("Clock and dispensers", "pickups")
-                        step("Memory match", "memory"); step("Planters", "planters"); step("Quests", "quests")
+                        step("Memory match", "memory"); step("Planters", "planters")
                     }
                 }
                 .padding(Theme.s4).background(Theme.shed)

@@ -802,3 +802,99 @@ final class MemoryMatchTests: XCTestCase {
         XCTAssertFalse(f.act.events.contains { $0.hasPrefix("click ") })
     }
 }
+
+final class QuestModeTests: XCTestCase {
+    final class QuestSpy: ExtraRunner {
+        var timers = MobTimers()
+        var performed: [(String, [String])] = []
+        var now: () -> TimeInterval = { 0 }
+        var onPerform: () -> Void = {}
+        func due(_ step: ExtraStep, now: TimeInterval) -> [String] {
+            step.kind == "quests" ? timers.due(step.bugs.map { $0 + " quest" }, now: now) : timers.due(step.bugs, now: now)
+        }
+        func perform(_ step: ExtraStep, due: [String], game: Game) {
+            performed.append((step.kind, due))
+            for d in due { timers.markDone(d, at: now()) }
+            onPerform()
+        }
+    }
+
+    private func field() -> FieldConfig {
+        var f = FieldConfig(name: "sunflower"); f.backpackPercent = 90; f.returnMethod = "reset"; return f
+    }
+
+    func testBlackBearQuestRunsOnceThenTheFieldsFillTheHour() {
+        let f = GameFixture(fillPerS: 50)
+        var p = Profile(fields: [field()])
+        p.mode = "quests"; p.questGiver = "black bear"
+        let spy = QuestSpy(); var unix = 1_000.0; spy.now = { unix }
+        let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 2, unixNow: { unix })
+        XCTAssertEqual(loop.run(), "cycles_done")
+        XCTAssertEqual(spy.performed.map(\.0), ["quests"])            // once; the hour has not passed
+        XCTAssertEqual(spy.performed.first?.1, ["black bear quest"])
+    }
+
+    func testBuckoChainsWithoutACooldown() {
+        let stop = Signal()
+        let f = GameFixture(fillPerS: 50, stop: stop)
+        var p = Profile(fields: [field()])
+        p.mode = "quests"; p.questGiver = "bucko bee"
+        let spy = QuestSpy(); let unix = 1_000.0; spy.now = { unix }
+        spy.onPerform = { if spy.performed.count >= 3 { stop.set() } }
+        let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 5, unixNow: { unix })
+        XCTAssertEqual(loop.run(), "stopped")
+        XCTAssertEqual(spy.performed.count, 3)
+    }
+
+    func testOtherStepsAreSkippedInQuestModeExceptTheWealthClock() {
+        let f = GameFixture(fillPerS: 50)
+        var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug"]
+        var clock = ExtraStep(kind: "pickups"); clock.bugs = ["wealth clock", "honey dispenser"]
+        var p = Profile(fields: [field()], extras: [bug, clock])
+        p.mode = "quests"; p.questGiver = "black bear"
+        let spy = QuestSpy(); var unix = 1_000.0; spy.now = { unix }
+        spy.timers.markDone("black bear quest", at: unix)               // on cooldown: only fields and the clock
+        let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 2, unixNow: { unix })
+        _ = loop.run()
+        XCTAssertFalse(spy.performed.contains { $0.0 == "bug_run" })
+        XCTAssertEqual(spy.performed.first { $0.0 == "pickups" }?.1, ["wealth clock"])
+    }
+}
+
+final class RunModeProfileTests: XCTestCase {
+    private func tmp(_ json: String) throws -> URL {
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try json.write(to: u, atomically: true, encoding: .utf8); return u
+    }
+
+    func testOldBoosterFlagBecomesTheBoosterMode() throws {
+        let p = try Profile.load(tmp(#"{"name":"a","fields":[{"name":"sunflower"}],"booster_mode":true}"#))
+        XCTAssertEqual(p.mode, "booster")
+    }
+
+    func testOldQuestsStepBecomesQuestsModeWithItsFirstGiver() throws {
+        let p = try Profile.load(tmp(#"{"name":"a","fields":[{"name":"sunflower"}],"extras":[{"kind":"quests","bugs":["polar bear","black bear"]}]}"#))
+        XCTAssertEqual(p.mode, "quests")
+        XCTAssertEqual(p.questGiver, "polar bear")
+        XCTAssertTrue(p.extras.isEmpty)
+    }
+
+    func testModeRoundTrips() throws {
+        var p = Profile(fields: [FieldConfig(name: "sunflower")])
+        p.mode = "quests"; p.questGiver = "riley bee"
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try p.save(to: u)
+        let q = try Profile.load(u)
+        XCTAssertEqual(q.mode, "quests"); XCTAssertEqual(q.questGiver, "riley bee")
+    }
+}
+
+final class RunModeMixedMigrationTests: XCTestCase {
+    func testAMixedRunKeepsItsStepsAndLosesTheQuestStep() throws {
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try #"{"name":"a","fields":[{"name":"sunflower"}],"extras":[{"kind":"bug_run","bugs":["ladybug"]},{"kind":"quests","bugs":["black bear"]}]}"#.write(to: u, atomically: true, encoding: .utf8)
+        let p = try Profile.load(u)
+        XCTAssertEqual(p.mode, "fields")
+        XCTAssertEqual(p.extras.map(\.kind), ["bug_run"])
+    }
+}

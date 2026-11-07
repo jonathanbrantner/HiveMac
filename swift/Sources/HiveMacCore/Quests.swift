@@ -100,7 +100,7 @@ extension Game {
             if box == nil { return .failed("no \(giver) quest in the log after talking to \(giver)") }
         }
 
-        for round in 0..<6 where !stopped {
+        for round in 0..<4 where !stopped {
             guard let b = box else { return .failed("lost the \(giver) quest in the log") }
             let all = QuestLog.tasks(in: b)
             let todo = all.filter { !$0.complete }
@@ -116,11 +116,12 @@ extension Game {
                 guard let field = QuestBook.field(forColor: c, preferring: mine) else { return .skipped("no \(c) field") }
                 if let r = work(field: field, giver: giver, index: idx) { return r }
             case .kill(let mobs):
-                for g in MobFields.plan(mobs) where !stopped { if hunt(field: g.field) == .interrupted { return .interrupted } }
+                // A mob has to spawn first: gather in its field (that fights it too) and read the log between rounds.
+                for g in MobFields.plan(mobs) where !stopped { if let r = work(field: g.field, giver: giver, index: idx) { return r } }
             case .unsupported: break
             }
             box = readQuestBox(giver)
-            if round == 5 { return .skipped("\(giver): still not done after 6 tries") }
+            if round == 3 { return .skipped("\(giver): still not done after 4 tries") }
         }
         if stopped { return .interrupted }
 
@@ -138,7 +139,7 @@ extension Game {
         f.minutes = 1.5
         guard travelTo(f) else { return .interrupted }
         let t0 = clock.now()
-        while !stopped && clock.now() - t0 < 25 * 60 {
+        while !stopped && clock.now() - t0 < 15 * 60 {
             let r = gather(f)
             if r.reason == "death" || r.reason == "lost" { return .interrupted }
             if let box = readQuestBox(giver) {

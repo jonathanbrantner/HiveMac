@@ -6,7 +6,7 @@ struct FieldsView: View {
     @State private var renaming = false
     @State private var nameDraft = ""
     @StateObject private var reorder = Reorder()
-    @State private var showBoosts = false
+    @State private var showBoosts = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -34,9 +34,9 @@ struct FieldsView: View {
             HiveSlotPicker()
                 .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
             DisclosureGroup(isExpanded: $showBoosts) {
-                VStack(alignment: .leading, spacing: Theme.s3) { BoosterModeRow(); AutoBoostRow() }.padding(.top, Theme.s2)
+                ModeRow().padding(.top, Theme.s2)
             } label: {
-                Text("Boosts" + boostSummary).font(Theme.body).foregroundStyle(Theme.wax)
+                Text("Run mode" + boostSummary).font(Theme.body).foregroundStyle(Theme.wax)
             }
             .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
 
@@ -90,6 +90,7 @@ extension FieldsView {
             FieldRow(field: $model.profile.fields[i], key: key, taken: model.profile.fields.map(\.name)) { model.profile.fields.remove(at: i) }
         } else if let i = model.profile.extras.firstIndex(where: { "e:" + $0.id.uuidString == key }) {
             ExtraRow(step: $model.profile.extras[i], key: key) { model.profile.extras.remove(at: i) }
+                .opacity(model.profile.mode == "fields" ? 1 : 0.4)
         }
     }
     var roundMinutes: String {
@@ -99,8 +100,11 @@ extension FieldsView {
         return extras == 0 ? base : base + " in fields, plus \(extras) extra step\(extras == 1 ? "" : "s")"
     }
     var boostSummary: String {
-        let on = [model.profile.boosterMode ? "booster mode" : nil, model.profile.autoBoost.enabled ? "auto boost" : nil].compactMap { $0 }
-        return on.isEmpty ? "" : ": " + on.joined(separator: ", ")
+        switch model.profile.mode {
+        case "booster": return ": booster mode"
+        case "quests": return ": \(model.profile.questGiver)"
+        default: return model.profile.autoBoost.enabled ? ": auto boost" : ""
+        }
     }
     func begin() { nameDraft = model.profile.name; renaming = true }
     func nextName() -> String { "Run \(model.runs.count + 1)" }

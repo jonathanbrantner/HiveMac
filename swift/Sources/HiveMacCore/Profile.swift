@@ -114,8 +114,15 @@ public struct Profile: Equatable {
     public var fields: [FieldConfig]
     public var notes: String
     public var extras: [ExtraStep]
-    /// Booster mode: cycle through the field boosters and gather in the field that gets boosted.
-    public var boosterMode = false
+    /// What the whole run does: "fields" (the list), "booster" (cycle the field boosters) or "quests" (one quest giver).
+    /// Booster and Quests are modes of their own: no other steps run in between, only the wealth clock.
+    public static let modes = ["fields", "booster", "quests"]
+    public var mode = "fields"
+    public var questGiver = "black bear"
+    public var boosterMode: Bool {
+        get { mode == "booster" }
+        set { if newValue { mode = "booster" } else if mode == "booster" { mode = "fields" } }
+    }
     public var boosters: [String] = Booster.allCases.map(\.rawValue)
     public var autoBoost = AutoBoost()
 
@@ -156,7 +163,16 @@ public struct Profile: Equatable {
                               fields: fields.isEmpty ? [FieldConfig(name: "sunflower")] : fields,
                               notes: (obj["notes"] as? String) ?? "",
                               extras: ((obj["extras"] as? [[String: Any]]) ?? []).map(ExtraStep.init(json:)))
-        profile.boosterMode = (obj["booster_mode"] as? NSNumber)?.boolValue ?? false
+        if let m = obj["mode"] as? String, Profile.modes.contains(m) { profile.mode = m }
+        else if (obj["booster_mode"] as? NSNumber)?.boolValue == true { profile.mode = "booster" }
+        if let g = obj["quest_giver"] as? String, QuestGivers.all.contains(g) { profile.questGiver = g }
+        // Quests used to be a step with several givers. Now it is a mode with one: keep the first giver.
+        if let old = profile.extras.first(where: { $0.kind == "quests" }) {
+            if let g = old.bugs.first(where: QuestGivers.all.contains), obj["quest_giver"] == nil { profile.questGiver = g }
+            // Only a run that was just quests becomes a quests run; a mixed run keeps its steps and loses the quest one.
+            profile.extras.removeAll { $0.kind == "quests" }
+            if profile.mode == "fields", profile.extras.isEmpty { profile.mode = "quests" }
+        }
         if let list = obj["boosters"] as? [String] { profile.boosters = list.filter { Booster(rawValue: $0) != nil } }
         if let o = obj["auto_boost"] as? [String: Any] { profile.autoBoost = AutoBoost(json: o) }
         return profile
@@ -165,7 +181,7 @@ public struct Profile: Equatable {
     public func save(to url: URL) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let obj: [String: Any] = ["name": name, "fields": fields.map(\.json), "notes": notes, "extras": extras.map(\.json),
-                                  "booster_mode": boosterMode, "boosters": boosters, "auto_boost": autoBoost.json]
+                                  "mode": mode, "quest_giver": questGiver, "boosters": boosters, "auto_boost": autoBoost.json]
         try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
     }
 }

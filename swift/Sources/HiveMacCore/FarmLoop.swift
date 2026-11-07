@@ -22,6 +22,8 @@ public final class FarmLoop {
     let extras: ExtraRunner?
     let unixNow: () -> TimeInterval
     let boosterMode: Bool
+    let mode: String
+    let questGiver: String
     let boosters: [Booster]
     let autoBoost: AutoBoost
     private var lastAutoBoost: [String: TimeInterval] = [:]
@@ -42,6 +44,8 @@ public final class FarmLoop {
         self.extras = nil
         self.unixNow = { Date().timeIntervalSince1970 }
         self.boosterMode = false
+        self.mode = "fields"
+        self.questGiver = "black bear"
         self.boosters = []
         self.autoBoost = AutoBoost()
         self.profileFields = fields
@@ -61,7 +65,9 @@ public final class FarmLoop {
         }
         self.extras = extras
         self.unixNow = unixNow
-        self.boosterMode = profile.boosterMode
+        self.boosterMode = profile.mode == "booster"
+        self.mode = profile.mode
+        self.questGiver = profile.questGiver
         self.boosters = profile.boosters.compactMap(Booster.init(rawValue:))
         self.autoBoost = profile.autoBoost
         self.profileFields = profile.fields
@@ -122,6 +128,26 @@ public final class FarmLoop {
         return nil
     }
 
+    /// In Booster and Quests mode nothing runs between the main job and the fields except the wealth clock.
+    private func allowedInMode(_ step: ExtraStep) -> ExtraStep? {
+        if mode == "fields" { return step }
+        guard step.kind == "pickups", step.bugs.contains("wealth clock") else { return nil }
+        var only = step; only.bugs = ["wealth clock"]
+        return only
+    }
+
+    /// Quests mode: when the giver is due, do the quest (take it, work on it, turn it in). Bucko and Riley have no
+    /// cooldown, so they are always due and chain. For the others the fields run until the hour is up.
+    private func questRound() -> Bool {
+        guard mode == "quests", let runner = extras else { return false }
+        var step = ExtraStep(kind: "quests")
+        step.bugs = [questGiver]
+        let due = runner.due(step, now: unixNow())
+        if due.isEmpty { return false }
+        runner.perform(step, due: due, game: game)
+        return true
+    }
+
     private func nextItem() -> Item {
         let item = items[index % items.count]
         index += 1
@@ -148,10 +174,13 @@ public final class FarmLoop {
         while !g.stopped {
             if let m = maxCycles, stats.cycles >= m { return "cycles_done" }
             let f: FieldConfig
-            if let m = mondoStep() { lastMondoTry = unixNow(); visit(m); continue }
+            if mode == "fields", let m = mondoStep() { lastMondoTry = unixNow(); visit(m); continue }
+            if questRound() { continue }
             let upcoming: Item = boostedItem().map { Item.field($0) } ?? nextItem()
             switch upcoming {
-            case .extra(let step): visit(step); continue
+            case .extra(let step):
+                if let allowed = allowedInMode(step) { visit(allowed) }
+                continue
             case .field(let field): f = field
             }
             stats.resets += 1

@@ -297,7 +297,9 @@ public final class GameExtraRunner: ExtraRunner {
                 case .skipped(let why), .failed(let why):
                     game.status("warning", why)
                     timers.setRemaining(name, seconds: 1800, now: unixNow()); onTimers(timers)
-                case .interrupted: return
+                case .interrupted:
+                    if game.stopped { return }
+                    timers.setRemaining(name, seconds: 300, now: unixNow()); onTimers(timers)   // died or lost the screen: do not retry at once
                 }
             }
         case "mondo":

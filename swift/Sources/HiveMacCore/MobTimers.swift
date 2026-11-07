@@ -12,7 +12,7 @@ public struct MobTimers: Equatable, Sendable {
         "blueberry dispenser": 4 * 3600, "strawberry dispenser": 4 * 3600, "coconut dispenser": 4 * 3600,
         "honeystorm": 4 * 3600, "ant pass": 2 * 3600, "robo pass": 22 * 3600,
         "mondo chick": 16 * 60,
-        "black bear quest": 3600, "polar bear quest": 3600, "brown bear quest": 3600, "bucko bee quest": 3600, "riley bee quest": 3600,
+        "black bear quest": 3600, "polar bear quest": 3600, "brown bear quest": 3600, "bucko bee quest": 0, "riley bee quest": 0,
         "normal memory match": 2 * 3600, "mega memory match": 4 * 3600, "extreme memory match": 8 * 3600, "blue booster": 45 * 60, "red booster": 45 * 60, "mountain booster": 45 * 60,
     ]
     /// What the Clock and dispensers step offers. The boosters are in Booster mode, not here.

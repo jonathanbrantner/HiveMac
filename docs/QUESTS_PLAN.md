@@ -48,3 +48,9 @@ Drop them in `~/Library/Application Support/HiveMac/snapshots/` or paste them in
 ### Done when
 - Black Bear: one quest started and finished on its own, twice in a row, from the live log and snapshots.
 - Tests: quest finder, objective-to-action mapping, the step on a simulated log (objective done after N gathers, never done, unreadable).
+
+## Update 2026-11-07: quests are a run mode
+Quests are no longer a step. The Fields tab has one "Run mode": Fields, Booster mode or Quests. Quests mode has one giver.
+Only the wealth clock runs between quest work and the fields. Black, Polar and Brown have an hour cooldown, during which the
+normal fields run. Bucko and Riley have none and chain. An objective that is not supported (petals, rage tokens, fire ants)
+skips the quest for 30 minutes and the fields run meanwhile. Not yet proven in the game.

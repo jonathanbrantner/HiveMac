@@ -202,3 +202,18 @@ extension AppModel {
         return folder
     }
 }
+
+// MARK: Removing a picture
+extension AppModel {
+    /// Forgets a saved picture (the file and the setting that points at it). The check that used it
+    /// then counts as "not set", and the macro assumes the best, like Natro does.
+    func removePicture(_ key: String) {
+        try? FileManager.default.removeItem(at: dirs.templates.appendingPathComponent("\(key).png"))
+        store.set("hud.\(key)_template", "")
+        try? store.save()
+        calibMessage = "Removed the \(key.replacingOccurrences(of: "_", with: " ")) picture."
+        append("Calibrate: removed \(key).png")
+        settingsVersion += 1
+        refreshLive()
+    }
+}

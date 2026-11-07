@@ -135,6 +135,9 @@ struct PicturesSection: View {
                         HexDot(color: Theme.dust); Text("Not set").font(Theme.caption).foregroundStyle(Theme.dust)
                     }
                     Spacer()
+                    if k != .backpack, size(k) != nil {
+                        Button("Remove") { model.removePicture(k.rawValue) }.buttonStyle(QuietButtonStyle(tint: Theme.ember))
+                    }
                     Button(size(k) == nil ? "Pick" : "Pick again") { sheet = k }.buttonStyle(QuietButtonStyle())
                 }
                 .frame(minHeight: Theme.rowHeight)

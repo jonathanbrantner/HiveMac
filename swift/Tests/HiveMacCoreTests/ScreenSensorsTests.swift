@@ -126,3 +126,19 @@ final class HiveMessageTests: XCTestCase {
         XCTAssertEqual(sensors(reading: "Mantis: 15:38").hivePromptVisible(), false)
     }
 }
+
+final class CannonPromptTests: XCTestCase {
+    private func sensors(reading text: String) -> ScreenSensors {
+        let screen = FakeScreen()
+        screen.image = RGBImage(width: 10, height: 10, fill: (0, 0, 0))
+        let s = ScreenSensors(screen: screen, window: { WindowBounds(left: 0, top: 0, width: 1600, height: 900) }, config: HudConfig())
+        s.textReader = { _ in text }
+        return s
+    }
+
+    func testReadsTheRedCannonPrompt() {
+        XCTAssertEqual(sensors(reading: "Fire the Red Cannon").cannonPromptVisible(), true)
+        XCTAssertEqual(sensors(reading: "To Make Honey, Collect Pollen From Flower Fields").cannonPromptVisible(), false)
+        XCTAssertEqual(sensors(reading: "").cannonPromptVisible(), false)
+    }
+}

@@ -206,6 +206,12 @@ public final class ScreenSensors: Sensors {
         return (area.left + hit.x + image.width / 2, area.top + hit.y + image.height / 2)
     }
 
-    public func cannonPromptVisible() -> Bool? { templateIn(cfg.hivePromptRegion, cfg.cannonPromptTemplate) }
+    /// True when the prompt says "Fire the Red Cannon". The words are read like the hive message; the saved
+    /// picture counts as a second chance. nil when neither is possible.
+    public func cannonPromptVisible() -> Bool? {
+        let picture = templateIn(cfg.hivePromptRegion, cfg.cannonPromptTemplate)
+        guard let text = hiveText() else { return picture }
+        return text.contains("cannon") || picture == true
+    }
     public func deathTextVisible() -> Bool? { templateIn(cfg.deathRegion, cfg.deathTemplate) }
 }

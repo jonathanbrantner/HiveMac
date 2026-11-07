@@ -54,3 +54,9 @@ Quests are no longer a step. The Fields tab has one "Run mode": Fields, Booster 
 Only the wealth clock runs between quest work and the fields. Black, Polar and Brown have an hour cooldown, during which the
 normal fields run. Bucko and Riley have none and chain. An objective that is not supported (petals, rage tokens, fire ants)
 skips the quest for 30 minutes and the fields run meanwhile. Not yet proven in the game.
+
+## Update 2026-11-07 (later): modes cleaned up
+Modes are None (default, the field list and its steps), Booster mode and Quests. Booster and Quests keep one idle field and no steps,
+and ask before removing anything. Options in both: Wealth clock, Keep balloon blessing (needs the Balloon blessing picture; the
+return comes 10 minutes before it runs out, learned from the first time the icon vanishes). A kill objective only sends the macro out
+when the mob's respawn timer is up; otherwise the idle field runs until the mob is back.

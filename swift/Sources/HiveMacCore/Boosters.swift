@@ -56,6 +56,11 @@ extension Game {
         return nil
     }
 
+    /// True while the balloon blessing icon (a picture the user takes in Settings) is in the buff bar.
+    public func blessingActive() -> Bool {
+        sensors.find("balloon_blessing", in: buffStrip, tolerance: 35) != nil
+    }
+
     /// True while the boost icon of `field` is still in the buff bar.
     public func boostActive(field: String) -> Bool {
         sensors.find(Booster.iconName(for: field), in: buffStrip, tolerance: 35) != nil

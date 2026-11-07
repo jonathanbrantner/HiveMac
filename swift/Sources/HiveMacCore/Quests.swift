@@ -1,6 +1,6 @@
 import Foundation
 
-public enum QuestResult: Equatable { case turnedIn, notReady(TimeInterval), skipped(String), failed(String), interrupted }
+public enum QuestResult: Equatable { case turnedIn, notReady(TimeInterval), waiting(TimeInterval), skipped(String), failed(String), interrupted }
 
 public enum QuestGivers {
     public static let all = ["black bear", "polar bear", "brown bear", "bucko bee", "riley bee"]
@@ -77,7 +77,7 @@ extension Game {
     /// Does one quest of `giver`: takes it if the log has none, does what it asks, and turns it in.
     /// Every action waits for the text that proves it: no quest box means nothing to work on, no "Complete!"
     /// means no turn-in. Objectives HiveMac cannot do (ants, feeding, tokens) leave the quest alone.
-    public func quest(_ giver: String, mine: [String]) -> QuestResult {
+    public func quest(_ giver: String, mine: [String], mobWait: (String) -> TimeInterval = { _ in 0 }) -> QuestResult {
         let key = QuestGivers.route(giver)
         let variant = settings.travel
         guard let route = pathLookup("to_quest", key, variant) ?? pathLookup("to_quest", key, "walk") else {
@@ -108,7 +108,17 @@ extension Game {
             if let bad = todo.first(where: { if case .unsupported = $0.action { return true } else { return false } }) {
                 return .skipped("\(giver): can't do \"\(bad.text)\" yet")
             }
-            guard let task = todo.first, let idx = all.firstIndex(of: task) else { break }
+            // A kill objective is only worth a trip when its mob is there (its respawn timer is up). Others come first.
+            func blocked(_ t: QuestTask) -> TimeInterval? {
+                guard case .kill(let mobs) = t.action else { return nil }
+                let waits = mobs.map(mobWait)
+                return waits.allSatisfy({ $0 > 0 }) ? waits.min() : nil
+            }
+            guard let task = todo.first(where: { blocked($0) == nil }) else {
+                let wait = todo.compactMap(blocked).min() ?? 600
+                return .waiting(wait)
+            }
+            guard let idx = all.firstIndex(of: task) else { break }
             status("gathering", "\(giver): \(task.text)")
             switch task.action {
             case .gather(let field): if let r = work(field: field, giver: giver, index: idx) { return r }

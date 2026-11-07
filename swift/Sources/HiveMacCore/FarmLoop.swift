@@ -24,6 +24,8 @@ public final class FarmLoop {
     let boosterMode: Bool
     let mode: String
     let questGiver: String
+    var modeClock = false
+    var keepBlessing = false
     let boosters: [Booster]
     let autoBoost: AutoBoost
     private var lastAutoBoost: [String: TimeInterval] = [:]
@@ -44,7 +46,7 @@ public final class FarmLoop {
         self.extras = nil
         self.unixNow = { Date().timeIntervalSince1970 }
         self.boosterMode = false
-        self.mode = "fields"
+        self.mode = "none"
         self.questGiver = "black bear"
         self.boosters = []
         self.autoBoost = AutoBoost()
@@ -68,6 +70,9 @@ public final class FarmLoop {
         self.boosterMode = profile.mode == "booster"
         self.mode = profile.mode
         self.questGiver = profile.questGiver
+        self.modeClock = profile.modeClock
+        self.keepBlessing = profile.keepBlessing
+        self.learnedBlessing = profile.blessingMinutes
         self.boosters = profile.boosters.compactMap(Booster.init(rawValue:))
         self.autoBoost = profile.autoBoost
         self.profileFields = profile.fields
@@ -129,12 +134,48 @@ public final class FarmLoop {
     }
 
     /// In Booster and Quests mode nothing runs between the main job and the fields except the wealth clock.
-    private func allowedInMode(_ step: ExtraStep) -> ExtraStep? {
-        if mode == "fields" { return step }
-        guard step.kind == "pickups", step.bugs.contains("wealth clock") else { return nil }
-        var only = step; only.bugs = ["wealth clock"]
-        return only
+    private func allowedInMode(_ step: ExtraStep) -> ExtraStep? { mode == "none" ? step : nil }
+
+    private var lastClockTry: TimeInterval = 0
+    /// Booster and Quests mode: the wealth clock when its timer is up, if the run asks for it. Tried every 5 minutes at most.
+    private func clockRound() -> Bool {
+        guard mode != "none", modeClock, let runner = extras, unixNow() - lastClockTry > 300 else { return false }
+        var step = ExtraStep(kind: "pickups"); step.bugs = ["wealth clock"]
+        guard !runner.due(step, now: unixNow()).isEmpty else { return false }
+        lastClockTry = unixNow()
+        runner.perform(step, due: ["wealth clock"], game: game)
+        lastBlessing = unixNow()                 // the walk ends at the hive: the balloon was converted on the way
+        return true
     }
+
+    private(set) var lastBlessing: TimeInterval = 0
+    public var onBlessingLearned: (Double) -> Void = { _ in }
+    private var blessingSeen = false
+
+    /// Keep the balloon blessing: back at the hive 10 minutes before it runs out. The buff icon says when it is gone;
+    /// the length is learned from the first time that happens. A conversion in between (lastBlessing) skips the return.
+    private func blessingRound() -> Bool {
+        guard mode != "none", keepBlessing else { return false }
+        let g = game, now = unixNow()
+        let active = g.blessingActive()
+        if active { blessingSeen = true }
+        if lastBlessing == 0 { lastBlessing = now; if !active { return false } }
+        var due = false
+        if !active, blessingSeen {
+            let lasted = (now - lastBlessing) / 60
+            if lasted >= 10 && lasted <= 240 && learnedBlessing == 0 { learnedBlessing = lasted; onBlessingLearned(lasted) }
+            blessingSeen = false
+            due = true
+        } else if learnedBlessing > 0, (now - lastBlessing) / 60 >= learnedBlessing - 10 { due = true }
+        guard due else { return false }
+        g.status("converting", "back to the hive for the balloon blessing")
+        guard g.resetToHive() else { return false }
+        if g.convert() { stats.converts += 1 }
+        g.convertBalloon()
+        lastBlessing = unixNow()
+        return true
+    }
+    private var learnedBlessing = 0.0
 
     /// Quests mode: when the giver is due, do the quest (take it, work on it, turn it in). Bucko and Riley have no
     /// cooldown, so they are always due and chain. For the others the fields run until the hour is up.
@@ -174,7 +215,9 @@ public final class FarmLoop {
         while !g.stopped {
             if let m = maxCycles, stats.cycles >= m { return "cycles_done" }
             let f: FieldConfig
-            if mode == "fields", let m = mondoStep() { lastMondoTry = unixNow(); visit(m); continue }
+            if mode == "none", let m = mondoStep() { lastMondoTry = unixNow(); visit(m); continue }
+            if blessingRound() { continue }
+            if clockRound() { continue }
             if questRound() { continue }
             let upcoming: Item = boostedItem().map { Item.field($0) } ?? nextItem()
             switch upcoming {
@@ -197,7 +240,7 @@ public final class FarmLoop {
             }
             stats.failedResets = 0
             afterDeath = false
-            if g.convert() { stats.converts += 1 }
+            if g.convert() { stats.converts += 1; lastBlessing = unixNow() }
             if g.stopped { break }
             if !g.travelTo(f) { continue }
             if autoBoost.enabled, unixNow() - (lastAutoBoost[f.name] ?? 0) >= autoBoost.refreshMinutes * 60 {

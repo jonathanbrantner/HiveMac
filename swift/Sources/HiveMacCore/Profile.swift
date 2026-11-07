@@ -114,14 +114,35 @@ public struct Profile: Equatable {
     public var fields: [FieldConfig]
     public var notes: String
     public var extras: [ExtraStep]
-    /// What the whole run does: "fields" (the list), "booster" (cycle the field boosters) or "quests" (one quest giver).
-    /// Booster and Quests are modes of their own: no other steps run in between, only the wealth clock.
-    public static let modes = ["fields", "booster", "quests"]
-    public var mode = "fields"
+    /// What the whole run does: "none" (the field list and its steps), "booster" (cycle the field boosters) or "quests"
+    /// (one quest giver). Booster and Quests are modes of their own: one idle field, no other steps.
+    public static let modes = ["none", "booster", "quests"]
+    public var mode = "none"
     public var questGiver = "black bear"
+    /// In Booster and Quests mode: visit the wealth clock when it is back.
+    public var modeClock = false
+    /// In Booster and Quests mode: be back at the hive 10 minutes before the balloon blessing runs out.
+    public var keepBlessing = false
+    /// How long the blessing lasts, learned from the buff bar. 0 = not learned yet.
+    public var blessingMinutes = 0.0
     public var boosterMode: Bool {
         get { mode == "booster" }
-        set { if newValue { mode = "booster" } else if mode == "booster" { mode = "fields" } }
+        set { if newValue { mode = "booster" } else if mode == "booster" { mode = "none" } }
+    }
+
+    /// True in Booster and Quests mode, where only one field and no steps are kept.
+    public var isSpecialMode: Bool { mode != "none" }
+
+    /// What switching to `new` would throw away: fields beyond the first, and every step.
+    public func lossOnEntering(_ new: String) -> (fields: Int, steps: Int) {
+        new == "none" ? (0, 0) : (max(0, fields.count - 1), extras.count)
+    }
+
+    /// Switches mode. Booster and Quests keep the first field and no steps.
+    public mutating func enterMode(_ new: String) {
+        guard Profile.modes.contains(new) else { return }
+        if new != "none" { fields = Array(fields.prefix(1)); extras = [] }
+        mode = new
     }
     public var boosters: [String] = Booster.allCases.map(\.rawValue)
     public var autoBoost = AutoBoost()
@@ -164,14 +185,18 @@ public struct Profile: Equatable {
                               notes: (obj["notes"] as? String) ?? "",
                               extras: ((obj["extras"] as? [[String: Any]]) ?? []).map(ExtraStep.init(json:)))
         if let m = obj["mode"] as? String, Profile.modes.contains(m) { profile.mode = m }
+        else if (obj["mode"] as? String) == "fields" { profile.mode = "none" }
         else if (obj["booster_mode"] as? NSNumber)?.boolValue == true { profile.mode = "booster" }
         if let g = obj["quest_giver"] as? String, QuestGivers.all.contains(g) { profile.questGiver = g }
+        profile.modeClock = (obj["mode_clock"] as? NSNumber)?.boolValue ?? false
+        profile.keepBlessing = (obj["keep_blessing"] as? NSNumber)?.boolValue ?? false
+        profile.blessingMinutes = (obj["blessing_minutes"] as? NSNumber)?.doubleValue ?? 0
         // Quests used to be a step with several givers. Now it is a mode with one: keep the first giver.
         if let old = profile.extras.first(where: { $0.kind == "quests" }) {
             if let g = old.bugs.first(where: QuestGivers.all.contains), obj["quest_giver"] == nil { profile.questGiver = g }
             // Only a run that was just quests becomes a quests run; a mixed run keeps its steps and loses the quest one.
             profile.extras.removeAll { $0.kind == "quests" }
-            if profile.mode == "fields", profile.extras.isEmpty { profile.mode = "quests" }
+            if profile.mode == "none", profile.extras.isEmpty { profile.mode = "quests" }
         }
         if let list = obj["boosters"] as? [String] { profile.boosters = list.filter { Booster(rawValue: $0) != nil } }
         if let o = obj["auto_boost"] as? [String: Any] { profile.autoBoost = AutoBoost(json: o) }
@@ -181,7 +206,7 @@ public struct Profile: Equatable {
     public func save(to url: URL) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let obj: [String: Any] = ["name": name, "fields": fields.map(\.json), "notes": notes, "extras": extras.map(\.json),
-                                  "mode": mode, "quest_giver": questGiver, "boosters": boosters, "auto_boost": autoBoost.json]
+                                  "mode": mode, "quest_giver": questGiver, "mode_clock": modeClock, "keep_blessing": keepBlessing, "blessing_minutes": blessingMinutes, "boosters": boosters, "auto_boost": autoBoost.json]
         try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
     }
 }

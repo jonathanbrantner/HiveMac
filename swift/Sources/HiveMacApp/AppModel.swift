@@ -227,6 +227,7 @@ final class AppModel: ObservableObject {
         }
         let loop = FarmLoop(g, profile: profile, extras: runner)
         loop.onStats = { [weak self] s in DispatchQueue.main.async { self?.stats = s } }
+        loop.onBlessingLearned = { [weak self] m in DispatchQueue.main.async { self?.profile.blessingMinutes = m; self?.append("Balloon blessing lasts about \(Int(m)) minutes, coming back 10 minutes before.") } }
 
         watchdog = Watchdog(timeout: store.double("timing.watchdog_timeout_sec", 90), now: Date().timeIntervalSince1970)
         running = true; paused = false; runtimeSeconds = 0; stats = LoopStats()

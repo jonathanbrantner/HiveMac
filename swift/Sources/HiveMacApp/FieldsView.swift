@@ -21,7 +21,7 @@ struct FieldsView: View {
                 } label: { Text("Manage") }
                 .menuStyle(.button).buttonStyle(QuietButtonStyle()).fixedSize().disabled(model.running)
                 Spacer()
-                Button("Collapse") { model.collapseTick += 1 }.buttonStyle(QuietButtonStyle()).help("Fold every step shut")
+                if !model.profile.isSpecialMode { Button("Collapse") { model.collapseTick += 1 }.buttonStyle(QuietButtonStyle()).help("Fold every step shut") }
                 AllFieldsButton().disabled(model.running)
             }
             .padding(.horizontal, Theme.s6).padding(.top, Theme.s4)
@@ -40,6 +40,10 @@ struct FieldsView: View {
             }
             .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
 
+            if model.profile.isSpecialMode {
+                Text("When there is nothing else to do").font(Theme.caption).foregroundStyle(Theme.dust)
+                    .padding(.horizontal, Theme.s6).padding(.top, Theme.s4)
+            }
             HStack(spacing: Theme.s2) {
                 Color.clear.frame(width: 24, height: 1)
                 Text("Field").frame(width: 100, alignment: .leading)
@@ -52,7 +56,7 @@ struct FieldsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(model.profile.orderKeys, id: \.self) { key in
+                    ForEach(model.profile.isSpecialMode ? Array(model.profile.orderKeys.filter { $0.hasPrefix("f:") }.prefix(1)) : model.profile.orderKeys, id: \.self) { key in
                         VStack(spacing: 0) {
                             rowView(key)
                             Divider().overlay(Theme.grain.opacity(0.6))
@@ -73,7 +77,7 @@ struct FieldsView: View {
             .environmentObject(reorder)
 
             HStack {
-                AddButton()
+                if !model.profile.isSpecialMode { AddButton() }
                 Spacer()
                 Text("Round: \(roundMinutes)").font(Theme.caption).foregroundStyle(Theme.dust)
             }
@@ -90,7 +94,7 @@ extension FieldsView {
             FieldRow(field: $model.profile.fields[i], key: key, taken: model.profile.fields.map(\.name)) { model.profile.fields.remove(at: i) }
         } else if let i = model.profile.extras.firstIndex(where: { "e:" + $0.id.uuidString == key }) {
             ExtraRow(step: $model.profile.extras[i], key: key) { model.profile.extras.remove(at: i) }
-                .opacity(model.profile.mode == "fields" ? 1 : 0.4)
+
         }
     }
     var roundMinutes: String {

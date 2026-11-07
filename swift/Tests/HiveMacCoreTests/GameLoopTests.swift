@@ -846,18 +846,19 @@ final class QuestModeTests: XCTestCase {
         XCTAssertEqual(spy.performed.count, 3)
     }
 
-    func testOtherStepsAreSkippedInQuestModeExceptTheWealthClock() {
-        let f = GameFixture(fillPerS: 50)
-        var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug"]
-        var clock = ExtraStep(kind: "pickups"); clock.bugs = ["wealth clock", "honey dispenser"]
-        var p = Profile(fields: [field()], extras: [bug, clock])
-        p.mode = "quests"; p.questGiver = "black bear"
-        let spy = QuestSpy(); var unix = 1_000.0; spy.now = { unix }
-        spy.timers.markDone("black bear quest", at: unix)               // on cooldown: only fields and the clock
-        let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 2, unixNow: { unix })
-        _ = loop.run()
-        XCTAssertFalse(spy.performed.contains { $0.0 == "bug_run" })
-        XCTAssertEqual(spy.performed.first { $0.0 == "pickups" }?.1, ["wealth clock"])
+    func testQuestModeNeverVisitsStepsAndRunsTheClockOnlyWhenAsked() {
+        for wantClock in [false, true] {
+            let f = GameFixture(fillPerS: 50)
+            var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug"]
+            var p = Profile(fields: [field()], extras: [bug])
+            p.mode = "quests"; p.questGiver = "black bear"; p.modeClock = wantClock
+            let spy = QuestSpy(); let unix = 1_000.0; spy.now = { unix }
+            spy.timers.markDone("black bear quest", at: unix)           // on cooldown: only the idle field and the clock
+            let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 2, unixNow: { unix })
+            _ = loop.run()
+            XCTAssertFalse(spy.performed.contains { $0.0 == "bug_run" })
+            XCTAssertEqual(spy.performed.contains { $0.0 == "pickups" && $0.1 == ["wealth clock"] }, wantClock)
+        }
     }
 }
 
@@ -894,7 +895,55 @@ final class RunModeMixedMigrationTests: XCTestCase {
         let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
         try #"{"name":"a","fields":[{"name":"sunflower"}],"extras":[{"kind":"bug_run","bugs":["ladybug"]},{"kind":"quests","bugs":["black bear"]}]}"#.write(to: u, atomically: true, encoding: .utf8)
         let p = try Profile.load(u)
-        XCTAssertEqual(p.mode, "fields")
+        XCTAssertEqual(p.mode, "none")
         XCTAssertEqual(p.extras.map(\.kind), ["bug_run"])
+    }
+}
+
+final class ModeSwitchTests: XCTestCase {
+    func testEnteringAModeKeepsTheFirstFieldAndClearsSteps() {
+        var p = Profile(fields: [FieldConfig(name: "pine tree"), FieldConfig(name: "bamboo")], extras: [ExtraStep(kind: "bug_run")])
+        XCTAssertEqual(p.lossOnEntering("quests").fields, 1)
+        XCTAssertEqual(p.lossOnEntering("quests").steps, 1)
+        XCTAssertEqual(p.lossOnEntering("none").fields + p.lossOnEntering("none").steps, 0)
+        p.enterMode("quests")
+        XCTAssertEqual(p.fields.map(\.name), ["pine tree"])
+        XCTAssertTrue(p.extras.isEmpty)
+        XCTAssertEqual(p.lossOnEntering("booster").fields + p.lossOnEntering("booster").steps, 0)   // nothing left to lose
+    }
+
+    func testOldFieldsModeNameLoadsAsNone() throws {
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try #"{"name":"a","fields":[{"name":"sunflower"}],"mode":"fields"}"#.write(to: u, atomically: true, encoding: .utf8)
+        XCTAssertEqual(try Profile.load(u).mode, "none")
+        XCTAssertEqual(Profile().mode, "none")
+    }
+
+    func testBlessingSettingsRoundTrip() throws {
+        var p = Profile(fields: [FieldConfig(name: "sunflower")])
+        p.mode = "booster"; p.modeClock = true; p.keepBlessing = true; p.blessingMinutes = 55
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try p.save(to: u)
+        let q = try Profile.load(u)
+        XCTAssertTrue(q.modeClock && q.keepBlessing); XCTAssertEqual(q.blessingMinutes, 55)
+    }
+}
+
+extension GameLoopTests {
+    func testBlessingReturnComesTenMinutesBeforeItRunsOut() {
+        let f = GameFixture(fillPerS: 0.1)                                   // a field takes about 15 minutes to fill
+        let pw = PictureWorld(f.world, visible: ["balloon_blessing"])
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { kind, name, _ in
+                         kind == "to_field" ? PathFile(name: name, steps: [Step(type: "gotoramp"), .walk(["s"], tiles: 9), .rotate("right", count: 2), .walk(["d"], tiles: 29)])
+                                            : PathFile(name: name, steps: [.walk(["a"], tiles: 3)])
+                     })
+        var sun = FieldConfig(name: "sunflower"); sun.backpackPercent = 90; sun.returnMethod = "reset"
+        var p = Profile(fields: [sun]); p.mode = "booster"; p.boosters = []; p.keepBlessing = true; p.blessingMinutes = 12
+        let loop = FarmLoop(g, profile: p, extras: GameLoopTests.BoosterRunner(), maxCycles: 3, unixNow: { 1_000 + f.clock.now() })
+        _ = loop.run()
+        let said = f.log.items.map(\.1)
+        XCTAssertTrue(said.contains("back to the hive for the balloon blessing"), "\(said)")
     }
 }

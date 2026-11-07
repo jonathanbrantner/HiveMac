@@ -139,10 +139,10 @@ struct PicturesSection: View {
 }
 
 enum PictureKind: String, CaseIterable, Identifiable {
-    case backpack = "backpack_bar", hivePrompt = "hive_prompt", hivePromptStop = "hive_prompt_stop", hivePromptEmpty = "hive_prompt_empty", hiveView = "hive_view", cannonPrompt = "cannon_prompt"
+    case backpack = "backpack_bar", hivePrompt = "hive_prompt", hivePromptStop = "hive_prompt_stop", hivePromptEmpty = "hive_prompt_empty", hiveView = "hive_view", cannonPrompt = "cannon_prompt", balloonBlessing = "balloon_blessing"
     var id: String { rawValue }
     var title: String {
-        switch self { case .backpack: "Backpack bar"; case .hivePrompt: "Hive prompt"; case .hivePromptStop: "Hive prompt, honey on"; case .hivePromptEmpty: "Hive prompt, bag empty"; case .hiveView: "Hive view"; case .cannonPrompt: "Cannon prompt" }
+        switch self { case .backpack: "Backpack bar"; case .hivePrompt: "Hive prompt"; case .hivePromptStop: "Hive prompt, honey on"; case .hivePromptEmpty: "Hive prompt, bag empty"; case .hiveView: "Hive view"; case .cannonPrompt: "Cannon prompt"; case .balloonBlessing: "Balloon blessing" }
     }
     var help: String {
         switch self {
@@ -152,6 +152,7 @@ enum PictureKind: String, CaseIterable, Identifiable {
         case .hivePromptStop: "Press E at your hive so it says Stop Making Honey, then drag a box around the whole prompt. Press E again afterwards to turn it back off. HiveMac never presses E while it says this."
         case .hiveView: "Face the hive from the ramp and drag a box around something that only shows there, like the hive's front."
         case .cannonPrompt: "Stand on the cannon button until its prompt shows, then drag a box around it."
+        case .balloonBlessing: "Convert at your hive so the Balloon Blessing icon shows in the buff bar at the top left, then drag a box around just that icon."
         }
     }
 }

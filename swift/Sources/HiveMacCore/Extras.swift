@@ -291,9 +291,13 @@ public final class GameExtraRunner: ExtraRunner {
             for name in due {
                 if game.stopped { return }
                 let giver = name.replacingOccurrences(of: " quest", with: "")
-                switch game.quest(giver, mine: mine) {
+                switch game.quest(giver, mine: mine, mobWait: { [unowned self] in self.timers.remaining($0, now: self.unixNow()) }) {
                 case .turnedIn: done([name])
-                case .notReady(let s): timers.setRemaining(name, seconds: s, now: unixNow()); onTimers(timers)
+                case .notReady(let s):
+                    timers.setRemaining(name, seconds: s, now: unixNow()); onTimers(timers)
+                case .waiting(let s):
+                    game.status("traveling", "\(giver): the mobs are back in \(MobTimers.describeDuration(s)), farming meanwhile")
+                    timers.setRemaining(name, seconds: s, now: unixNow()); onTimers(timers)
                 case .skipped(let why), .failed(let why):
                     game.status("warning", why)
                     timers.setRemaining(name, seconds: 1800, now: unixNow()); onTimers(timers)

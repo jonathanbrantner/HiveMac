@@ -16,6 +16,9 @@
 8. Interrupt a long gather when something is due; start and pause hotkeys.
 9. **Release housekeeping:** decide on Apple Developer ID signing and notarization (today the download is signed
    with a development certificate and macOS may block it on other Macs), and decide the licence.
+10. **Ask YouTubers to review HiveMac for Mac users.** Do it after the live test of quests and pickups goes well, so
+   a reviewer's first run works. Pick channels that already cover Bee Swarm macros and have a Mac. Say plainly that it
+   is a beta and which parts are untested. Link the GitHub release. A draft message is not written yet.
 
 ## Older notes
 

@@ -81,6 +81,7 @@ struct FieldsView: View {
                     }
                     Button("Bug run") { model.profile.extras.append(ExtraStep(kind: "bug_run")) }
                     Button("Clock and dispensers") { model.profile.extras.append(ExtraStep(kind: "pickups")) }
+                    Button("Mondo Chick") { model.profile.extras.append(ExtraStep(kind: "mondo")) }
                     Button("Planters") { model.profile.extras.append(ExtraStep(kind: "planters")) }
                 } label: { Text("Add") }
                 .menuStyle(.button).buttonStyle(QuietButtonStyle()).fixedSize()

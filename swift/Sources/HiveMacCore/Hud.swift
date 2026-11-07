@@ -111,6 +111,40 @@ public enum Hud {
         return total == 0 ? 0 : Double(gold) / Double(total)
     }
 
+    /// Mob health bars on screen: the bright green fill (1FE744) with a dark red part (6B131A) where it
+    /// lost health. Returns the percent left of each bar found. Only the middle of the screen is looked at,
+    /// so the game's own bars at the top and the hotbar at the bottom are left out.
+    public static func mobHealthBars(_ image: RGBImage, tolerance: Int = 8) -> [Double] {
+        func near(_ c: (r: Int, g: Int, b: Int), _ r: Int, _ g: Int, _ b: Int) -> Bool {
+            abs(c.r - r) <= tolerance && abs(c.g - g) <= tolerance && abs(c.b - b) <= tolerance
+        }
+        struct Bar { var y: Int; var x0: Int; var x1: Int; var green: Int; var red: Int }
+        var bars: [Bar] = []
+        let y0 = image.height * 12 / 100, y1 = image.height * 78 / 100
+        guard y1 > y0 else { return [] }
+        for y in stride(from: y0, to: y1, by: 2) {
+            var x = 0
+            while x < image.width {
+                let c = image.pixel(x, y)
+                guard near(c, 0x1F, 0xE7, 0x44) || near(c, 0x6B, 0x13, 0x1A) else { x += 1; continue }
+                var end = x, g = 0, r = 0
+                while end < image.width {
+                    let p = image.pixel(end, y)
+                    if near(p, 0x1F, 0xE7, 0x44) { g += 1 } else if near(p, 0x6B, 0x13, 0x1A) { r += 1 } else { break }
+                    end += 1
+                }
+                if g + r >= 10 {
+                    if let i = bars.firstIndex(where: { abs($0.y - y) <= 8 && $0.x0 <= end && x <= $0.x1 }) {
+                        bars[i].y = y; bars[i].x0 = min(bars[i].x0, x); bars[i].x1 = max(bars[i].x1, end)
+                        bars[i].green = max(bars[i].green, g); bars[i].red = max(bars[i].red, r)
+                    } else { bars.append(Bar(y: y, x0: x, x1: end, green: g, red: r)) }
+                }
+                x = end + 1
+            }
+        }
+        return bars.map { Double($0.green) / Double(max(1, $0.green + $0.red)) * 100 }
+    }
+
     /// Natro's health bar check: dead when all three channels sit in the grey band.
     public static func isGrey(r: Int, g: Int, b: Int, low: Int = 0x4D, high: Int = 0x83) -> Bool {
         [r, g, b].allSatisfy { (low...high).contains($0) }

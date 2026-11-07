@@ -8,7 +8,9 @@ struct ExtraRow: View {
     var remove: () -> Void
     @State private var open = true
 
-    private var title: String { step.kind == "planters" ? "Planters" : step.kind == "pickups" ? "Clock and dispensers" : "Bug run" }
+    private var title: String {
+        switch step.kind { case "planters": "Planters"; case "pickups": "Clock and dispensers"; case "mondo": "Mondo Chick"; default: "Bug run" }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -27,9 +29,20 @@ struct ExtraRow: View {
             if open {
                 VStack(alignment: .leading, spacing: Theme.s2) {
                     Toggle("Use this step", isOn: $step.enabled).toggleStyle(.checkbox).font(Theme.body)
-                    if step.kind == "planters" { planters } else { bugRun }
+                    if step.kind == "planters" { planters } else if step.kind == "mondo" { mondo } else { bugRun }
                 }.padding(.leading, 34).padding(.bottom, Theme.s3)
             }
+        }
+    }
+
+    private var mondo: some View {
+        VStack(alignment: .leading, spacing: Theme.s2) {
+            HStack(spacing: Theme.s3) {
+                Text("What to do").font(Theme.body).foregroundStyle(Theme.resin).frame(width: 110, alignment: .leading)
+                Choice(options: [("buff", "Stand by it for the buff"), ("kill", "Kill it")], selection: $step.mondoAction, width: 200)
+            }
+            Text("Only in the first 14 minutes of each hour (UTC). It goes to Mountain Top, finds Mondo Chick by its health bar, and does this. Buff takes 2 minutes.")
+                .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
         }
     }
 

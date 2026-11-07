@@ -8,6 +8,12 @@ public protocol ExtraRunner: AnyObject {
     func due(_ step: ExtraStep, now: TimeInterval) -> [String]
     /// Carries out the step for the due names and records what it finished.
     func perform(_ step: ExtraStep, due: [String], game: Game)
+    /// Called after a field was gathered for `seconds`: mobs that live there were dealt with on the way.
+    func fieldGathered(_ field: String, seconds: Double)
+}
+
+public extension ExtraRunner {
+    func fieldGathered(_ field: String, seconds: Double) {}
 }
 
 /// The runner HiveMac ships today: it knows what is due but the game actions are not built yet,

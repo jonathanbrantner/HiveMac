@@ -22,6 +22,8 @@ public protocol Sensors: AnyObject {
     func hiveMessage() -> String?
     /// Share of the screen that is honeycomb gold, 0 to 1: high when the camera faces the hive. nil when unreadable.
     func hiveViewShare() -> Double?
+    /// Percent left of every mob health bar on screen. nil when the screen cannot be read.
+    func mobBars() -> [Double]?
 }
 
 public extension Sensors {
@@ -29,6 +31,7 @@ public extension Sensors {
     func honeyRunning() -> Bool? { nil }
     func hiveMessage() -> String? { nil }
     func hiveViewShare() -> Double? { nil }
+    func mobBars() -> [Double]? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
@@ -140,6 +143,8 @@ public final class Game {
 
     public private(set) var shiftLocked = false
     public var died = false
+    /// Seconds since 1970; replaced in tests.
+    public var unixNow: () -> TimeInterval = { Date().timeIntervalSince1970 }
 
     public init(actuator: Actuator, sensors: Sensors, settings: GameSettings, clock: Clock,
                 stop: Signal = Signal(), pause: Signal = Signal(),

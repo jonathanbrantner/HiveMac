@@ -320,6 +320,14 @@ final class GameLoopTests: XCTestCase {
         var afterDrag: Set<String> = []
         var honey: Bool?
         func honeyRunning() -> Bool? { honey }
+        /// Health bars seen on each look; nil = the screen cannot be read.
+        var barScript: [[Double]]?
+        var barLooks = 0
+        func mobBars() -> [Double]? {
+            guard let script = barScript else { return nil }
+            defer { barLooks += 1 }
+            return barLooks < script.count ? script[barLooks] : script.last ?? []
+        }
         var act: FakeActuator?
         init(_ inner: FakeWorld, visible: Set<String>) { self.inner = inner; self.visible = visible }
         func robloxPresent() -> Bool { inner.robloxPresent() }
@@ -492,4 +500,54 @@ extension GameLoopTests {
         XCTAssertFalse(g.fixCamera())
         XCTAssertEqual(f.act.taps(".") % 8, 0)                                        // one full circle, no extra turn
     }
+
+    private func huntGame(script: [[Double]]?) -> (Game, PictureWorld, GameFixture) {
+        let f = GameFixture(fillPerS: 0)
+        let pw = PictureWorld(f.world, visible: [])
+        pw.barScript = script
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { _, name, _ in PathFile(name: name, steps: [.walk(["a"], tiles: 3)]) })
+        return (g, pw, f)
+    }
+
+    func testHuntFightsUntilTheHealthBarIsGone() {
+        let (g, pw, _) = huntGame(script: [[], [100], [60], [], [], []])           // nothing yet, a mob, hurt, gone
+        XCTAssertEqual(g.hunt(field: "rose"), .killed)
+        XCTAssertGreaterThanOrEqual(pw.barLooks, 5)
+    }
+
+    func testHuntGivesUpWhenNoMobIsThere() {
+        let (g, _, f) = huntGame(script: [[]])
+        XCTAssertEqual(g.hunt(field: "rose"), .none)
+        XCTAssertLessThan(f.clock.now(), 120)                                         // did not stay for minutes
+    }
+
+    func testHuntGivesUpOnAMobThatWillNotDie() {
+        let (g, _, _) = huntGame(script: [[80]])
+        XCTAssertEqual(g.hunt(field: "rose", maxSeconds: 60), .timeout)
+    }
+
+    func testGatheringInAMobsFieldCountsAsHuntingIt() {
+        var unix = 10_000.0
+        let r = GameExtraRunner(unixNow: { unix })
+        r.fieldGathered("pine tree", seconds: 30)
+        XCTAssertEqual(r.due(ExtraStep(kind: "bug_run").with(bugs: ["mantis"]), now: unix), ["mantis"])   // too short
+        r.fieldGathered("pine tree", seconds: 120)
+        XCTAssertEqual(r.due(ExtraStep(kind: "bug_run").with(bugs: ["mantis", "spider"]), now: unix), ["spider"])
+        unix += 1_300
+        XCTAssertEqual(r.due(ExtraStep(kind: "bug_run").with(bugs: ["mantis"]), now: unix), ["mantis"])
+    }
+
+    func testMondoOnlyComesUpInTheFirstFourteenMinutesOfTheHour() {
+        let r = GameExtraRunner()
+        let hour = 1_800_000_000.0 - (1_800_000_000.0.truncatingRemainder(dividingBy: 3600))       // a whole UTC hour
+        let step = ExtraStep(kind: "mondo")
+        XCTAssertEqual(r.due(step, now: hour + 5 * 60), ["mondo chick"])
+        XCTAssertEqual(r.due(step, now: hour + 20 * 60), [])
+    }
+}
+
+extension ExtraStep {
+    func with(bugs: [String]) -> ExtraStep { var s = self; s.bugs = bugs; return s }
 }

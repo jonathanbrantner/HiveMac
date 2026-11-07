@@ -13,8 +13,9 @@ stay on each, and press Start. About 30 MB of memory, no Python, no extra instal
   <img src="docs/images/shot-macro.png" width="360" alt="Macro tab: hive, walking, sprinkler and hotbar">
 </p>
 
-> **Beta.** HiveMac builds, passes its 70+ tests and runs against a simulated game. It has had very
-> little time in the real game, so expect rough edges. Bug reports are welcome.
+> **Beta.** The basics work in the real game: **gathering fields, mob runs (bug runs) and collecting
+> things** (the wealth clock, dispensers, passes and boosters). Everything else is still in beta and
+> being tested: planters, Mondo Chick and the other extras. Expect rough edges, and bug reports are welcome.
 
 ## Read this first
 

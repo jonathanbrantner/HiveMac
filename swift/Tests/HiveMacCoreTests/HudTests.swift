@@ -90,3 +90,26 @@ final class HoneycombTests: XCTestCase {
         XCTAssertEqual(Hud.honeycombShare(grass), 0, accuracy: 0.001)
     }
 }
+
+final class MobBarTests: XCTestCase {
+    private func screen(bars: [(y: Int, green: Int, red: Int)]) -> RGBImage {
+        var img = RGBImage(width: 300, height: 200, fill: (70, 120, 70))
+        for b in bars {
+            for dy in 0..<4 {
+                for x in 0..<b.green { img.set(40 + x, b.y + dy, (0x1F, 0xE7, 0x44)) }
+                for x in 0..<b.red { img.set(40 + b.green + x, b.y + dy, (0x6B, 0x13, 0x1A)) }
+            }
+        }
+        return img
+    }
+
+    func testFindsEachBarAndItsHealth() {
+        let found = Hud.mobHealthBars(screen(bars: [(60, 30, 30), (120, 50, 0)]))
+        XCTAssertEqual(found.count, 2)
+        XCTAssertEqual(found.sorted(), [50, 100])
+    }
+    func testNoBarsMeansNoMobs() { XCTAssertTrue(Hud.mobHealthBars(screen(bars: [])).isEmpty) }
+    func testTheTopAndBottomOfTheScreenAreIgnored() {
+        XCTAssertTrue(Hud.mobHealthBars(screen(bars: [(5, 40, 0), (190, 40, 0)])).isEmpty)
+    }
+}

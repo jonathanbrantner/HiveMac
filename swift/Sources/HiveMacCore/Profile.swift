@@ -50,6 +50,8 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
     public static let planters = ["paper", "ticket", "festive", "plastic", "candy", "red clay", "blue clay", "tacky",
                                   "pesticide", "heat-treated", "hydroponic", "petal", "planter of plenty"]
     public var harvestHours = 4.0
+    /// Mondo Chick: "buff" (stand by it for the buff) or "kill".
+    public var mondoAction = "buff"
     /// One switch for all slots: plant again as soon as a slot is harvested.
     public var planterReplant = true
     /// Unix time each slot was planted; 0 = nothing planted.
@@ -75,7 +77,7 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         (0..<3).filter { planterRemaining($0, now: now) == 0 }
     }
 
-    public init(kind: String) { self.kind = kind; if kind == "pickups" { bugs = ["wealth clock", "honey dispenser"] } }
+    public init(kind: String) { self.kind = kind; if kind == "pickups" { bugs = ["wealth clock", "honey dispenser"] } else if kind == "mondo" { bugs = [] } }
 
     public init(json d: [String: Any]) {
         self.init(kind: (d["kind"] as? String) ?? "bug_run")
@@ -85,6 +87,7 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         if let v = d["planter_fields"] as? [String] { planterFields = (v + ["", "", ""]).prefix(3).map { $0 } }
         if let v = d["planter_types"] as? [String] { planterTypes = (v + ["paper", "paper", "paper"]).prefix(3).map { $0 == "ticking" ? "ticket" : $0 } }
         if let v = (d["harvest_hours"] as? NSNumber)?.doubleValue { harvestHours = v }
+        if let v = d["mondo_action"] as? String { mondoAction = v }
         if let v = (d["after"] as? NSNumber)?.intValue { after = v }
         if let v = (d["planter_replant"] as? NSNumber)?.boolValue { planterReplant = v }
         if let v = d["planter_planted"] as? [NSNumber] { planterPlanted = (v.map(\.doubleValue) + [0, 0, 0]).prefix(3).map { $0 } }
@@ -93,7 +96,7 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
     public var json: [String: Any] {
         ["kind": kind, "enabled": enabled, "every_minutes": everyMinutes, "bugs": bugs,
          "planter_fields": planterFields, "planter_types": planterTypes, "harvest_hours": harvestHours,
-         "after": min(after, 1000), "planter_replant": planterReplant, "planter_planted": planterPlanted]
+         "after": min(after, 1000), "mondo_action": mondoAction, "planter_replant": planterReplant, "planter_planted": planterPlanted]
     }
 }
 

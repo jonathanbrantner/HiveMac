@@ -184,6 +184,11 @@ public final class ScreenSensors: Sensors {
         return Hud.honeycombShare(img)
     }
 
+    public func mobBars() -> [Double]? {
+        guard let w = bounds(), let img = screen.grab(w) else { return nil }
+        return Hud.mobHealthBars(img)
+    }
+
     /// True while the message says "Stop Making Honey" (E would turn converting off); false when it says
     /// "Make Honey" or the empty-bag message; nil when unknown.
     public func honeyRunning() -> Bool? {

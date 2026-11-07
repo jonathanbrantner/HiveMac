@@ -102,6 +102,7 @@ public final class FarmLoop {
             if !g.travelTo(f) { continue }
             let result = g.gather(f)
             stats.cycles += 1
+            extras?.fieldGathered(f.name, seconds: result.seconds)
             stats.lastResult = result.reason
             stats.history.append(result)
             if result.reason == "death" { stats.deaths += 1; afterDeath = true }

@@ -5,7 +5,7 @@ until it has been tried in the real game. Source of the inventory: Natro Macro (
 (timers, field lists, planter numbers) are free to use. Natro's path and pattern files are not:
 keep its notice on them and do not share this repo until that is handled.
 
-## Run steps (built in code on 2026-11-06, NOT yet tried in the game)
+## Run steps (fields, pickups and bug runs tried in the real game on 2026-11-06; planters and Mondo Chick built, still in beta)
 Pickups (clock, dispensers, passes, honeystorm, boosters): reset, Natro's route from `config/paths/natro/to_pickup`, E twice, timer. Bug runs: reset, travel to the mob's field, gather 90 s with the tool, timer. Planters: built the same day (inventory search, drag, Yes, harvest, replant; routes in `to_planter`, pictures in `config/images/natro`), also untested. Natro's spots are Windows window pixels, so the Mac scale may need `game.ui_scale` and `game.ui_offset_y`. Still missing: coconut crab, king beetle, black bear, mob detection by health bar colour, loot sweep.
 - **Bug runs:** ladybug and rhino beetle first (every 330 s respawn), then spider (1830 s), mantis and
   scorpion (1230 s), werewolf (3630 s). Mobs are found by health bar colours 0x1fe744 and 0x6b131a.

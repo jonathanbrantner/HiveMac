@@ -26,6 +26,8 @@ public enum MobFields {
     }
 }
 
+public enum HuntResult: Equatable { case killed, none, timeout, interrupted }
+
 extension Game {
     /// Walks to a dispenser, clock, pass or booster and presses E. Starts from a reset so the
     /// position is known. Returns false when it could not get there.
@@ -49,17 +51,75 @@ extension Game {
         return !stopped
     }
 
-    /// Goes to the field and gathers for `seconds` with the tool in hand, so the bees and the tool
-    /// deal with whatever is there. Returns true when it ran to the end (no death, no stop).
-    public func hunt(field: String, seconds: Double) -> Bool {
-        if !resetToHive(afterDeath: died) { return false }
+    /// Goes to the mob's field and fights until its health bar is gone. Gives up quickly when no mob is
+    /// there, and after `maxSeconds` when it will not die. Without a readable screen it falls back to a
+    /// fixed 90 seconds.
+    public func hunt(field: String, maxSeconds: Double = 240) -> HuntResult {
+        if !resetToHive(afterDeath: died) { return .interrupted }
         var f = FieldConfig(name: field)
         f.sprinklerLocation = "center"; f.camera = "none"; f.turns = 1
-        f.minutes = seconds / 60; f.backpackPercent = 100
+        f.backpackPercent = 100
         status("traveling", field)
-        guard travelTo(f) else { return false }
-        let r = gather(f)
-        return r.reason == "time" || r.reason == "backpack"
+        guard travelTo(f) else { return .interrupted }
+        if sensors.mobBars() == nil {
+            f.minutes = 1.5
+            let r = gather(f)
+            return r.reason == "time" || r.reason == "backpack" ? .killed : .interrupted
+        }
+        f.minutes = 0.25
+        let t0 = clock.now()
+        var seen = false, quiet = 0
+        while !stopped {
+            let r = gather(f)
+            if r.reason == "death" || r.reason == "lost" { return .interrupted }
+            if stopped { break }
+            let bars = sensors.mobBars() ?? []
+            if bars.isEmpty { quiet += 1 } else { seen = true; quiet = 0 }
+            let elapsed = clock.now() - t0
+            if seen && quiet >= 2 { status("gathering", "mob down in \(field)"); return .killed }
+            if !seen && elapsed >= 20 { status("gathering", "no mob in \(field)"); return .none }
+            if elapsed >= maxSeconds { status("warning", "the mob in \(field) would not go down, trying again later"); return .timeout }
+        }
+        return .interrupted
+    }
+
+    /// Mondo Chick on Mountain Top, in the first 14 minutes of the hour (UTC). "Buff" stands near it for two
+    /// minutes with the tool out; "Kill" fights until its health bar has been gone for 15 seconds.
+    public func mondo(kill: Bool) -> HuntResult {
+        if !resetToHive() { return .interrupted }
+        guard let route = pathLookup("to_planter", "mountain top", settings.travel) ?? pathLookup("to_planter", "mountain top", "walk") else {
+            status("warning", "no route to Mountain Top"); return .interrupted
+        }
+        status("traveling", "mondo chick")
+        guard walkPath(route) else { return .interrupted }
+        walker.walk(["d"], tiles: 14)
+        walker.rotate("left", taps: 1, leftKey: settings.rotLeft, rightKey: settings.rotRight)
+        // Look for it for a few seconds.
+        var found = sensors.mobBars() == nil
+        let look = clock.now()
+        while !found && !stopped && clock.now() - look < 6 {
+            wait(0.5)
+            found = !(sensors.mobBars() ?? []).isEmpty
+        }
+        if !found { status("warning", "no Mondo Chick at Mountain Top"); return .none }
+        status("gathering", kill ? "fighting Mondo Chick" : "standing by Mondo Chick for the buff")
+        parkMouse()
+        if settings.useTool { actuator.mouseDown() }
+        defer { if settings.useTool { actuator.mouseUp() } }
+        let t0 = clock.now()
+        var quiet = 0.0
+        while !stopped {
+            wait(1)
+            if sensors.healthGrey() { died = true; return .interrupted }
+            let elapsed = clock.now() - t0
+            if !kill { if elapsed >= 120 { return .killed } }
+            else {
+                quiet = (sensors.mobBars() ?? []).isEmpty ? quiet + 1 : 0
+                if quiet >= 15 { status("gathering", "Mondo Chick is down"); return .killed }
+                if elapsed >= 900 || Int(unixNow() / 60) % 60 >= 15 { return .timeout }
+            }
+        }
+        return .interrupted
     }
 }
 
@@ -82,9 +142,19 @@ public final class GameExtraRunner: ExtraRunner {
         switch step.kind {
         case "planters":
             return step.planterSlotsReady(now: now).map { "harvest \($0 + 1)" } + step.planterSlotsToPlant().map { "plant \($0 + 1)" }
+        case "mondo":
+            let utcMinute = Int(now / 60) % 60
+            return utcMinute < 14 ? timers.due(["mondo chick"], now: now) : []
         case "bug_run": return timers.due(step.bugs.filter { !MobFields.notBuilt.contains($0) }, now: now)
         default: return timers.due(step.bugs, now: now)
         }
+    }
+
+    /// Gathering in a mob's own field for a while kills it on the way, so it does not need a hunt.
+    public func fieldGathered(_ field: String, seconds: Double) {
+        guard seconds >= 60 else { return }
+        let here = MobFields.table.filter { $0.value.contains(field) }.map(\.key)
+        if !here.isEmpty { done(here) }
     }
 
     private func done(_ names: [String]) {
@@ -103,8 +173,12 @@ public final class GameExtraRunner: ExtraRunner {
             for group in MobFields.plan(due) {
                 if game.stopped { return }
                 game.status("traveling", "bug run: \(group.mobs.joined(separator: ", ")) at \(group.field)")
-                if game.hunt(field: group.field, seconds: huntSeconds) { done(group.mobs) }
+                let result = game.hunt(field: group.field)
+                if result == .killed || result == .none { done(group.mobs) }
             }
+        case "mondo":
+            let result = game.mondo(kill: step.mondoAction == "kill")
+            if result == .killed || result == .none { done(["mondo chick"]) }
         default:
             for name in due {
                 if game.stopped { return }

@@ -378,6 +378,21 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(g.boss(Bosses.spec("coconut crab")!), .killed)
     }
 
+    func testQuestBookFindsTheQuestByItsNameAndMapsObjectives() throws {
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let book = QuestBook.load(repo.appendingPathComponent("config/quests.json"))
+        XCTAssertEqual(Set(book.givers.keys), ["polar", "black", "bucko", "riley"])
+        let q = try XCTUnwrap(book.quest(in: "Quest: Beetle  Brew  collect pineapple", giver: "polar"))
+        XCTAssertEqual(q.name, "Beetle Brew")
+        XCTAssertEqual(q.objectives.map(\.slot), [1, 2, 3, 4])
+        XCTAssertEqual(QuestBook.action(for: q.objectives[0]), .gather(field: "pineapple"))
+        XCTAssertEqual(QuestBook.action(for: q.objectives[2]), .kill(["ladybug"]))
+        XCTAssertEqual(QuestBook.action(for: QuestObjective(slot: 1, kind: "Collect", target: "Blue")), .gatherColor("blue"))
+        XCTAssertEqual(QuestBook.action(for: QuestObjective(slot: 1, kind: "Get", target: "Ant")), .unsupported("get Ant"))
+        XCTAssertEqual(QuestBook.field(forColor: "red", preferring: ["bamboo", "rose"]), "rose")
+        XCTAssertNil(book.quest(in: "nothing here", giver: "polar"))
+    }
+
     func testAutoBoostRollsUntilTheBoostIconShows() {
         var cfg = AutoBoost(); cfg.enabled = true; cfg.diceSlot = 2; cfg.glitterSlot = 3
         let f = GameFixture()

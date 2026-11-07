@@ -23,6 +23,7 @@ cp "$BIN" "$APP/Contents/MacOS/${APP_NAME}"
 rsync -a "$REPO/config/paths/natro/" "$RES/paths/"
 mkdir -p "$RES/images" && rsync -a "$REPO/config/images/natro/" "$RES/images/"
 mkdir -p "$RES/hud" && rsync -a "$REPO/config/images/hud/" "$RES/hud/"
+cp "$REPO/config/quests.json" "$RES/quests.json"
 cp "$REPO/config/default_config.json" "$RES/default_config.json"
 
 # Icon: the HiveMac honeycomb.

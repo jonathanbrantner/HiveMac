@@ -1,0 +1,200 @@
+{
+ "name": "riley",
+ "source": "NatroMacro paths/gtq-riley.ahk (walk branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "space"
+   ],
+   "seconds": 0.1
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 2.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w",
+    "d"
+   ],
+   "tiles": 1.8
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 32.0
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "space"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 2.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d",
+    "w"
+   ],
+   "tiles": 6.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 3.0
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 2
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "w",
+    "space"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 2.0
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "space",
+    "d"
+   ],
+   "seconds": 0.1
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d"
+   ],
+   "seconds": 0.1
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d"
+   ],
+   "seconds": 0.1
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "wait",
+   "seconds": 1.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 20.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 2.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w",
+    "d"
+   ],
+   "tiles": 12.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 10.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 6.0
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 2
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 5.0
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "space"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 6.0
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "space"
+   ],
+   "seconds": 0.3
+  }
+ ]
+}

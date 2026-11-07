@@ -156,7 +156,7 @@ enum PictureKind: String, CaseIterable, Identifiable {
     var help: String {
         switch self {
         case .backpack: "Drag a box around the whole Pollen bar at the top (the grey bar with the numbers). HiveMac reads how far it is filled."
-        case .hivePrompt: "Stand at your hive until the Make Honey prompt shows, then drag a box around the prompt."
+        case .hivePrompt: "Stand at your hive until the prompt shows (Make Honey or Stop Making Honey). Drag a small box around only the grey E key square on the left, not the words. It looks the same in both."
         case .hiveView: "Face the hive from the ramp and drag a box around something that only shows there, like the hive's front."
         case .cannonPrompt: "Stand on the cannon button until its prompt shows, then drag a box around it."
         }

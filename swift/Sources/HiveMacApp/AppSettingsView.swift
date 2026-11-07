@@ -10,21 +10,18 @@ struct EssentialAppSettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionTitle("Permissions")
-            if model.permissions.allGranted {
-                HStack(spacing: Theme.s3) {
-                    HexDot(color: Theme.leaf); Text("Screen Recording, Accessibility and Input Monitoring are on").font(Theme.body).foregroundStyle(Theme.wax)
-                    Spacer()
-                }.frame(minHeight: Theme.rowHeight)
-            } else {
-                PermissionRow(title: "Screen Recording", ok: model.permissions.screenRecording,
-                              why: "Lets HiveMac read the backpack and health bars.", pane: .screenRecording)
-                PermissionRow(title: "Accessibility", ok: model.permissions.accessibility,
-                              why: "Lets HiveMac press keys.", pane: .accessibility)
-                HStack(spacing: Theme.s3) {
-                    Button("Check again") { model.refreshPermissions() }.buttonStyle(QuietButtonStyle())
+            PermissionRow(title: "Screen Recording", ok: model.permissions.screenRecording,
+                          why: "Lets HiveMac read the backpack and health bars.", pane: .screenRecording)
+            PermissionRow(title: "Accessibility", ok: model.permissions.accessibility,
+                          why: "Lets HiveMac press keys.", pane: .accessibility)
+            PermissionRow(title: "Input Monitoring", ok: Permissions.inputMonitoring,
+                          why: "Only for recording walks. Playing a run does not need it.", pane: .inputMonitoring)
+            HStack(spacing: Theme.s3) {
+                Button("Check again") { model.refreshPermissions() }.buttonStyle(QuietButtonStyle())
+                if !model.permissions.allGranted {
                     Text("After turning one on, quit and reopen HiveMac.").font(Theme.caption).foregroundStyle(Theme.dust)
-                }.padding(.top, Theme.s2)
-            }
+                }
+            }.padding(.top, Theme.s2)
 
             if let msg = model.stopKeyMessage { Text(msg).font(Theme.caption).foregroundStyle(Theme.ember) }
         }

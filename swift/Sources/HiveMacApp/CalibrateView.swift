@@ -65,7 +65,8 @@ struct PermissionRow: View {
                 Text(ok ? "On" : why).font(Theme.caption).foregroundStyle(ok ? Theme.dust : Theme.resin).fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            if !ok { Button("Turn on") { Permissions.request(pane); Permissions.openSettings(pane) }.buttonStyle(QuietButtonStyle()) }
+            Button(ok ? "Open" : "Turn on") { if !ok { Permissions.request(pane) }; Permissions.openSettings(pane) }
+                .buttonStyle(QuietButtonStyle()).help("Open this page in System Settings")
         }
         .frame(minHeight: Theme.rowHeight + 8)
     }

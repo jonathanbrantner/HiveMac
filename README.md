@@ -16,6 +16,12 @@ stay on each, and press Start. About 30 MB of memory, no Python, no extra instal
 > **Beta.** The basics work in the real game: **gathering fields, mob runs (bug runs) and collecting
 > things** (the wealth clock, dispensers, passes and boosters). Everything else is still in beta and
 > being tested: planters, Mondo Chick and the other extras. Expect rough edges, and bug reports are welcome.
+>
+> **New and untested in the real game, so they may not work:** run modes (Booster mode and Quests),
+> quests for Black Bear, Polar Bear, Brown Bear, Bucko Bee and Riley Bee, keeping the balloon blessing,
+> the memory match, the reworked pickup routes (cannon and walking), and the Wealth clock in the modes.
+> Quest objectives with petals, rage tokens, fire ants or tokens are skipped. Watch the first runs
+> and keep your stop key ready.
 
 ## Read this first
 

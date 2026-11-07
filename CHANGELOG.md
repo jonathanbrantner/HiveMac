@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **New, untested in the real game (may not work):** run modes None, Booster mode and Quests with one idle field; quests for five givers (read from the quest log by OCR, with mob-aware waits for Polar Bear); Wealth clock and Keep balloon blessing in the modes; memory match by tile colour; pickup routes rewritten (cannon and walking fallback) with the prompt checked; log and snapshot size limits; two settings places (gear for the app, Settings tab for the macro).
+- The stop key is now armed only during a run, so it can be typed in text fields otherwise.
 - Tested in the real game: fields, bug runs and collecting pickups work. Planters and Mondo Chick are built and still in beta.
 - Bug runs now look for the mob's health bar and fight until it is gone, and gathering in a mob's own field counts as hunting it. New step: Mondo Chick.
 - The hive, camera and cannon checks read the words and the honeycomb on screen instead of matching pictures, and the backpack is read from the numbers in the Pollen bar.

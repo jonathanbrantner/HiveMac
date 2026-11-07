@@ -58,6 +58,14 @@ struct MoreAppSettings: View {
                     model.refreshPermissions()
                 }.buttonStyle(QuietButtonStyle()).help("For when a permission shows as on but does nothing. Then quit and reopen HiveMac.")
             }
+            SettingRow(label: "Log file") {
+                Choice(options: [("capped", "Newest 2 MB"), ("all", "Keep everything"), ("off", "Off")],
+                       selection: Binding(get: { _ = model.settingsVersion; return model.store.string("app.log_mode", "capped") }, set: { model.set("app.log_mode", $0) }), width: 150)
+            }
+            SettingRow(label: "Auto snapshots") {
+                Choice(options: [("keep20", "Newest 20"), ("all", "Keep all"), ("off", "Off")],
+                       selection: Binding(get: { _ = model.settingsVersion; return model.store.string("app.snapshots", model.store.bool("app.auto_snapshots", true) ? "keep20" : "off") }, set: { model.set("app.snapshots", $0) }), width: 150)
+            }
             SettingRow(label: "Data folder") {
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([model.dirs.data]) }.buttonStyle(QuietButtonStyle())
             }

@@ -218,3 +218,10 @@ final class MemoryColourTests: XCTestCase {
         XCTAssertFalse(Game.isTileBack(40, 120, 200))      // a revealed picture
     }
 }
+
+final class LogTrimNoteTests: XCTestCase {
+    func testSnapshotNamesSortOldestFirst() {
+        let names = ["20261107-003624", "20261106-235959", "20261107-002502"].sorted()
+        XCTAssertEqual(names.dropLast(2).first, "20261106-235959")
+    }
+}

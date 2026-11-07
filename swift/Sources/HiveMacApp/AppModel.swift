@@ -104,6 +104,7 @@ final class AppModel: ObservableObject {
     let builtInPaths: URL
     var logFile: FileHandle?
     var lastAutoSnapshot = Date.distantPast
+    var logWrites = 0
 
     init() {
         dirs = AppDirs.standard()
@@ -169,7 +170,31 @@ final class AppModel: ObservableObject {
         let text = "\(stamp)  \(line)"
         log.append(text)
         if log.count > 400 { log.removeFirst(log.count - 400) }
+        let mode = store.string("app.log_mode", "capped")
+        guard mode != "off" else { return }
         logFile?.write(Data((text + "\n").utf8))
+        logWrites += 1
+        if mode == "capped", logWrites % 50 == 0 { trimLog(maxBytes: 2_000_000) }
+    }
+
+    /// Keeps the log file under `maxBytes`: when it grows past that, only the newest half is kept.
+    func trimLog(maxBytes: UInt64) {
+        let url = dirs.logs.appendingPathComponent("hivemac.log")
+        guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? nil, size > maxBytes,
+              let data = try? Data(contentsOf: url) else { return }
+        var tail = data.suffix(Int(maxBytes / 2))
+        if let nl = tail.firstIndex(of: 10) { tail = tail.suffix(from: tail.index(after: nl)) }     // start on a whole line
+        try? logFile?.close()
+        try? Data(tail).write(to: url, options: .atomic)
+        logFile = AppModel.openLog(url)
+    }
+
+    /// Deletes the oldest snapshot folders beyond `keep`.
+    func pruneSnapshots(keep: Int) {
+        let dir = dirs.data.appendingPathComponent("snapshots")
+        guard keep > 0, let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        let folders = names.filter { !$0.hasPrefix(".") }.sorted()                                   // names are timestamps
+        for old in folders.dropLast(keep) { try? FileManager.default.removeItem(at: dir.appendingPathComponent(old)) }
     }
 
     // MARK: Start, pause, stop
@@ -285,10 +310,12 @@ final class AppModel: ObservableObject {
         if s == .gathering || s == .traveling { currentField = d.split(separator: " ").first.map(String.init) ?? currentField }
         if !d.isEmpty { append("\(s.label): \(d)") }
         // A warning or an error is exactly when a picture of the screen helps: keep one, at most once a minute.
-        if (s == .warning || s == .error), running, store.bool("app.auto_snapshots", true),
+        let snaps = store.string("app.snapshots", store.bool("app.auto_snapshots", true) ? "keep20" : "off")
+        if (s == .warning || s == .error), running, snaps != "off",
            Date().timeIntervalSince(lastAutoSnapshot) > 60 {
             lastAutoSnapshot = Date()
             saveSnapshot(quiet: true)
+            if snaps == "keep20" { pruneSnapshots(keep: 20) }
         }
     }
 

@@ -80,16 +80,25 @@ final class FieldColorsTests: XCTestCase {
 }
 
 final class RunOrderTests: XCTestCase {
+    func testTheSameFieldCanBeInARunTwice() {
+        var p = Profile(fields: [FieldConfig(name: "sunflower"), FieldConfig(name: "pine tree"), FieldConfig(name: "sunflower")])
+        XCTAssertEqual(Set(p.orderKeys).count, 3)
+        let last = "f:" + p.fields[2].id.uuidString
+        p.move(last, before: "f:" + p.fields[0].id.uuidString)
+        XCTAssertEqual(p.fields.map(\.name), ["sunflower", "sunflower", "pine tree"])
+    }
+
     func testExtrasMoveBetweenFields() {
         var p = Profile(fields: [FieldConfig(name: "sunflower"), FieldConfig(name: "pine tree"), FieldConfig(name: "rose")],
                         extras: [ExtraStep(kind: "bug_run")])
         let bug = "e:" + p.extras[0].id.uuidString
+        let sun = "f:" + p.fields[0].id.uuidString, pine = "f:" + p.fields[1].id.uuidString, rose = "f:" + p.fields[2].id.uuidString
         XCTAssertEqual(p.orderKeys.last, bug)               // default: after every field
-        p.move(bug, before: "f:pine tree")
-        XCTAssertEqual(p.orderKeys, ["f:sunflower", bug, "f:pine tree", "f:rose"])
-        p.move("f:rose", before: "f:sunflower")
+        p.move(bug, before: pine)
+        XCTAssertEqual(p.orderKeys, [sun, bug, pine, rose])
+        p.move(rose, before: sun)
         XCTAssertEqual(p.fields.map(\.name), ["rose", "sunflower", "pine tree"])
-        XCTAssertEqual(p.orderKeys, ["f:rose", "f:sunflower", bug, "f:pine tree"])
+        XCTAssertEqual(p.orderKeys, [rose, sun, bug, pine])
     }
 }
 

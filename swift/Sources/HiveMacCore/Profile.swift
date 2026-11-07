@@ -128,7 +128,7 @@ public struct Profile: Equatable {
         var out: [String] = []
         for i in 0...fields.count {
             for e in extras where min(e.after, fields.count) == i { out.append("e:" + e.id.uuidString) }
-            if i < fields.count { out.append("f:" + fields[i].name) }
+            if i < fields.count { out.append("f:" + fields[i].id.uuidString) }
         }
         return out
     }
@@ -141,7 +141,7 @@ public struct Profile: Equatable {
         if let t = target, let to = keys.firstIndex(of: t) { keys.insert(key, at: to) } else { keys.append(key) }
         var newFields: [FieldConfig] = [], newExtras: [ExtraStep] = []
         for k in keys {
-            if k.hasPrefix("f:"), let f = fields.first(where: { "f:" + $0.name == k }) { newFields.append(f) }
+            if k.hasPrefix("f:"), let f = fields.first(where: { "f:" + $0.id.uuidString == k }) { newFields.append(f) }
             else if k.hasPrefix("e:"), var e = extras.first(where: { "e:" + $0.id.uuidString == k }) {
                 e.after = newFields.count; newExtras.append(e)
             }

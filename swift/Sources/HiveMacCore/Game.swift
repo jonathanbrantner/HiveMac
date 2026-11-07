@@ -87,6 +87,8 @@ public struct GameSettings: Equatable, Sendable {
 }
 
 public struct FieldConfig: Equatable, Sendable {
+    /// Tells two rows of the same field apart. Not saved, and not part of equality.
+    public var id = UUID()
     public var name: String
     public var pattern = "corner_x_snake"
     public var size = "m"
@@ -117,6 +119,15 @@ public struct FieldConfig: Equatable, Sendable {
             sprinklerLocation = d.sprinkler; sprinklerDistance = d.distance
             invertFB = d.invertFB; invertLR = d.invertLR
         }
+    }
+
+    public static func == (a: FieldConfig, b: FieldConfig) -> Bool {
+        var x = a; x.id = b.id
+        return x.name == b.name && x.pattern == b.pattern && x.size == b.size && x.width == b.width
+            && x.invertFB == b.invertFB && x.invertLR == b.invertLR && x.camera == b.camera && x.turns == b.turns
+            && x.minutes == b.minutes && x.backpackPercent == b.backpackPercent
+            && x.sprinklerLocation == b.sprinklerLocation && x.sprinklerDistance == b.sprinklerDistance
+            && x.shiftLock == b.shiftLock && x.travel == b.travel && x.returnMethod == b.returnMethod && x.enabled == b.enabled
     }
 }
 

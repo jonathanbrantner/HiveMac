@@ -269,7 +269,7 @@ final class GameLoopTests: XCTestCase {
         var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug"]
         var off = ExtraStep(kind: "bug_run"); off.enabled = false
         var p = Profile(fields: [f1, f2], extras: [bug, off])
-        p.move("e:" + bug.id.uuidString, before: "f:dandelion")      // sunflower, bug run, dandelion
+        p.move("e:" + bug.id.uuidString, before: "f:" + f2.id.uuidString)      // sunflower, bug run, dandelion
         let spy = SpyRunner()
         var unix = 1_000.0
         spy.now = { unix }

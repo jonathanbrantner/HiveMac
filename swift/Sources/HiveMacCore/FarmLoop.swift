@@ -55,7 +55,7 @@ public final class FarmLoop {
         self.game = game
         self.fields = profile.fields.filter(\.enabled)
         self.items = profile.orderKeys.compactMap { key in
-            if key.hasPrefix("f:"), let f = profile.fields.first(where: { "f:" + $0.name == key }), f.enabled { return .field(f) }
+            if key.hasPrefix("f:"), let f = profile.fields.first(where: { "f:" + $0.id.uuidString == key }), f.enabled { return .field(f) }
             if key.hasPrefix("e:"), let e = profile.extras.first(where: { "e:" + $0.id.uuidString == key }), e.enabled { return .extra(e) }
             return nil
         }

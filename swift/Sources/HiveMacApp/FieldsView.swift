@@ -72,23 +72,7 @@ struct FieldsView: View {
             .environmentObject(reorder)
 
             HStack {
-                Menu {
-                    Menu("Field") {
-                        ForEach(FieldDefaults.order, id: \.self) { name in
-                            Button(name.capitalized + (!FieldColors.recommended(for: model.hive.color).isEmpty && FieldColors.table[name] == model.hive.color ? "  (fits your bees)" : "")) {
-                                var f = FieldConfig(name: name)
-                                model.applyFieldDefaults(to: &f)
-                                model.profile.fields.append(f)
-                            }
-                            .disabled(model.profile.fields.contains { $0.name == name })
-                        }
-                    }
-                    Button("Bug run") { model.profile.extras.append(ExtraStep(kind: "bug_run")) }
-                    Button("Clock and dispensers") { model.profile.extras.append(ExtraStep(kind: "pickups")) }
-                    Button("Memory match") { model.profile.extras.append(ExtraStep(kind: "memory")) }
-                    Button("Planters") { model.profile.extras.append(ExtraStep(kind: "planters")) }
-                } label: { Text("Add") }
-                .menuStyle(.button).buttonStyle(QuietButtonStyle()).fixedSize()
+                AddButton()
                 Spacer()
                 Text("Round: \(roundMinutes)").font(Theme.caption).foregroundStyle(Theme.dust)
             }
@@ -101,7 +85,7 @@ struct FieldsView: View {
 
 extension FieldsView {
     @ViewBuilder func rowView(_ key: String) -> some View {
-        if key.hasPrefix("f:"), let i = model.profile.fields.firstIndex(where: { "f:" + $0.name == key }) {
+        if key.hasPrefix("f:"), let i = model.profile.fields.firstIndex(where: { "f:" + $0.id.uuidString == key }) {
             FieldRow(field: $model.profile.fields[i], key: key, taken: model.profile.fields.map(\.name)) { model.profile.fields.remove(at: i) }
         } else if let i = model.profile.extras.firstIndex(where: { "e:" + $0.id.uuidString == key }) {
             ExtraRow(step: $model.profile.extras[i], key: key) { model.profile.extras.remove(at: i) }

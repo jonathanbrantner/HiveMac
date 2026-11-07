@@ -155,7 +155,7 @@ public final class FarmLoop {
     /// Keep the balloon blessing: back at the hive 10 minutes before it runs out. The buff icon says when it is gone;
     /// the length is learned from the first time that happens. A conversion in between (lastBlessing) skips the return.
     private func blessingRound() -> Bool {
-        guard mode != "none", keepBlessing else { return false }
+        guard keepBlessing else { return false }
         let g = game, now = unixNow()
         let active = g.blessingActive()
         if active { blessingSeen = true }

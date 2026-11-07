@@ -73,6 +73,7 @@ struct ModeRow: View {
                 modeOptions
             default:
                 AutoBoostRow()
+                blessingToggle
             }
         }
         .confirmationDialog("Switch to \(pending == "quests" ? "Quests" : "Booster mode")?", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } })) {
@@ -81,15 +82,21 @@ struct ModeRow: View {
         } message: { Text(confirmText) }
     }
 
-    private var modeOptions: some View {
+    private var blessingToggle: some View {
         HStack(spacing: Theme.s4) {
-            Toggle("Wealth clock", isOn: $model.profile.modeClock).toggleStyle(.checkbox).font(Theme.body).disabled(model.running)
             Toggle("Keep balloon blessing", isOn: $model.profile.keepBlessing).toggleStyle(.checkbox).font(Theme.body)
                 .disabled(model.running || !hasBlessingPicture)
             if !hasBlessingPicture {
                 Text("Take the Balloon blessing picture in Settings first").font(Theme.caption).foregroundStyle(Theme.dust)
             }
             Spacer()
+        }
+    }
+
+    private var modeOptions: some View {
+        VStack(alignment: .leading, spacing: Theme.s2) {
+            Toggle("Wealth clock", isOn: $model.profile.modeClock).toggleStyle(.checkbox).font(Theme.body).disabled(model.running)
+            blessingToggle
         }
     }
 }

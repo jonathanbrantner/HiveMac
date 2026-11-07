@@ -62,6 +62,26 @@ public enum Hud {
         return nil
     }
 
+    /// The backpack bar read by its length instead of one pixel: the fill is a saturated colour
+    /// (green to red) growing from the left, the empty part is grey. The text sits in the middle of
+    /// the bar, so two rows near its top and bottom edge are used. Always returns a number; an empty
+    /// bar is 0. Steps of 5 percent like the ladder.
+    public static func barPercent(_ bar: RGBImage, saturation: Int = 45) -> Int {
+        guard bar.width >= 20, bar.height >= 4 else { return 0 }
+        func run(_ y: Int) -> Int {
+            var length = 0, gap = 0
+            for x in 0..<bar.width {
+                let c = bar.pixel(x, y)
+                if max(c.r, c.g, c.b) - min(c.r, c.g, c.b) >= saturation { length = x + 1; gap = 0 }
+                else { gap += 1; if gap > 3 { break } }
+            }
+            return length
+        }
+        let rows = [min(2, bar.height - 1), max(0, bar.height - 3)]
+        let best = rows.map(run).max() ?? 0
+        return min(100, Int((Double(best) / Double(bar.width) * 20).rounded()) * 5)
+    }
+
     /// Natro's health bar check: dead when all three channels sit in the grey band.
     public static func isGrey(r: Int, g: Int, b: Int, low: Int = 0x4D, high: Int = 0x83) -> Bool {
         [r, g, b].allSatisfy { (low...high).contains($0) }

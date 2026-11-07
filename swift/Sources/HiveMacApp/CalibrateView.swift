@@ -107,6 +107,7 @@ struct PicturesSection: View {
     /// "84 by 21" when the picture is saved, nil when it is not.
     private func size(_ k: PictureKind) -> String? {
         _ = model.settingsVersion
+        if k == .backpack { return model.store.get("hud.backpack_bar") != nil ? "bar set" : nil }
         guard let img = ScreenCapture.loadPNG(model.dirs.templates.appendingPathComponent("\(k.rawValue).png")) else { return nil }
         return "\(img.width) by \(img.height)"
     }
@@ -138,13 +139,14 @@ struct PicturesSection: View {
 }
 
 enum PictureKind: String, CaseIterable, Identifiable {
-    case hivePrompt = "hive_prompt", hiveView = "hive_view", cannonPrompt = "cannon_prompt"
+    case backpack = "backpack_bar", hivePrompt = "hive_prompt", hiveView = "hive_view", cannonPrompt = "cannon_prompt"
     var id: String { rawValue }
     var title: String {
-        switch self { case .hivePrompt: "Hive prompt"; case .hiveView: "Hive view"; case .cannonPrompt: "Cannon prompt" }
+        switch self { case .backpack: "Backpack bar"; case .hivePrompt: "Hive prompt"; case .hiveView: "Hive view"; case .cannonPrompt: "Cannon prompt" }
     }
     var help: String {
         switch self {
+        case .backpack: "Drag a box around the whole Pollen bar at the top (the grey bar with the numbers). HiveMac reads how far it is filled."
         case .hivePrompt: "Stand at your hive until the Make Honey prompt shows, then drag a box around the prompt."
         case .hiveView: "Face the hive from the ramp and drag a box around something that only shows there, like the hive's front."
         case .cannonPrompt: "Stand on the cannon button until its prompt shows, then drag a box around it."

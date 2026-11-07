@@ -11,6 +11,8 @@ public protocol ScreenReading: AnyObject {
 /// The calibrated HUD spots, read from the `hud` section of the settings.
 public struct HudConfig {
     public var backpackPixel: RelPoint?
+    /// The whole backpack bar. When set it is read by length and wins over the single pixel.
+    public var backpackBar: RelRegion?
     public var healthPixel: RelPoint?
     public var hivePromptRegion: RelRegion?
     public var hiveViewRegion: RelRegion?
@@ -43,6 +45,7 @@ public struct HudConfig {
     /// `loadTemplate` turns a file name in the templates folder into an image (nil if absent).
     public init(store: ConfigStore, loadTemplate: (String) -> RGBImage?) {
         backpackPixel = Self.point(store.get("hud.backpack_pixel"))
+        backpackBar = Self.region(store.get("hud.backpack_bar"))
         healthPixel = Self.point(store.get("hud.health_pixel"))
         hivePromptRegion = Self.region(store.get("hud.hive_prompt_region"))
         hiveViewRegion = Self.region(store.get("hud.hive_view_region"))
@@ -106,6 +109,7 @@ public final class ScreenSensors: Sensors {
     public func robloxPresent() -> Bool { bounds() != nil }
 
     public func backpackRaw() -> Int? {
+        if let bar = region(cfg.backpackBar) { return Hud.barPercent(bar) }
         guard let p = point(cfg.backpackPixel) else { return nil }
         let rgb = screen.pixel(x: p.x, y: p.y)
         lastBackpackRGB = rgb

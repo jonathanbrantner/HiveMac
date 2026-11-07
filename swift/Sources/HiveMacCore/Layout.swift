@@ -38,6 +38,7 @@ public enum Layout {
     /// Starting guesses for the HUD spots from Natro's constants (client coordinates, 1x scale).
     public struct Defaults: Equatable {
         public var backpackPixel: RelPoint
+        public var backpackBar: RelRegion
         public var healthPixel: RelPoint
         public var hivePromptRegion: RelRegion
         public var hiveViewRegion: RelRegion
@@ -49,6 +50,7 @@ public enum Layout {
         let width = Double(max(1, w.width)), height = Double(max(1, w.height)), oy = Double(offsetY)
         return Defaults(
             backpackPixel: RelPoint(fx: (width / 2 + 62) / width, fy: (oy + 6) / height),
+            backpackBar: RelRegion(fx: (width / 2 + 59) / width, fy: (oy - 11) / height, fw: 222 / width, fh: 29 / height),
             healthPixel: RelPoint(fx: (width - 75) / width, fy: 36 / height),
             hivePromptRegion: RelRegion(fx: (width / 2 - 200) / width, fy: oy / height, fw: 400 / width, fh: 125 / height),
             hiveViewRegion: RelRegion(fx: 0, fy: 0.75, fw: 1, fh: 0.25),

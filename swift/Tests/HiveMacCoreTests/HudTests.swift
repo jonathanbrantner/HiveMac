@@ -50,3 +50,20 @@ final class HudTests: XCTestCase {
         XCTAssertFalse(Hud.isGrey(r: 0xF0, g: 0x20, b: 0x20))
     }
 }
+
+final class BarPercentTests: XCTestCase {
+    private func bar(width: Int = 200, filled: Int, textInMiddle: Bool = true) -> RGBImage {
+        var img = RGBImage(width: width, height: 20, fill: (127, 125, 119))
+        for y in 0..<20 { for x in 0..<filled { img.set(x, y, (60, 230, 120)) } }
+        if textInMiddle { for x in stride(from: 5, to: width, by: 3) { for y in 7..<13 { img.set(x, y, (240, 240, 240)) } } }
+        return img
+    }
+
+    func testEmptyBarIsZeroNotUnreadable() { XCTAssertEqual(Hud.barPercent(bar(filled: 0)), 0) }
+    func testReadsTheFilledLengthInFivePercentSteps() {
+        XCTAssertEqual(Hud.barPercent(bar(filled: 50)), 25)
+        XCTAssertEqual(Hud.barPercent(bar(filled: 100)), 50)
+        XCTAssertEqual(Hud.barPercent(bar(filled: 200)), 100)
+    }
+    func testTextInsideTheBarDoesNotCountAsFill() { XCTAssertEqual(Hud.barPercent(bar(filled: 0, textInMiddle: true)), 0) }
+}

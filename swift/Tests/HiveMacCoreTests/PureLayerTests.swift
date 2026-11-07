@@ -130,3 +130,20 @@ final class PureLayerTests: XCTestCase {
 private extension Result {
     var failureValue: Failure? { if case .failure(let f) = self { return f } else { return nil } }
 }
+
+final class QuestLogTests: XCTestCase {
+    func testBlackBearBoxParses() {
+        let e = QuestLog.parse("Black Bear: Delve Into Dandelions\nCollect 200,000,000 Pollen from the\nDandelion Field. Complete! Talk to Black Bear.")
+        XCTAssertEqual(e?.giver, "Black Bear")
+        XCTAssertEqual(e?.name, "Delve Into Dandelions")
+        XCTAssertEqual(e?.pollen, 200_000_000)
+        XCTAssertEqual(e?.complete, true)
+        XCTAssertEqual(QuestLog.giverKey("Black Bear"), "black")
+    }
+    func testUnfinishedAndNoise() {
+        let e = QuestLog.parse("Black Bear: Delve Into Dandelions\nCollect 200.000.000 Pollen from the Dandelion Field. 31%")
+        XCTAssertEqual(e?.complete, false)
+        XCTAssertEqual(e?.pollen, 200_000_000)
+        XCTAssertNil(QuestLog.parse("Collect 5 Pollen"))
+    }
+}

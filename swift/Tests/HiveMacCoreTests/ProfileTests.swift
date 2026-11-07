@@ -104,4 +104,16 @@ final class PlanterTimerTests: XCTestCase {
         XCTAssertNil(e.planterRemaining(2, now: now))
         XCTAssertEqual(e.planterSlotsReady(now: now), [0])
     }
+
+    func testPlanterGrowTimeComesFromThePlanterAndTheField() {
+        var pl = ExtraStep(kind: "planters")
+        pl.planterFields = ["rose", "bamboo", "pine tree"]; pl.planterTypes = ["paper", "hydroponic", "festive"]
+        XCTAssertEqual(pl.growHours(0), 1)                      // Natro: paper, 1 hour anywhere
+        XCTAssertEqual(pl.growHours(1), 8.73, accuracy: 0.01)   // hydroponic is faster near blue flowers
+        XCTAssertEqual(pl.growHours(2), PlanterGrowth.fallbackHours)
+        pl.planterPlanted = [1_000, 0, 0]
+        XCTAssertEqual(pl.planterRemaining(0, now: 1_000 + 1800), 1800)
+        pl.harvestHours = 3                                     // an override still wins
+        XCTAssertEqual(pl.growHours(0), 3)
+    }
 }

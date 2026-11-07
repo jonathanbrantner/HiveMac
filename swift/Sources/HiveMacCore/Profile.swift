@@ -49,7 +49,8 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
     /// Natro's 12 planters.
     public static let planters = ["paper", "ticket", "festive", "plastic", "candy", "red clay", "blue clay", "tacky",
                                   "pesticide", "heat-treated", "hydroponic", "petal", "planter of plenty"]
-    public var harvestHours = 4.0
+    /// 0 = work it out from the planter and the field (Natro's numbers). Above 0 overrides that for every slot.
+    public var harvestHours = 0.0
     /// Mondo Chick: "buff" (stand by it for the buff) or "kill".
     public var mondoAction = "buff"
     /// One switch for all slots: plant again as soon as a slot is harvested.
@@ -63,7 +64,14 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
     public func planterRemaining(_ slot: Int, now: Double) -> Double? {
         guard planterFields.indices.contains(slot), !planterFields[slot].isEmpty,
               planterPlanted.indices.contains(slot), planterPlanted[slot] > 0 else { return nil }
-        return max(0, planterPlanted[slot] + harvestHours * 3600 - now)
+        return max(0, planterPlanted[slot] + growHours(slot) * 3600 - now)
+    }
+
+    /// Hours the planter in this slot takes to grow in its field.
+    public func growHours(_ slot: Int) -> Double {
+        if harvestHours > 0 { return harvestHours }
+        guard planterFields.indices.contains(slot), planterTypes.indices.contains(slot) else { return PlanterGrowth.fallbackHours }
+        return PlanterGrowth.hours(planter: planterTypes[slot], field: planterFields[slot])
     }
 
     /// Slots with a field chosen and nothing planted yet.
@@ -86,7 +94,7 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         if let v = d["bugs"] as? [String] { bugs = v }
         if let v = d["planter_fields"] as? [String] { planterFields = (v + ["", "", ""]).prefix(3).map { $0 } }
         if let v = d["planter_types"] as? [String] { planterTypes = (v + ["paper", "paper", "paper"]).prefix(3).map { $0 == "ticking" ? "ticket" : $0 } }
-        if let v = (d["harvest_hours"] as? NSNumber)?.doubleValue { harvestHours = v }
+        if let v = (d["harvest_hours"] as? NSNumber)?.doubleValue, v > 0, v != 4 { harvestHours = v }   // 4 was the old default, not a choice
         if let v = d["mondo_action"] as? String { mondoAction = v }
         if let v = (d["after"] as? NSNumber)?.intValue { after = v }
         if let v = (d["planter_replant"] as? NSNumber)?.boolValue { planterReplant = v }

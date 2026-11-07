@@ -17,6 +17,8 @@ public struct MobTimers: Equatable, Sendable {
     /// What the Clock and dispensers step offers. The boosters are in Booster mode, not here.
     public static let pickups = ["wealth clock", "honey dispenser", "treat dispenser", "blueberry dispenser",
                                  "strawberry dispenser", "honeystorm", "ant pass", "robo pass"]
+    /// The four dispensers.
+    public static let dispenserPickups = ["strawberry dispenser", "treat dispenser", "blueberry dispenser", "honey dispenser"]
     /// The ones bought with tickets.
     public static let ticketPickups = ["ant pass", "robo pass"]
 

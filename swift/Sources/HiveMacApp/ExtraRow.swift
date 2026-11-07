@@ -54,7 +54,10 @@ struct ExtraRow: View {
         VStack(alignment: .leading, spacing: Theme.s2) {
             HStack(spacing: Theme.s2) {
                 Button("All") { step.bugs = listItems }.buttonStyle(QuietButtonStyle())
-                if step.kind == "pickups" { Button("Tickets only") { step.bugs = MobTimers.ticketPickups }.buttonStyle(QuietButtonStyle()) }
+                if step.kind == "pickups" {
+                    Button("Dispensers") { step.bugs = MobTimers.dispenserPickups }.buttonStyle(QuietButtonStyle())
+                    Button("Tickets") { step.bugs = MobTimers.ticketPickups }.buttonStyle(QuietButtonStyle())
+                }
                 if step.kind == "bug_run" {
                     Button("Mobs") { step.bugs = listItems.filter { Bosses.spec($0) == nil && $0 != "mondo chick" && !MobFields.notBuilt.contains($0) } }.buttonStyle(QuietButtonStyle())
                     Button("Bosses") { step.bugs = listItems.filter { Bosses.spec($0) != nil } }.buttonStyle(QuietButtonStyle())
@@ -86,6 +89,8 @@ struct ExtraRow: View {
         }
     }
 
+    private static func hoursText(_ h: Double) -> String { h == h.rounded() ? "\(Int(h)) h" : String(format: "%.1f h", h) }
+
     private var planters: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
             ForEach(0..<3, id: \.self) { i in
@@ -100,7 +105,8 @@ struct ExtraRow: View {
                 HStack(spacing: Theme.s3) {
                     Color.clear.frame(width: 44, height: 1)
                     let left = step.planterRemaining(i, now: Date().timeIntervalSince1970)
-                    Text(left == nil ? "Empty" : left == 0 ? "Ready" : "Ready in " + MobTimers.describeDuration(left ?? 0))
+                    Text(left == nil ? (step.planterFields[i].isEmpty ? "Empty" : "Grows \(Self.hoursText(step.growHours(i)))")
+                         : left == 0 ? "Ready" : "Ready in " + MobTimers.describeDuration(left ?? 0))
                         .font(Theme.caption).foregroundStyle(left == 0 ? Theme.leaf : Theme.dust)
                     Spacer(minLength: 0)
                     Button("Planted now") { step.planterPlanted[i] = Date().timeIntervalSince1970 }
@@ -109,11 +115,6 @@ struct ExtraRow: View {
                 }
             }
             Toggle("Replant after every harvest", isOn: $step.planterReplant).toggleStyle(.checkbox).font(Theme.body)
-            HStack(spacing: Theme.s2) {
-                Text("Grows for").font(Theme.caption).foregroundStyle(Theme.dust)
-                TextField("", value: $step.harvestHours, format: .number).fieldStyle(width: 56)
-                Text("hours").font(Theme.caption).foregroundStyle(Theme.dust)
-            }
         }
     }
 }

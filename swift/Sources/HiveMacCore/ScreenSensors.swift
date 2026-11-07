@@ -25,6 +25,8 @@ public struct HudConfig {
     public var hivePromptTemplate: RGBImage?
     /// The same prompt while honey is being made ("Stop Making Honey"): still at the hive, but E must not be pressed.
     public var hivePromptStopTemplate: RGBImage?
+    /// The message shown at the hive when the bag is empty ("To Make Honey, Collect Pollen From Flower Fields").
+    public var hivePromptEmptyTemplate: RGBImage?
     public var hiveViewTemplate: RGBImage?
     public var cannonPromptTemplate: RGBImage?
     public var deathTemplate: RGBImage?
@@ -63,6 +65,7 @@ public struct HudConfig {
         }
         hivePromptTemplate = tpl("hud.hive_prompt_template")
         hivePromptStopTemplate = tpl("hud.hive_prompt_stop_template")
+        hivePromptEmptyTemplate = tpl("hud.hive_prompt_empty_template")
         hiveViewTemplate = tpl("hud.hive_view_template")
         cannonPromptTemplate = tpl("hud.cannon_prompt_template")
         deathTemplate = tpl("hud.death_template")
@@ -143,12 +146,12 @@ public final class ScreenSensors: Sensors {
         return Hud.isGrey(r: c.r, g: c.g, b: c.b)
     }
 
-    /// At the hive when either prompt is on screen. nil when no prompt picture is saved at all.
+    /// At the hive when any of the hive messages is on screen. nil when no picture of them is saved.
     public func hivePromptVisible() -> Bool? {
-        let make = templateIn(cfg.hivePromptRegion, cfg.hivePromptTemplate)
-        let stop = templateIn(cfg.hivePromptRegion, cfg.hivePromptStopTemplate)
-        if make == nil && stop == nil { return nil }
-        return make == true || stop == true
+        let all = [cfg.hivePromptTemplate, cfg.hivePromptStopTemplate, cfg.hivePromptEmptyTemplate]
+        let answers = all.map { templateIn(cfg.hivePromptRegion, $0) }
+        if answers.allSatisfy({ $0 == nil }) { return nil }
+        return answers.contains(true)
     }
 
     /// True while the prompt reads "Stop Making Honey". nil when that picture is not saved.

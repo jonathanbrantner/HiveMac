@@ -66,7 +66,7 @@ extension AppModel {
         let name = "\(key).png"
         guard ScreenCapture.savePNG(crop, to: dirs.templates.appendingPathComponent(name)) else { calibMessage = "Could not save the picture."; return }
         store.set("hud.\(key)_template", name)
-        if key == "hive_prompt_stop" {                                     // same place as the hive prompt: widen that area
+        if key == "hive_prompt_stop" || key == "hive_prompt_empty" {                                     // same place as the hive prompt: widen that area
             let pad = 24
             let rx = max(0, x - pad), ry = max(0, y - pad)
             let rw = min(snapshot.width - rx, w + 2 * pad), rh = min(snapshot.height - ry, h + 2 * pad)

@@ -16,10 +16,10 @@ struct HiveMacApp: App {
                 .environmentObject(model)
                 .environmentObject(updates)
                 .task { if ProcessInfo.processInfo.environment["HIVEMAC_DEMO"] == nil { updates.checkOnLaunch() } }
-                .frame(minWidth: 620, idealWidth: 640, minHeight: 700, idealHeight: 760)
+                .frame(minWidth: 720, idealWidth: 740, minHeight: 700, idealHeight: 760)
                 .background(WindowChrome())
         }
-        .defaultSize(width: 640, height: 780)
+        .defaultSize(width: 740, height: 780)
         .windowResizability(.contentMinSize)
         .commands { CommandGroup(replacing: .newItem) {} }
     }

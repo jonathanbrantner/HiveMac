@@ -36,11 +36,11 @@ struct FieldsView: View {
             HStack(spacing: Theme.s2) {
                 Color.clear.frame(width: 24, height: 1)
                 Text("Field").frame(width: 100, alignment: .leading)
-                Text("Minutes").frame(width: 56, alignment: .leading)
-                Text("Pack %").frame(width: 56, alignment: .leading)
-                Text("Return").frame(width: 76, alignment: .leading)
-                Text("Travel").frame(width: 88, alignment: .leading)
-                Text("Pattern").frame(width: 132, alignment: .leading)
+                Text("Minutes").frame(width: 56, alignment: .leading).help("The most time to spend here")
+                Text("Stop at %").frame(width: 56, alignment: .leading).help("Leave the field when the backpack is this full")
+                Text("Back to hive").frame(width: 104, alignment: .leading).help("Walk back to the hive, or respawn (Esc, R, Enter)")
+                Text("Get there").frame(width: 88, alignment: .leading).help("Usual follows the Macro tab. Or walk, or take the cannon")
+                Text("Pattern").frame(width: 140, alignment: .leading)
             }
             .font(Theme.caption).foregroundStyle(Theme.dust)
             .padding(.horizontal, Theme.s6).padding(.top, Theme.s4).padding(.bottom, Theme.s1)

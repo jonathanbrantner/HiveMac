@@ -6,6 +6,7 @@ struct FieldsView: View {
     @State private var renaming = false
     @State private var nameDraft = ""
     @StateObject private var reorder = Reorder()
+    @State private var showBoosts = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -32,17 +33,18 @@ struct FieldsView: View {
 
             HiveSlotPicker()
                 .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
-            BoosterModeRow()
-            AutoBoostRow()
-                .padding(.horizontal, Theme.s6).padding(.top, Theme.s2)
+            DisclosureGroup(isExpanded: $showBoosts) {
+                VStack(alignment: .leading, spacing: Theme.s3) { BoosterModeRow(); AutoBoostRow() }.padding(.top, Theme.s2)
+            } label: {
+                Text("Boosts" + boostSummary).font(Theme.body).foregroundStyle(Theme.wax)
+            }
+            .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
 
             HStack(spacing: Theme.s2) {
                 Color.clear.frame(width: 24, height: 1)
                 Text("Field").frame(width: 100, alignment: .leading)
                 Text("Minutes").frame(width: 56, alignment: .leading).help("The most time to spend here")
                 Text("Stop at %").frame(width: 56, alignment: .leading).help("Leave the field when the backpack is this full")
-                Text("Back to hive").frame(width: 104, alignment: .leading).help("Walk back to the hive, or respawn (Esc, R, Enter)")
-                Text("Get there").frame(width: 88, alignment: .leading).help("Usual follows the Macro tab. Or walk, or take the cannon")
                 Text("Pattern").frame(width: 140, alignment: .leading)
             }
             .font(Theme.caption).foregroundStyle(Theme.dust)
@@ -112,6 +114,10 @@ extension FieldsView {
         let base = m >= 120 ? String(format: "%.1f h", m / 60) : "\(Int(m.rounded())) min"
         let extras = model.profile.extras.filter(\.enabled).count
         return extras == 0 ? base : base + " in fields, plus \(extras) extra step\(extras == 1 ? "" : "s")"
+    }
+    var boostSummary: String {
+        let on = [model.profile.boosterMode ? "booster mode" : nil, model.profile.autoBoost.enabled ? "auto boost" : nil].compactMap { $0 }
+        return on.isEmpty ? "" : ": " + on.joined(separator: ", ")
     }
     func begin() { nameDraft = model.profile.name; renaming = true }
     func nextName() -> String { "Run \(model.runs.count + 1)" }

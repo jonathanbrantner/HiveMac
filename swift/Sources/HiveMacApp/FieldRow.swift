@@ -26,8 +26,6 @@ struct FieldRow: View {
                 .buttonStyle(.plain).help("Show every option for this field")
                 TextField("", value: $field.minutes, format: .number).fieldStyle(width: 56)
                 TextField("", value: $field.backpackPercent, format: .number).fieldStyle(width: 56)
-                Choice(options: [("walk", "Walk back"), ("reset", "Respawn")], selection: $field.returnMethod, width: 104)
-                Choice(options: [("default", "Usual"), ("walk", "Walk"), ("cannon", "Cannon")], selection: $field.travel, width: 88)
                 Choice(options: Patterns.names.map { ($0, Self.pretty($0)) }, selection: $field.pattern, width: 140)
                 Spacer(minLength: 0)
                 Button(action: remove) { Image(systemName: "minus.circle") }
@@ -87,6 +85,12 @@ struct FieldRow: View {
             }
             setting("Pattern size", "How wide the walking pattern spreads. Bigger covers more of the field.") {
                 Choice(options: [("xs", "Tiny"), ("s", "Small"), ("m", "Medium"), ("l", "Large"), ("xl", "Huge")], selection: sizeBinding, width: 90)
+            }
+            setting("Back to hive", "Walk back, or respawn with Esc, R, Enter.") {
+                Choice(options: [("walk", "Walk back"), ("reset", "Respawn")], selection: $field.returnMethod, width: 120)
+            }
+            setting("Get there", "Usual follows the Macro tab.") {
+                Choice(options: [("default", "Usual"), ("walk", "Walk"), ("cannon", "Cannon")], selection: $field.travel, width: 120)
             }
             setting("Sprinkler spot", "Where in the field the sprinkler goes.") {
                 Choice(options: Self.locations.map { ($0, $0.capitalized) }, selection: $field.sprinklerLocation, width: 120)

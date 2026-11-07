@@ -49,9 +49,6 @@ struct SettingsView: View {
                     Choice(options: [("blue", "Blue"), ("red", "Red"), ("white", "White"), ("mixed", "Mixed")],
                            selection: $model.hive.color, width: 120)
                 }
-                SettingRow(label: "Bees") { TextField("", value: $model.hive.beeCount, format: .number).fieldStyle(width: 64) }
-                SettingRow(label: "Average bee level") { TextField("", value: $model.hive.avgBeeLevel, format: .number).fieldStyle(width: 64) }
-                SettingRow(label: "Cub Buddy") { Toggle("Have it", isOn: $model.hive.cubBuddy).toggleStyle(.checkbox) }
                 SettingRow(label: "Backpack percent") { TextField("", value: $model.hive.backpackPercent, format: .number).fieldStyle(width: 64) }
 
                 SectionTitle("Walking")
@@ -73,24 +70,15 @@ struct SettingsView: View {
                     Choice(options: Sprinkler.types.map { ($0, $0.capitalized) }, selection: str("game.sprinkler_type", "none"), width: 120)
                 }
 
-                SectionTitle("Converting")
-                SettingRow(label: "Hive balloon") { Toggle("Convert it too", isOn: Binding(get: { _ = model.settingsVersion; return model.store.bool("game.convert_balloon", true) }, set: { model.set("game.convert_balloon", $0) })).toggleStyle(.checkbox) }
-                Text("After the bag is empty, keep pressing E until the hive balloon is empty too. Up to 10 minutes.")
-                    .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
-
-                SectionTitle("Practice")
-                SettingRow(label: "Practice mode") { Toggle("Press nothing", isOn: flag("app.practice_mode")).toggleStyle(.checkbox) }
-                Text("Runs the macro with the real screen reading but sends no keys or clicks. The log shows what it would have pressed. Use it to check the readings while you move by hand.")
-                    .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
-
                 SectionTitle("Hotbar")
-            Text("Put what is in each slot of your in-game hotbar. The macro presses the right key for each item.")
-                .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
-            ForEach(1...7, id: \.self) { n in
-                SettingRow(label: "Slot \(n)") {
-                    Choice(options: Self.hotbarItems, selection: hotbar(n), width: 160)
+                ForEach(1...7, id: \.self) { n in
+                    SettingRow(label: "Slot \(n)") {
+                        Choice(options: Self.hotbarItems, selection: hotbar(n), width: 160)
+                    }
                 }
-            }
+
+                SettingRow(label: "Practice mode") { Toggle("Press nothing, only read the screen", isOn: flag("app.practice_mode")).toggleStyle(.checkbox) }
+                    .padding(.top, Theme.s4)
             HStack {
                 Button("Save") { model.set("game.saved", Date().timeIntervalSince1970); model.saveSettings(); savedAt = Date() }
                     .buttonStyle(HoneyButtonStyle())

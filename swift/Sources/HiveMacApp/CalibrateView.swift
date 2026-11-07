@@ -22,14 +22,14 @@ struct CalibrateView: View {
                     Button("Detect Roblox") { model.detectRoblox() }.buttonStyle(HoneyButtonStyle())
                 }
                 .frame(minHeight: Theme.rowHeight)
-                Text("Open Roblox, stand in your hive, press Detect. That is all most people need.")
+                Text("Open Roblox, stand in your hive, press Detect.")
                     .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
 
                 if model.live.calibrated {
                     HStack(spacing: Theme.s4) {
                         Text("Backpack").font(Theme.body).foregroundStyle(Theme.resin)
                         Text(model.live.backpack.map { "\($0) percent" } ?? "not readable").font(Theme.figure).foregroundStyle(Theme.wax)
-                        Text("Gather a little by hand: it should follow the bar.").font(Theme.caption).foregroundStyle(Theme.dust)
+                        Text("Should follow the bar.").font(Theme.caption).foregroundStyle(Theme.dust)
                         Spacer()
                     }
                     .padding(.top, Theme.s3)

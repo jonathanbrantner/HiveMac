@@ -26,7 +26,7 @@ struct BoosterModeRow: View {
                 Spacer()
             }
             if model.profile.boosterMode {
-                Text("Uses the next ready booster, finds the field it boosted in the buff bar, and gathers there until the boost ends. Your field list is used when no booster is ready.")
+                Text("Gathers in whichever field a ready booster boosts, until the boost ends.")
                     .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
             }
         }

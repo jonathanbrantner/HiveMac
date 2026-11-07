@@ -27,7 +27,7 @@ struct AutoBoostRow: View {
                 Spacer()
             }
             if model.profile.autoBoost.enabled {
-                Text("When a field is not boosted yet, rolls the dice and uses glitter from your hotbar slots until the boost shows in the buff bar. Put the items in slots 2 to 7.")
+                Text("Uses your dice and glitter (hotbar slots 2 to 7) when a field is not boosted.")
                     .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
             }
         }

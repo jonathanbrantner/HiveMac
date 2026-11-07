@@ -6,6 +6,8 @@ import HiveMacPlatform
 /// Permissions and the stop key: the two things every user may need to touch.
 struct EssentialAppSettings: View {
     @EnvironmentObject var model: AppModel
+    /// The status was only read at launch and on Start, so it could show an old answer. Look again while this is on screen.
+    private let tick = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -25,6 +27,8 @@ struct EssentialAppSettings: View {
 
             if let msg = model.stopKeyMessage { Text(msg).font(Theme.caption).foregroundStyle(Theme.ember) }
         }
+        .onAppear { model.refreshPermissions() }
+        .onReceive(tick) { _ in model.refreshPermissions() }
     }
 }
 

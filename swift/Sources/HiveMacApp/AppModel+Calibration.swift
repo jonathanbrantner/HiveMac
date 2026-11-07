@@ -169,7 +169,7 @@ extension AppModel {
     /// One folder with everything needed to understand a test: the Roblox window, the readings,
     /// the settings (without the phone remote token) and the log. Opens it in Finder.
     @discardableResult
-    func saveSnapshot() -> URL? {
+    func saveSnapshot(quiet: Bool = false) -> URL? {
         let stamp = DateFormatter()
         stamp.dateFormat = "yyyyMMdd-HHmmss"
         let folder = dirs.data.appendingPathComponent("snapshots/\(stamp.string(from: Date()))")
@@ -177,6 +177,23 @@ extension AppModel {
 
         if let shot = snapshotRoblox() { _ = ScreenCapture.savePNG(shot, to: folder.appendingPathComponent("roblox-window.png")) }
 
+        // Fresh reads of everything the macro looks at, so a failed step can be understood from the folder alone.
+        var extra = ""
+        if let win = robloxBounds, permissions.screenRecording {
+            let templates = dirs.templates, images = Self.builtInImages
+            let hud = HudConfig(store: store) { ScreenCapture.loadPNG(templates.appendingPathComponent($0)) }
+            let sensors = ScreenSensors(screen: capture, window: { win }, config: hud) { name in
+                ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
+            }
+            sensors.textReader = BarText.read
+            extra = """
+            Backpack now: \(sensors.backpackRaw().map { "\($0) percent" } ?? "unreadable") (bar text: \(sensors.lastBarText ?? "none"))
+            Top prompt reads: \(sensors.promptText() ?? "unreadable")
+            Hive message reads: \(sensors.hiveMessage() ?? "none") (\(sensors.lastHiveText ?? "no text"))
+            Mob health bars: \(sensors.mobBars().map { $0.isEmpty ? "none" : $0.map { String(format: "%.0f%%", $0) }.joined(separator: ", ") } ?? "unreadable")
+            Honeycomb share: \(sensors.hiveViewShare().map { String(format: "%.1f%%", $0 * 100) } ?? "unreadable")
+            """
+        }
         let l = live
         let readings = """
         State: \(state.label) (\(detail))
@@ -188,6 +205,7 @@ extension AppModel {
         Permissions: screen recording \(permissions.screenRecording), accessibility \(permissions.accessibility)
         Practice mode: \(store.bool("app.practice_mode", false))
         Cycles \(stats.cycles), converts \(stats.converts), deaths \(stats.deaths)
+        \(extra)
         """
         try? readings.write(to: folder.appendingPathComponent("readings.txt"), atomically: true, encoding: .utf8)
 
@@ -200,7 +218,7 @@ extension AppModel {
         }
         try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("log.txt"), atomically: true, encoding: .utf8)
         append("Saved a snapshot: \(folder.path)")
-        NSWorkspace.shared.activateFileViewerSelecting([folder])
+        if !quiet { NSWorkspace.shared.activateFileViewerSelecting([folder]) }
         return folder
     }
 }

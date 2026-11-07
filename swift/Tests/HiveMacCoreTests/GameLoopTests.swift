@@ -577,6 +577,12 @@ extension GameLoopTests {
         XCTAssertEqual(act.taps("e"), 1)
     }
 
+    func testPickupWhoseUsePromptDisappearsCountsAsCollected() {
+        let (g, act) = pickupGame(prompts: ["use the wealth clock", ""])
+        XCTAssertEqual(g.collect("wealth clock"), .collected)
+        XCTAssertEqual(act.taps("e"), 1)
+    }
+
     func testPickupWithoutACountdownAfterEIsReportedAsFailed() {
         let (g, act) = pickupGame(prompts: ["use the treat dispenser"])
         guard case .failed = g.collect("treat dispenser") else { return XCTFail("should fail") }

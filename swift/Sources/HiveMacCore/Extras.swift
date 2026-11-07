@@ -70,9 +70,15 @@ extension Game {
         for attempt in 0..<2 {
             actuator.tap("e", holdS: 0.1)
             wait(1.2)
-            if let t = sensors.promptText(), let left = Hud.cooldownSeconds(fromText: t) {
-                status("traveling", "collected \(pickup)")
-                return .onCooldown(left)                            // counting down now: it worked
+            if let t = sensors.promptText() {
+                if let left = Hud.cooldownSeconds(fromText: t) {
+                    status("traveling", "collected \(pickup)")
+                    return .onCooldown(left)                        // counting down now: it worked
+                }
+                if !t.contains("use") {                             // the "Use the ..." prompt is gone: it was taken
+                    status("traveling", "collected \(pickup)")
+                    return .collected
+                }
             }
             if stopped { return .failed("stopped") }
             if attempt == 0 { status("warning", "\(pickup): no countdown after E, trying once more") }

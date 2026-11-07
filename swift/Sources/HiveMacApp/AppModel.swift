@@ -100,6 +100,7 @@ final class AppModel: ObservableObject {
     let pollQueue = DispatchQueue(label: "hivemac.poll", qos: .utility)
     let builtInPaths: URL
     var logFile: FileHandle?
+    var lastAutoSnapshot = Date.distantPast
 
     init() {
         dirs = AppDirs.standard()
@@ -271,6 +272,12 @@ final class AppModel: ObservableObject {
         state = s; detail = d
         if s == .gathering || s == .traveling { currentField = d.split(separator: " ").first.map(String.init) ?? currentField }
         if !d.isEmpty { append("\(s.label): \(d)") }
+        // A warning or an error is exactly when a picture of the screen helps: keep one, at most once a minute.
+        if (s == .warning || s == .error), running, store.bool("app.auto_snapshots", true),
+           Date().timeIntervalSince(lastAutoSnapshot) > 60 {
+            lastAutoSnapshot = Date()
+            saveSnapshot(quiet: true)
+        }
     }
 
 }

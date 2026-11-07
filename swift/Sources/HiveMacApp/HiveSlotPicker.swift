@@ -11,6 +11,7 @@ struct HiveSlotPicker: View {
     var body: some View {
         HStack(spacing: Theme.s2) {
             Text("My hive").font(Theme.body).foregroundStyle(Theme.resin)
+                .help("Slot 1 is the hive on the right, next to the ramp. The numbers go up toward the left.")
             ForEach(1...6, id: \.self) { n in
                 Button { model.set("game.hive_slot", n) } label: {
                     Text("\(n)")

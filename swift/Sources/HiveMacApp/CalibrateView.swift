@@ -104,15 +104,33 @@ struct PicturesSection: View {
     @EnvironmentObject var model: AppModel
     @State private var sheet: PictureKind?
 
+    /// "84 by 21" when the picture is saved, nil when it is not.
+    private func size(_ k: PictureKind) -> String? {
+        _ = model.settingsVersion
+        guard let img = ScreenCapture.loadPNG(model.dirs.templates.appendingPathComponent("\(k.rawValue).png")) else { return nil }
+        return "\(img.width) by \(img.height)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionTitle("Pictures")
             Text("Pictures HiveMac looks for on screen. Stand where the picture is visible, then pick it out.").font(Theme.caption).foregroundStyle(Theme.dust)
                 .padding(.bottom, Theme.s2)
-            HStack(spacing: Theme.s2) {
-                ForEach(PictureKind.allCases) { k in
-                    Button(k.title) { sheet = k }.buttonStyle(QuietButtonStyle())
+            ForEach(PictureKind.allCases) { k in
+                HStack(spacing: Theme.s3) {
+                    Text(k.title).font(Theme.body).foregroundStyle(Theme.wax).frame(width: 110, alignment: .leading)
+                    if let s = size(k) {
+                        HexDot(color: Theme.leaf); Text("Saved, \(s)").font(Theme.caption).foregroundStyle(Theme.leaf)
+                    } else {
+                        HexDot(color: Theme.dust); Text("Not set").font(Theme.caption).foregroundStyle(Theme.dust)
+                    }
+                    Spacer()
+                    Button(size(k) == nil ? "Pick" : "Pick again") { sheet = k }.buttonStyle(QuietButtonStyle())
                 }
+                .frame(minHeight: Theme.rowHeight)
+            }
+            if let m = model.calibMessage {
+                Text(m).font(Theme.caption).foregroundStyle(Theme.resin).padding(.top, Theme.s2)
             }
         }
         .sheet(item: $sheet) { PictureSheet(kind: $0) }

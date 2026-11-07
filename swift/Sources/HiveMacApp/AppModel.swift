@@ -34,6 +34,8 @@ struct LiveReadings: Equatable {
     var backpackRGB: String?
     var healthGrey: Bool?
     var hivePrompt: Bool?
+    /// The part of the screen the backpack reading looks at (a PNG), so you can see what it sees.
+    var barPNG: Data?
     var calibrated = false
 }
 

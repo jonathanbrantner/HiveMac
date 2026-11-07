@@ -33,6 +33,15 @@ struct CalibrateView: View {
                         Spacer()
                     }
                     .padding(.top, Theme.s3)
+                    if let data = model.live.barPNG, let img = NSImage(data: data) {
+                        VStack(alignment: .leading, spacing: Theme.s1) {
+                            Text("What HiveMac is looking at (the whole Pollen bar should be in here):").font(Theme.caption).foregroundStyle(Theme.dust)
+                            Image(nsImage: img).interpolation(.none).resizable().scaledToFit()
+                                .frame(maxWidth: 360, maxHeight: 60, alignment: .leading)
+                                .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.grain, lineWidth: 1))
+                        }
+                        .padding(.top, Theme.s2)
+                    }
                 }
 
                 Button { withAnimation(.snappy(duration: 0.15)) { advanced.toggle() } } label: {

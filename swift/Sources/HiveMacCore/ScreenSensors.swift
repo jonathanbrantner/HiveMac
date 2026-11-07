@@ -117,6 +117,9 @@ public final class ScreenSensors: Sensors {
         return Hud.backpackPercent(r: c.r, g: c.g, b: c.b)
     }
 
+    /// What the backpack reading looks at right now, for showing it on screen.
+    public func backpackBarImage() -> RGBImage? { region(cfg.backpackBar) }
+
     public func backpackPercent() -> Int { filter.push(backpackRaw()) }
     public func backpackUnreadableStreak() -> Int { filter.unreadableStreak }
     public func resetBackpackFilter() { filter.reset() }

@@ -49,5 +49,15 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --sign - "$APP"
+# Sign with a real identity when one is on this Mac (an Apple Development certificate, free with any Apple ID).
+# macOS then keeps Screen Recording and Accessibility across rebuilds. Without one, sign ad hoc, and the
+# permissions have to be granted again after every build.
+IDENTITY="${HIVEMAC_SIGN_IDENTITY:-$(security find-identity -p codesigning 2>/dev/null | grep -m1 'Apple Development' | awk '{print $2}')}"
+if [ -n "$IDENTITY" ]; then
+    echo "Signing with identity $IDENTITY"
+    codesign --force --sign "$IDENTITY" "$APP"
+else
+    echo "No signing identity found, signing ad hoc (permissions reset after each build)"
+    codesign --force --sign - "$APP"
+fi
 echo "Built swift/$APP ($(du -sh "$APP" | cut -f1))"

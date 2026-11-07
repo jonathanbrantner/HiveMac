@@ -133,6 +133,10 @@ extension AppModel {
                 let hud = HudConfig(store: store) { ScreenCapture.loadPNG(dirs.templates.appendingPathComponent($0)) }
                 let s = ScreenSensors(screen: capture, window: { win }, config: hud)
                 if let raw = s.backpackRaw() { r.backpack = raw }
+                if let bar = s.backpackBarImage() {
+                    let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("hivemac-bar.png")
+                    if ScreenCapture.savePNG(bar, to: tmp) { r.barPNG = try? Data(contentsOf: tmp) }
+                }
                 if let c = s.lastBackpackRGB { r.backpackRGB = "rgb(\(c.r), \(c.g), \(c.b))" }
                 r.healthGrey = s.healthGrey()
                 r.hivePrompt = s.hivePromptVisible()

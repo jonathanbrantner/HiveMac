@@ -163,6 +163,8 @@ public final class GameExtraRunner: ExtraRunner {
     public var timers: MobTimers
     public var onTimers: (MobTimers) -> Void
     public var huntSeconds: Double
+    /// The fields of the run, so a colour objective can use one that is already farmed.
+    public var mine: [String] = []
     /// Called with (step id, slot, unix time planted; 0 = emptied) so the app can save the planter timers.
     public var onPlanter: (UUID, Int, TimeInterval) -> Void = { _, _, _ in }
     private let unixNow: () -> TimeInterval
@@ -177,6 +179,8 @@ public final class GameExtraRunner: ExtraRunner {
         switch step.kind {
         case "planters":
             return step.planterSlotsReady(now: now).map { "harvest \($0 + 1)" } + step.planterSlotsToPlant().map { "plant \($0 + 1)" }
+        case "quests":
+            return timers.due(step.bugs.map { $0 + " quest" }, now: now)
         case "mondo":
             let utcMinute = Int(now / 60) % 60
             return utcMinute < 14 ? timers.due(["mondo chick"], now: now) : []
@@ -252,6 +256,19 @@ public final class GameExtraRunner: ExtraRunner {
                 case .played: done([name])
                 case .onCooldown(let left): timers.setRemaining(name, seconds: left, now: unixNow()); onTimers(timers)
                 case .failed(let why): game.status("warning", "\(kind.title) memory match: \(why)")
+                }
+            }
+        case "quests":
+            for name in due {
+                if game.stopped { return }
+                let giver = name.replacingOccurrences(of: " quest", with: "")
+                switch game.quest(giver, mine: mine) {
+                case .turnedIn: done([name])
+                case .notReady(let s): timers.setRemaining(name, seconds: s, now: unixNow()); onTimers(timers)
+                case .skipped(let why), .failed(let why):
+                    game.status("warning", why)
+                    timers.setRemaining(name, seconds: 1800, now: unixNow()); onTimers(timers)
+                case .interrupted: return
                 }
             }
         case "mondo":

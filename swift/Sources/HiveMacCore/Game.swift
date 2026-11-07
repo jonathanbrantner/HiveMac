@@ -28,6 +28,10 @@ public protocol Sensors: AnyObject {
     func promptText() -> String?
     /// A picture of an absolute screen rectangle. nil when unreadable.
     func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage?
+    /// Words in a part of the window (the quest log, a dialog box). nil when unreadable.
+    func textIn(_ region: RelRegion) -> String?
+    /// A spot in the window by its share of width and height, in screen coordinates (ready to click).
+    func point(fx: Double, fy: Double) -> (x: Int, y: Int)?
 }
 
 public extension Sensors {
@@ -38,6 +42,8 @@ public extension Sensors {
     func mobBars() -> [Double]? { nil }
     func promptText() -> String? { nil }
     func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? { nil }
+    func textIn(_ region: RelRegion) -> String? { nil }
+    func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {

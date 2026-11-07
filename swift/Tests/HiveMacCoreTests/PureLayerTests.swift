@@ -166,3 +166,31 @@ final class QuestLogDialogTests: XCTestCase {
         XCTAssertEqual(e?.complete, true)
     }
 }
+
+final class QuestBoxTests: XCTestCase {
+    let log = """
+    Black Bear: Any Pollen
+    Collect 500,000,000 Pollen.
+    Complete! Talk to Black Bear.
+    Bucko Bee: Skirmish
+    Collect 330,000,000 Pollen from the Blue
+    Flower Field. 9,035,765/330,000,000
+    Defeat 10 Rhino Beetles.
+    6/10
+    Riley Bee: Rampage
+    Collect 88 Rage Tokens.
+    14/88
+    """
+    func testBoxAndTasks() {
+        let box = QuestLog.box(for: "bucko bee", in: log)!
+        let t = QuestLog.tasks(in: box)
+        XCTAssertEqual(t.count, 2)
+        XCTAssertEqual(t[0].action, .gather(field: "blue flower"))
+        XCTAssertEqual(t[1].action, .kill(["rhino beetle"]))
+        XCTAssertTrue(t.allSatisfy { !$0.complete })
+        let black = QuestLog.tasks(in: QuestLog.box(for: "black bear", in: log)!)
+        XCTAssertEqual(black.first?.action, .gatherColor("any"))
+        XCTAssertTrue(black.allSatisfy(\.complete))
+        guard case .unsupported = QuestLog.tasks(in: QuestLog.box(for: "riley bee", in: log)!)[0].action else { return XCTFail() }
+    }
+}

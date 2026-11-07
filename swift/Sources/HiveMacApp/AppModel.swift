@@ -216,6 +216,7 @@ final class AppModel: ObservableObject {
         let runner = GameExtraRunner(timers: mobTimers) { [weak self] t in
             DispatchQueue.main.async { self?.mobTimers = t; t.save(to: dirs.data.appendingPathComponent("mob_timers.json")) }
         }
+        runner.mine = profile.fields.map(\.name)
         runner.onPlanter = { [weak self] id, slot, time in
             DispatchQueue.main.async {
                 guard let self, let i = self.profile.extras.firstIndex(where: { $0.id == id }) else { return }

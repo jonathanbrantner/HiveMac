@@ -196,6 +196,13 @@ public final class ScreenSensors: Sensors {
         return read(img)?.lowercased()
     }
 
+    public func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { point(RelPoint(fx: fx, fy: fy)) }
+
+    public func textIn(_ r: RelRegion) -> String? {
+        guard let read = textReader, let img = region(r) else { return nil }
+        return read(img)
+    }
+
     public func mobBars() -> [Double]? {
         guard let w = bounds(), let img = screen.grab(w) else { return nil }
         return Hud.mobHealthBars(img)

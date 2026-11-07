@@ -64,3 +64,55 @@ public enum QuestLog {
         }
     }
 }
+
+/// One line of a quest box: what it says, whether it is done, and what HiveMac can do about it.
+public struct QuestTask: Equatable, Sendable {
+    public var text: String
+    public var complete: Bool
+    public var action: QuestAction
+}
+
+public extension QuestLog {
+    static func squash(_ s: String) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
+
+    /// The box of `giver` ("black bear") out of the OCR text of the whole quest log, as title plus body lines.
+    static func box(for giver: String, in text: String) -> String? {
+        let lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let key = squash(giver)
+        guard let start = lines.firstIndex(where: { squash($0).hasPrefix(key) && $0.contains(":") }) else { return nil }
+        var end = lines.count
+        for i in (start + 1)..<lines.count where lines[i].contains(":") && !lines[i].lowercased().hasPrefix("collect") { end = i; break }
+        return lines[start..<end].joined(separator: "\n")
+    }
+
+    /// The objectives of a box (title included, it is skipped). Every verb at the start of a sentence opens a new one.
+    static func tasks(in box: String) -> [QuestTask] {
+        let lines = box.split(whereSeparator: \.isNewline).map(String.init)
+        let body = lines.dropFirst().joined(separator: " ")
+        let marked = body.replacingOccurrences(of: #"(?<![A-Za-z])(Collect|Defeat|Catch|Pop|Find|Get|Feed|Use|Win|Kill)\s"#,
+                                               with: "|$1 ", options: .regularExpression)
+        return marked.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.map {
+            QuestTask(text: $0, complete: $0.lowercased().contains("complete!"), action: action(for: $0))
+        }
+    }
+
+    static let mobWords: [(String, String)] = [("ladybug", "ladybug"), ("rhino", "rhino beetle"), ("spider", "spider"),
+                                               ("mantis", "mantis"), ("scorpion", "scorpion"), ("werewol", "werewolf")]
+
+    static func action(for text: String) -> QuestAction {
+        let t = text.lowercased()
+        if t.hasPrefix("defeat") || t.hasPrefix("kill") {
+            let mobs = mobWords.filter { t.contains($0.0) }.map(\.1)
+            return mobs.isEmpty ? .unsupported(text) : .kill(mobs)
+        }
+        if t.hasPrefix("collect"), t.contains("pollen") {
+            if let r = t.range(of: #"from the ([a-z ]+?) field"#, options: .regularExpression) {
+                let name = t[r].replacingOccurrences(of: "from the ", with: "").replacingOccurrences(of: " field", with: "")
+                return FieldDefaults.table[name] != nil ? .gather(field: name) : .unsupported(text)
+            }
+            for c in ["white", "red", "blue"] where t.contains("\(c) pollen") { return .gatherColor(c) }
+            return .gatherColor("any")
+        }
+        return .unsupported(text)
+    }
+}

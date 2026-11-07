@@ -9,7 +9,7 @@ struct ExtraRow: View {
     @State private var open = true
 
     private var title: String {
-        switch step.kind { case "planters": "Planters"; case "pickups": "Clock and dispensers"; case "mondo": "Mondo Chick"; case "memory": "Memory match"; default: "Bug run" }
+        switch step.kind { case "planters": "Planters"; case "pickups": "Clock and dispensers"; case "mondo": "Mondo Chick"; case "memory": "Memory match"; case "quests": "Quests"; default: "Bug run" }
     }
 
     var body: some View {
@@ -47,6 +47,7 @@ struct ExtraRow: View {
     private var listItems: [String] {
         step.kind == "pickups" ? MobTimers.pickups
             : step.kind == "memory" ? MemoryMatchKind.allCases.map(\.pickup)
+            : step.kind == "quests" ? QuestGivers.all
             : ExtraStep.bugs.filter { !MobFields.notBuilt.contains($0) }
     }
 
@@ -73,8 +74,9 @@ struct ExtraRow: View {
                             if on { if !step.bugs.contains(bug) { step.bugs.append(bug) } } else { step.bugs.removeAll { $0 == bug } }
                         })).toggleStyle(.checkbox).font(Theme.body).frame(width: 150, alignment: .leading)
                     let unbuilt = step.kind == "bug_run" && MobFields.notBuilt.contains(bug)
-                    let timed = MobTimers.respawn[bug] != nil
-                    let left = model.mobTimers.remaining(bug, now: Date().timeIntervalSince1970)
+                    let tkey = step.kind == "quests" ? bug + " quest" : bug
+                    let timed = MobTimers.respawn[tkey] != nil
+                    let left = model.mobTimers.remaining(tkey, now: Date().timeIntervalSince1970)
                     Text(unbuilt ? "not hunted yet" : MobTimers.describe(remaining: left, timed: timed)).font(Theme.caption)
                         .foregroundStyle(timed && left == 0 ? Theme.leaf : Theme.dust)
                     Spacer(minLength: 0)

@@ -156,3 +156,13 @@ final class QuestLogProgressTests: XCTestCase {
         XCTAssertTrue(QuestLog.isDialog("You never let me down!\nClick to continue"))
     }
 }
+
+final class QuestLogDialogTests: XCTestCase {
+    func testTurnInEndsWithHourlyCooldown() {
+        XCTAssertTrue(QuestLog.isCooldownDialog("Here's a little something as a thank you. I can give you a quest once an hour, so check with me again later!"))
+        XCTAssertFalse(QuestLog.isCooldownDialog("You never let me down!"))
+        let e = QuestLog.parse("Black Bear: Any Pollen\nCollect 500,000,000 Pollen.\nComplete! Talk to Black Bear.")
+        XCTAssertEqual(e?.name, "Any Pollen")
+        XCTAssertEqual(e?.complete, true)
+    }
+}

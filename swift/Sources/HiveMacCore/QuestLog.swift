@@ -40,6 +40,12 @@ public enum QuestLog {
     /// The Black Bear style speech box ("Click to continue") and who is talking.
     public static func isDialog(_ text: String) -> Bool { text.lowercased().contains("click to continue") }
 
+    /// The turn-in is over: "I can give you a quest once an hour, so check with me again later!"
+    public static func isCooldownDialog(_ text: String) -> Bool {
+        let t = text.lowercased()
+        return t.contains("once an hour") || t.contains("check with me again")
+    }
+
     /// "Collect 200,000,000 Pollen" -> 200000000. OCR may read commas as dots or spaces.
     static func pollenAmount(in s: String) -> Int? {
         guard let r = s.range(of: #"\d[\d,.\s]*\d(?=\s*pollen)"#, options: [.regularExpression, .caseInsensitive]) else { return nil }

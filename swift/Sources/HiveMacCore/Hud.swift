@@ -62,6 +62,18 @@ public enum Hud {
         return nil
     }
 
+    /// "23,763/140,827,431 (+3,683/sec)" -> 0 to 100, the exact share of the bag that is full.
+    /// nil when the text has no "current/maximum" pair.
+    public static func pollenPercent(fromText text: String) -> Int? {
+        let pattern = #"([0-9][0-9, ]*)\s*/\s*([0-9][0-9, ]*)"#
+        guard let re = try? NSRegularExpression(pattern: pattern),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let a = Range(m.range(at: 1), in: text), let b = Range(m.range(at: 2), in: text) else { return nil }
+        func number(_ s: Substring) -> Double? { Double(s.filter(\.isNumber)) }
+        guard let cur = number(text[a]), let cap = number(text[b]), cap > 0, cur <= cap * 1.05 else { return nil }
+        return min(100, Int((cur / cap * 100).rounded(.down)))
+    }
+
     /// The backpack bar read by its length instead of one pixel: the fill is a saturated colour
     /// (green to red) growing from the left, the empty part is grey. The text sits in the middle of
     /// the bar, so two rows near its top and bottom edge are used. Always returns a number; an empty

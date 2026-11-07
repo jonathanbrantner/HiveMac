@@ -142,7 +142,9 @@ extension AppModel {
             if allowed, let win, r.calibrated {
                 let hud = HudConfig(store: store) { ScreenCapture.loadPNG(dirs.templates.appendingPathComponent($0)) }
                 let s = ScreenSensors(screen: capture, window: { win }, config: hud)
+                s.textReader = BarText.read
                 if let raw = s.backpackRaw() { r.backpack = raw }
+                r.barText = s.lastBarText
                 if let bar = s.backpackBarImage() {
                     let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("hivemac-bar.png")
                     if ScreenCapture.savePNG(bar, to: tmp) { r.barPNG = try? Data(contentsOf: tmp) }

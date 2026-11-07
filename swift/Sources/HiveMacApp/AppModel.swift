@@ -39,6 +39,8 @@ struct LiveReadings: Equatable {
     var hivePrompt: Bool?
     /// The part of the screen the backpack reading looks at (a PNG), so you can see what it sees.
     var barPNG: Data?
+    /// The numbers read from the bar, e.g. "23,763/140,827,431".
+    var barText: String?
     var calibrated = false
 }
 
@@ -177,6 +179,7 @@ final class AppModel: ObservableObject {
         let screenSensors = ScreenSensors(screen: capture, window: { [store] in Self.bounds(store) }, config: hud) { name in
             ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
         }
+        screenSensors.textReader = BarText.read
         let sensors = ReportingSensors(screenSensors)
         sensors.practice = store.bool("app.practice_mode", false)
         sensors.onBackpack = { [weak self] p in self?.beat(); DispatchQueue.main.async { self?.backpack = p } }

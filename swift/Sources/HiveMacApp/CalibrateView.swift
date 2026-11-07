@@ -35,7 +35,7 @@ struct CalibrateView: View {
                     .padding(.top, Theme.s3)
                     if let data = model.live.barPNG, let img = NSImage(data: data) {
                         VStack(alignment: .leading, spacing: Theme.s1) {
-                            Text("What HiveMac is looking at (the whole Pollen bar should be in here):").font(Theme.caption).foregroundStyle(Theme.dust)
+                            Text(model.live.barText.map { "It reads: \($0)" } ?? "It could not read numbers here, so it falls back to the fill colour. The whole Pollen bar should be in this picture.").font(Theme.caption).foregroundStyle(Theme.dust)
                             Image(nsImage: img).interpolation(.none).resizable().scaledToFit()
                                 .frame(maxWidth: 360, maxHeight: 60, alignment: .leading)
                                 .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.grain, lineWidth: 1))

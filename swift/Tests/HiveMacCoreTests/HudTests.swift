@@ -67,3 +67,17 @@ final class BarPercentTests: XCTestCase {
     }
     func testTextInsideTheBarDoesNotCountAsFill() { XCTAssertEqual(Hud.barPercent(bar(filled: 0, textInMiddle: true)), 0) }
 }
+
+final class PollenTextTests: XCTestCase {
+    func testDividesCurrentByMaximum() {
+        XCTAssertEqual(Hud.pollenPercent(fromText: "0/209,081,730"), 0)
+        XCTAssertEqual(Hud.pollenPercent(fromText: "78,752,940/744,422,396 (+2,954,258/sec)"), 10)
+        XCTAssertEqual(Hud.pollenPercent(fromText: "Pollen 100/200"), 50)
+        XCTAssertEqual(Hud.pollenPercent(fromText: "209,081,730 / 209,081,730"), 100)
+    }
+    func testRejectsTextWithoutTwoNumbers() {
+        XCTAssertNil(Hud.pollenPercent(fromText: "Honey 9,896,212,560,191"))
+        XCTAssertNil(Hud.pollenPercent(fromText: "5/0"))
+        XCTAssertNil(Hud.pollenPercent(fromText: "(+3,683/sec)"))
+    }
+}

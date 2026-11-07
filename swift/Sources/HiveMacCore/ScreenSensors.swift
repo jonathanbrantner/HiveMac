@@ -78,6 +78,9 @@ public final class ScreenSensors: Sensors {
     private var filter: BackpackFilter
     public private(set) var lastBackpackRGB: (r: Int, g: Int, b: Int)?
 
+    /// Reads the text in an image (the Pollen bar's numbers). Provided by the platform layer.
+    public var textReader: ((RGBImage) -> String?)?
+    public private(set) var lastBarText: String?
     private let loadImage: (String) -> RGBImage?
     private var imageCache: [String: RGBImage] = [:]
 
@@ -112,7 +115,15 @@ public final class ScreenSensors: Sensors {
     public func robloxPresent() -> Bool { bounds() != nil }
 
     public func backpackRaw() -> Int? {
-        if let bar = region(cfg.backpackBar) { return Hud.barPercent(bar) }
+        if let bar = region(cfg.backpackBar) {
+            // The numbers printed in the bar are exact; the fill colour is only the fallback.
+            if let read = textReader {
+                let text = read(bar)
+                lastBarText = text
+                if let text, let p = Hud.pollenPercent(fromText: text) { return p }
+            }
+            return Hud.barPercent(bar)
+        }
         guard let p = point(cfg.backpackPixel) else { return nil }
         let rgb = screen.pixel(x: p.x, y: p.y)
         lastBackpackRGB = rgb

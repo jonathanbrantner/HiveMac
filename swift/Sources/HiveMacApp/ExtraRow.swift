@@ -13,6 +13,10 @@ struct ExtraRow: View {
     }
 
     var body: some View {
+        content.onChange(of: model.collapseTick) { _ in open = false }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
             HStack(spacing: Theme.s2) {
                 DragHandle(key: key)

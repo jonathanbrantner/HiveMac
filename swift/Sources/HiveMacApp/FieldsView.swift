@@ -21,6 +21,7 @@ struct FieldsView: View {
                 } label: { Text("Manage") }
                 .menuStyle(.button).buttonStyle(QuietButtonStyle()).fixedSize().disabled(model.running)
                 Spacer()
+                Button("Collapse") { model.collapseTick += 1 }.buttonStyle(QuietButtonStyle()).help("Fold every step shut")
                 AllFieldsButton().disabled(model.running)
             }
             .padding(.horizontal, Theme.s6).padding(.top, Theme.s4)

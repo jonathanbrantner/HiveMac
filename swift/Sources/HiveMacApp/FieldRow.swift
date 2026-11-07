@@ -5,6 +5,7 @@ struct FieldRow: View {
     @Binding var field: FieldConfig
     var key: String
     /// Names of all fields in this run, so the same field is not picked twice.
+    @EnvironmentObject var model: AppModel
     var taken: [String] = []
     var remove: () -> Void
     @State private var open = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
@@ -12,6 +13,10 @@ struct FieldRow: View {
     private static let locations = ["center", "upper left", "upper", "upper right", "left", "right", "lower left", "lower", "lower right"]
 
     var body: some View {
+        content.onChange(of: model.collapseTick) { _ in open = false }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.s2) {
                 DragHandle(key: key)

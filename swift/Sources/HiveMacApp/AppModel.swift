@@ -59,6 +59,8 @@ final class AppModel: ObservableObject {
     @Published var state: RunState = .idle
     @Published var detail = ""
     @Published var running = false
+    /// Bumped by the Collapse button; every step row folds itself shut when it changes.
+    @Published var collapseTick = 0
     @Published var paused = false
     @Published var runtimeSeconds = 0
     @Published var stats = LoopStats()

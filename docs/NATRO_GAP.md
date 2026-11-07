@@ -49,3 +49,11 @@ The inventory and quest log buttons are clicked at pixel spots measured from the
 That setting is not detected. On a display with a different scale (an external monitor) those corner clicks could land off.
 Not built. If the "?" or inventory click misses on a second display, add detection (for example by measuring the distance
 between two known icons) and set the scale from that.
+
+## Todo: auto login back (reconnect)
+When the Wi-Fi drops or Roblox crashes, the run should get back into the game by itself and carry on, instead of the watchdog
+stopping it. Not built. Ideas to cover:
+- Notice it: the Roblox window is gone, or the "Disconnected" box shows, or the screen stops changing for a while.
+- Get back in: reopen Roblox or the private server link, wait for the game to load, walk to the hive, then continue the loop.
+- Safety: a retry limit and a pause between tries, a stop that still works, and a log line plus snapshot for each reconnect.
+- Natro has this (its disconnect and reconnect settings), so its approach is the place to start.

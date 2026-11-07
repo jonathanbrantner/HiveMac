@@ -131,3 +131,44 @@ extension AppModel {
         }
     }
 }
+
+// MARK: Debug snapshot
+extension AppModel {
+    /// One folder with everything needed to understand a test: the Roblox window, the readings,
+    /// the settings (without the phone remote token) and the log. Opens it in Finder.
+    @discardableResult
+    func saveSnapshot() -> URL? {
+        let stamp = DateFormatter()
+        stamp.dateFormat = "yyyyMMdd-HHmmss"
+        let folder = dirs.data.appendingPathComponent("snapshots/\(stamp.string(from: Date()))")
+        do { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) } catch { return nil }
+
+        if let shot = snapshotRoblox() { _ = ScreenCapture.savePNG(shot, to: folder.appendingPathComponent("roblox-window.png")) }
+
+        let l = live
+        let readings = """
+        State: \(state.label) (\(detail))
+        Roblox: \(l.windowText)
+        Calibrated: \(l.calibrated)
+        Backpack: \(l.backpack.map { "\($0) percent" } ?? "not readable") \(l.backpackRGB ?? "")
+        Health bar grey: \(l.healthGrey.map(String.init) ?? "not read")
+        Hive prompt seen: \(l.hivePrompt.map(String.init) ?? "no picture set")
+        Permissions: screen recording \(permissions.screenRecording), accessibility \(permissions.accessibility)
+        Practice mode: \(store.bool("app.practice_mode", false))
+        Cycles \(stats.cycles), converts \(stats.converts), deaths \(stats.deaths)
+        """
+        try? readings.write(to: folder.appendingPathComponent("readings.txt"), atomically: true, encoding: .utf8)
+
+        if let data = try? Data(contentsOf: dirs.settings),
+           var obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if var remote = obj["remote"] as? [String: Any] { remote["token"] = "removed"; obj["remote"] = remote }
+            if let clean = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]) {
+                try? clean.write(to: folder.appendingPathComponent("settings.json"))
+            }
+        }
+        try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("log.txt"), atomically: true, encoding: .utf8)
+        append("Saved a snapshot: \(folder.path)")
+        NSWorkspace.shared.activateFileViewerSelecting([folder])
+        return folder
+    }
+}

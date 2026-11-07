@@ -16,6 +16,11 @@ public struct LoopStats: Equatable, Sendable {
 public final class FarmLoop {
     public let game: Game
     public let fields: [FieldConfig]
+    /// Fields and extras in run order. Extras need a runner; without one they are skipped.
+    public enum Item { case field(FieldConfig), extra(ExtraStep) }
+    let items: [Item]
+    let extras: ExtraRunner?
+    let unixNow: () -> TimeInterval
     public private(set) var stats = LoopStats()
     public var onStats: (LoopStats) -> Void = { _ in }
     private let maxCycles: Int?
@@ -25,14 +30,40 @@ public final class FarmLoop {
     public init(_ game: Game, fields: [FieldConfig], maxCycles: Int? = nil, maxFailedResets: Int = 3) {
         self.game = game
         self.fields = fields.filter(\.enabled)
+        self.items = self.fields.map { Item.field($0) }
+        self.extras = nil
+        self.unixNow = { Date().timeIntervalSince1970 }
         self.maxCycles = maxCycles
         self.maxFailed = maxFailedResets
     }
 
-    private func nextField() -> FieldConfig {
-        let f = fields[index % fields.count]
+    /// A whole run: fields and extras in the order of the profile.
+    public init(_ game: Game, profile: Profile, extras: ExtraRunner, maxCycles: Int? = nil, maxFailedResets: Int = 3,
+                unixNow: @escaping () -> TimeInterval = { Date().timeIntervalSince1970 }) {
+        self.game = game
+        self.fields = profile.fields.filter(\.enabled)
+        self.items = profile.orderKeys.compactMap { key in
+            if key.hasPrefix("f:"), let f = profile.fields.first(where: { "f:" + $0.name == key }), f.enabled { return .field(f) }
+            if key.hasPrefix("e:"), let e = profile.extras.first(where: { "e:" + $0.id.uuidString == key }), e.enabled { return .extra(e) }
+            return nil
+        }
+        self.extras = extras
+        self.unixNow = unixNow
+        self.maxCycles = maxCycles
+        self.maxFailed = maxFailedResets
+    }
+
+    private func nextItem() -> Item {
+        let item = items[index % items.count]
         index += 1
-        return f
+        return item
+    }
+
+    /// Visits an extra only when something in it is due.
+    private func visit(_ step: ExtraStep) {
+        guard let runner = extras else { return }
+        let due = runner.due(step, now: unixNow())
+        if !due.isEmpty { runner.perform(step, due: due, game: game) }
     }
 
     /// Returns why the loop ended: stopped, no_fields, reset_failed, cycles_done.
@@ -42,7 +73,11 @@ public final class FarmLoop {
         var afterDeath = false
         while !g.stopped {
             if let m = maxCycles, stats.cycles >= m { return "cycles_done" }
-            let f = nextField()
+            let f: FieldConfig
+            switch nextItem() {
+            case .extra(let step): visit(step); continue
+            case .field(let field): f = field
+            }
             stats.resets += 1
             if !g.resetToHive(afterDeath: afterDeath) {
                 if g.stopped { break }

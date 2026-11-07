@@ -12,6 +12,9 @@ struct SettingsView: View {
     private func int(_ path: String, _ fallback: Int) -> Binding<Int> {
         Binding(get: { _ = model.settingsVersion; return model.store.int(path, fallback) }, set: { model.set(path, $0) })
     }
+    private func flag(_ path: String) -> Binding<Bool> {
+        Binding(get: { _ = model.settingsVersion; return model.store.bool(path, false) }, set: { model.set(path, $0) })
+    }
     private func str(_ path: String, _ fallback: String) -> Binding<String> {
         Binding(get: { _ = model.settingsVersion; return model.store.string(path, fallback) }, set: { model.set(path, $0) })
     }
@@ -69,6 +72,11 @@ struct SettingsView: View {
                 SettingRow(label: "Type") {
                     Choice(options: Sprinkler.types.map { ($0, $0.capitalized) }, selection: str("game.sprinkler_type", "none"), width: 120)
                 }
+
+                SectionTitle("Practice")
+                SettingRow(label: "Practice mode") { Toggle("Press nothing", isOn: flag("app.practice_mode")).toggleStyle(.checkbox) }
+                Text("Runs the macro with the real screen reading but sends no keys or clicks. The log shows what it would have pressed. Use it to check the readings while you move by hand.")
+                    .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
 
                 SectionTitle("Hotbar")
             Text("Put what is in each slot of your in-game hotbar. The macro presses the right key for each item.")

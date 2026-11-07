@@ -220,4 +220,53 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(f.camera, "right"); XCTAssertEqual(f.turns, 2)
         XCTAssertEqual(FieldConfig(name: "mountain top").invertFB, true)
     }
+
+    /// Records what the loop asks of the extras and finishes them like a real runner would.
+    final class SpyRunner: ExtraRunner {
+        var timers = MobTimers()
+        var performed: [(kind: String, due: [String])] = []
+        var now: () -> TimeInterval = { 0 }
+        func due(_ step: ExtraStep, now: TimeInterval) -> [String] {
+            step.kind == "planters" ? step.planterSlotsReady(now: now).map { "slot \($0 + 1)" } : timers.due(step.bugs, now: now)
+        }
+        func perform(_ step: ExtraStep, due: [String], game: Game) {
+            performed.append((step.kind, due))
+            for d in due { timers.markDone(d, at: now()) }
+        }
+    }
+
+    func testExtrasRunInOrderBetweenFieldsAndSkipWhatIsNotBack() {
+        let f = GameFixture(fillPerS: 50)
+        var f1 = FieldConfig(name: "sunflower"); f1.backpackPercent = 90; f1.returnMethod = "reset"
+        var f2 = FieldConfig(name: "dandelion"); f2.backpackPercent = 90; f2.returnMethod = "reset"
+        var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug"]
+        var off = ExtraStep(kind: "bug_run"); off.enabled = false
+        var p = Profile(fields: [f1, f2], extras: [bug, off])
+        p.move("e:" + bug.id.uuidString, before: "f:dandelion")      // sunflower, bug run, dandelion
+        let spy = SpyRunner()
+        var unix = 1_000.0
+        spy.now = { unix }
+        let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 4, unixNow: { unix })
+        // The ladybug timer starts ready, runs once, then is skipped until 330 s have passed.
+        XCTAssertEqual(loop.run(), "cycles_done")
+        XCTAssertEqual(f.traveled, ["sunflower", "dandelion", "sunflower", "dandelion"])
+        XCTAssertEqual(spy.performed.count, 1)
+        XCTAssertEqual(spy.performed.first?.due, ["ladybug"])
+        unix += 400
+        spy.performed = []
+        let again = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 2, unixNow: { unix })
+        XCTAssertEqual(again.run(), "cycles_done")
+        XCTAssertEqual(spy.performed.count, 1)
+    }
+
+    func testPendingRunnerNeverMarksAnythingDone() {
+        let r = PendingExtraRunner()
+        var e = ExtraStep(kind: "bug_run"); e.bugs = ["ladybug"]
+        XCTAssertEqual(r.due(e, now: 5), ["ladybug"])
+        XCTAssertEqual(r.due(e, now: 5), ["ladybug"])
+        var pl = ExtraStep(kind: "planters")
+        pl.planterFields = ["rose", "", ""]; pl.planterPlanted = [100, 0, 0]; pl.harvestHours = 1
+        XCTAssertEqual(r.due(pl, now: 100 + 3600), ["slot 1"])
+        XCTAssertEqual(r.due(pl, now: 100 + 60), [])
+    }
 }

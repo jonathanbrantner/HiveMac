@@ -124,3 +124,17 @@ final class WalkAndPatternTests: XCTestCase {
         XCTAssertEqual(diamond.filter { $0.type == "tap" }.count, 4)
     }
 }
+
+final class LoggingActuatorTests: XCTestCase {
+    func testLogsWhatItWouldDoAndPressesNothing() {
+        var lines: [String] = []
+        var t = 0.0
+        let a = LoggingActuator(clock: { t }, log: { lines.append($0) })
+        a.keyDown("w"); t = 1.25; a.keyUp("w")
+        a.tap("e", holdS: 0.03)
+        a.mouseDown(); a.mouseDown(); a.mouseUp()
+        a.keyDown("a"); a.releaseAll(); a.keyUp("a")        // released without a log line: nothing was pressed
+        XCTAssertEqual(lines, ["Practice: would hold w for 1.2 s", "Practice: would press e",
+                               "Practice: would hold the mouse button down", "Practice: would let the mouse button go"])
+    }
+}

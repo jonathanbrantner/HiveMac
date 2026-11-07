@@ -169,7 +169,10 @@ final class AppModel: ObservableObject {
         sensors.onBackpack = { [weak self] p in self?.beat(); DispatchQueue.main.async { self?.backpack = p } }
 
         let builtIn = builtInPaths, dirs = self.dirs
-        let g = Game(actuator: input, sensors: sensors, settings: settings, clock: RealClock(),
+        let practice = store.bool("app.practice_mode", false)
+        let actuator: Actuator = practice ? LoggingActuator { [weak self] line in DispatchQueue.main.async { self?.append(line) } } : input
+        if practice { append("Practice mode: the macro reads the screen but presses nothing.") }
+        let g = Game(actuator: actuator, sensors: sensors, settings: settings, clock: RealClock(),
                      stop: stopSignal, pause: pauseSignal,
                      status: { [weak self] s, d in self?.beat(); DispatchQueue.main.async { self?.setStatus(RunState(rawValue: s) ?? .warning, d) } },
                      windowSize: { [store] in Self.bounds(store).map { ($0.left, $0.top, $0.width, $0.height) } },
@@ -177,7 +180,7 @@ final class AppModel: ObservableObject {
                          dirs.findPath(kind: kind, field: field, variant: variant, builtIn: builtIn).flatMap { try? PathFile.load($0) }
                      })
         game = g
-        let loop = FarmLoop(g, fields: profile.fields)
+        let loop = FarmLoop(g, profile: profile, extras: PendingExtraRunner(timers: mobTimers))
         loop.onStats = { [weak self] s in DispatchQueue.main.async { self?.stats = s } }
 
         watchdog = Watchdog(timeout: store.double("timing.watchdog_timeout_sec", 90), now: Date().timeIntervalSince1970)

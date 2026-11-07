@@ -124,3 +124,13 @@ public extension QuestLog {
         return t.hasSuffix(b)
     }
 }
+
+public extension QuestLog {
+    /// True when the text looks like an open quest log: at least one "Giver: Quest name" title.
+    static func looksOpen(_ text: String) -> Bool {
+        let t = squash(text)
+        return text.split(whereSeparator: \.isNewline).contains { l in
+                let q = squash(String(l)); return l.contains(":") && ["blackbear", "polarbear", "brownbear", "buckobee", "rileybee", "honeybee"].contains { q.hasPrefix($0) } }
+            || t.contains("collect") && t.contains("pollen")
+    }
+}

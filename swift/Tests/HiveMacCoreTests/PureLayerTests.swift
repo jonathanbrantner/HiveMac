@@ -202,3 +202,10 @@ final class QuestScrollTests: XCTestCase {
         XCTAssertFalse(QuestLog.isCutOff(QuestLog.box(for: "black bear", in: text)!, in: text))
     }
 }
+
+final class QuestLogOpenTests: XCTestCase {
+    func testLooksOpen() {
+        XCTAssertTrue(QuestLog.looksOpen("Bucko Bee: Skirmish\nDefeat 10 Rhino Beetles."))
+        XCTAssertFalse(QuestLog.looksOpen("Honey 9,917,442\nPollen 128"))
+    }
+}

@@ -106,6 +106,22 @@ public final class FarmLoop {
     }
     private var usedFallback = false
 
+    private var lastMondoTry: TimeInterval = 0
+
+    /// Mondo Chick is only there in the first minutes of each UTC hour, so it cuts the queue: when it is due and
+    /// the window is open, its step runs now instead of waiting for its place in the run.
+    private func mondoStep() -> ExtraStep? {
+        guard let runner = extras else { return nil }
+        let now = unixNow()
+        guard Int(now / 60) % 60 < 12, now - lastMondoTry > 5 * 60 else { return nil }
+        for case .extra(let step) in items where step.enabled && (step.kind == "mondo" || (step.kind == "bug_run" && step.bugs.contains("mondo chick"))) {
+            var only = step
+            if step.kind == "bug_run" { only.bugs = ["mondo chick"] }
+            if !runner.due(only, now: now).isEmpty { return only }
+        }
+        return nil
+    }
+
     private func nextItem() -> Item {
         let item = items[index % items.count]
         index += 1
@@ -132,6 +148,7 @@ public final class FarmLoop {
         while !g.stopped {
             if let m = maxCycles, stats.cycles >= m { return "cycles_done" }
             let f: FieldConfig
+            if let m = mondoStep() { lastMondoTry = unixNow(); visit(m); continue }
             let upcoming: Item = boostedItem().map { Item.field($0) } ?? nextItem()
             switch upcoming {
             case .extra(let step): visit(step); continue

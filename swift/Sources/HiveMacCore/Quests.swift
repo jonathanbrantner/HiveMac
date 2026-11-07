@@ -21,6 +21,10 @@ extension Game {
     /// is read again after one more scroll, so no objective is missed.
     func readQuestBox(_ giver: String) -> String? {
         guard var text = sensors.textIn(Game.logRegion) else { return nil }
+        if !QuestLog.looksOpen(text) {
+            guard openQuestLog(), let t = sensors.textIn(Game.logRegion) else { return nil }
+            text = t
+        }
         if let box = QuestLog.box(for: giver, in: text), !QuestLog.isCutOff(box, in: text) { return box }
         guard let spot = sensors.point(fx: 0.1, fy: 0.55) else { return QuestLog.box(for: giver, in: text) }
         actuator.moveMouse(spot.x, spot.y)
@@ -144,5 +148,26 @@ extension Game {
             if r.reason == "backpack", !walkBack(f) || !travelTo(f) { return .interrupted }
         }
         return stopped ? .interrupted : nil
+    }
+}
+
+extension Game {
+    /// Opens the quest log (the "?" button, second icon at the top left) when it is closed. The spot is a
+    /// share of the window size, so it follows a resized window; the check is the text itself, so a click is
+    /// never repeated once the log shows. Gives up after two different tries.
+    func openQuestLog() -> Bool {
+        var spots: [(Double, Double)] = [(0.049, 0.141)]
+        if let ws = windowSize(), ws.width > 0, ws.height > 0, let p = windowPoint(85, 120) {
+            spots.append((Double(p.x - ws.left) / Double(ws.width), Double(p.y - ws.top) / Double(ws.height)))
+        }
+        for (fx, fy) in spots where !stopped {
+            guard let p = sensors.point(fx: fx, fy: fy) else { continue }
+            actuator.click(p.x, p.y)
+            wait(1.0)
+            parkMouse()
+            if let t = sensors.textIn(Game.logRegion), QuestLog.looksOpen(t) { return true }
+        }
+        status("warning", "could not open the quest log")
+        return false
     }
 }

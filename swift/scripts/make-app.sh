@@ -21,6 +21,9 @@ cp "$BIN" "$APP/Contents/MacOS/${APP_NAME}"
 
 # Natro's routes and the default settings ship inside the app.
 rsync -a "$REPO/config/paths/natro/" "$RES/paths/"
+mkdir -p "$RES/images" && rsync -a "$REPO/config/images/natro/" "$RES/images/"
+mkdir -p "$RES/hud" && rsync -a "$REPO/config/images/hud/" "$RES/hud/"
+cp "$REPO/config/quests.json" "$RES/quests.json"
 cp "$REPO/config/default_config.json" "$RES/default_config.json"
 
 # Icon: the HiveMac honeycomb.
@@ -48,5 +51,15 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --sign - "$APP"
+# Sign with a real identity when one is on this Mac (an Apple Development certificate, free with any Apple ID).
+# macOS then keeps Screen Recording and Accessibility across rebuilds. Without one, sign ad hoc, and the
+# permissions have to be granted again after every build.
+IDENTITY="${HIVEMAC_SIGN_IDENTITY:-$(security find-identity -p codesigning 2>/dev/null | grep -m1 'Apple Development' | awk '{print $2}' || true)}"
+if [ -n "$IDENTITY" ]; then
+    echo "Signing with identity $IDENTITY"
+    codesign --force --sign "$IDENTITY" "$APP"
+else
+    echo "No Apple Development certificate found: signing ad hoc, so macOS forgets the permissions after each build. Create one free in Xcode (Settings, Accounts) to keep them."
+    codesign --force --sign - "$APP"
+fi
 echo "Built swift/$APP ($(du -sh "$APP" | cut -f1))"

@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import HiveMacCore
 
-/// The macro's own settings. App settings (permissions, stop key, updates) are behind the gear.
+/// All settings on one page: Roblox, permissions, the macro, and a "More" fold for the rest.
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
 
@@ -12,11 +12,15 @@ struct SettingsView: View {
     private func int(_ path: String, _ fallback: Int) -> Binding<Int> {
         Binding(get: { _ = model.settingsVersion; return model.store.int(path, fallback) }, set: { model.set(path, $0) })
     }
+    private func flag(_ path: String) -> Binding<Bool> {
+        Binding(get: { _ = model.settingsVersion; return model.store.bool(path, false) }, set: { model.set(path, $0) })
+    }
     private func str(_ path: String, _ fallback: String) -> Binding<String> {
         Binding(get: { _ = model.settingsVersion; return model.store.string(path, fallback) }, set: { model.set(path, $0) })
     }
 
     @State private var savedAt: Date?
+    @State private var showMore = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
 
     static let hotbarItems: [(String, String)] = [
         ("", "Empty"), ("sprinkler", "Sprinkler"), ("micro-converter", "Micro-Converter"), ("glitter", "Glitter"),
@@ -41,15 +45,29 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                RobloxSection()
+
                 SectionTitle("Hive")
                 SettingRow(label: "Hive color") {
                     Choice(options: [("blue", "Blue"), ("red", "Red"), ("white", "White"), ("mixed", "Mixed")],
                            selection: $model.hive.color, width: 120)
                 }
-                SettingRow(label: "Bees") { TextField("", value: $model.hive.beeCount, format: .number).fieldStyle(width: 64) }
-                SettingRow(label: "Average bee level") { TextField("", value: $model.hive.avgBeeLevel, format: .number).fieldStyle(width: 64) }
-                SettingRow(label: "Cub Buddy") { Toggle("Have it", isOn: $model.hive.cubBuddy).toggleStyle(.checkbox) }
                 SettingRow(label: "Backpack percent") { TextField("", value: $model.hive.backpackPercent, format: .number).fieldStyle(width: 64) }
+
+                SectionTitle("Every field")
+                SettingRow(label: "Minutes") { TextField("", value: num("fields.minutes", 10), format: .number).fieldStyle(width: 64) }
+                SettingRow(label: "Pattern size") {
+                    Choice(options: [("xs", "Tiny"), ("s", "Small"), ("m", "Medium"), ("l", "Large"), ("xl", "Huge")], selection: str("fields.size", "m"), width: 120)
+                }
+                SettingRow(label: "Pattern repeats") { TextField("", value: int("fields.width", 4), format: .number).fieldStyle(width: 64) }
+                SettingRow(label: "Back to hive") {
+                    Choice(options: [("walk", "Walk back"), ("reset", "Respawn")], selection: str("fields.return", "walk"), width: 120)
+                }
+                HStack {
+                    Button("Apply to all fields in this run") { model.applyFieldDefaultsToAll() }
+                        .buttonStyle(QuietButtonStyle()).disabled(model.running)
+                    Text("New fields get these too, and the backpack percent above.").font(Theme.caption).foregroundStyle(Theme.dust)
+                }.padding(.top, Theme.s2)
 
                 SectionTitle("Walking")
                 SettingRow(label: "Walk speed, no buffs") { TextField("", value: num("game.walk_speed", 28), format: .number).fieldStyle(width: 64) }
@@ -71,13 +89,19 @@ struct SettingsView: View {
                 }
 
                 SectionTitle("Hotbar")
-            Text("Put what is in each slot of your in-game hotbar. The macro presses the right key for each item.")
-                .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
-            ForEach(1...7, id: \.self) { n in
-                SettingRow(label: "Slot \(n)") {
-                    Choice(options: Self.hotbarItems, selection: hotbar(n), width: 160)
+                ForEach(1...7, id: \.self) { n in
+                    SettingRow(label: "Slot \(n)") {
+                        Choice(options: Self.hotbarItems, selection: hotbar(n), width: 160)
+                    }
                 }
-            }
+
+                Fold(title: "More", tint: Theme.honeyText, isOpen: $showMore) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        SettingRow(label: "Practice mode") { Toggle("Press nothing, only read the screen", isOn: flag("app.practice_mode")).toggleStyle(.checkbox) }
+                        MoreAppSettings()
+                    }
+                }
+                .padding(.top, Theme.s6)
             HStack {
                 Button("Save") { model.set("game.saved", Date().timeIntervalSince1970); model.saveSettings(); savedAt = Date() }
                     .buttonStyle(HoneyButtonStyle())
@@ -123,6 +147,7 @@ struct StopKeyField: View {
 
     private func begin() {
         capturing = true
+        model.capturingStopKey = true; model.syncHotKey()
         model.stopKeyMessage = nil
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 && model.stopKeyName != "esc" { finish(); return nil }      // Esc cancels
@@ -135,6 +160,7 @@ struct StopKeyField: View {
 
     private func finish() {
         capturing = false
+        model.capturingStopKey = false; model.syncHotKey()
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
     }

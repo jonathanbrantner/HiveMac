@@ -80,16 +80,25 @@ final class FieldColorsTests: XCTestCase {
 }
 
 final class RunOrderTests: XCTestCase {
+    func testTheSameFieldCanBeInARunTwice() {
+        var p = Profile(fields: [FieldConfig(name: "sunflower"), FieldConfig(name: "pine tree"), FieldConfig(name: "sunflower")])
+        XCTAssertEqual(Set(p.orderKeys).count, 3)
+        let last = "f:" + p.fields[2].id.uuidString
+        p.move(last, before: "f:" + p.fields[0].id.uuidString)
+        XCTAssertEqual(p.fields.map(\.name), ["sunflower", "sunflower", "pine tree"])
+    }
+
     func testExtrasMoveBetweenFields() {
         var p = Profile(fields: [FieldConfig(name: "sunflower"), FieldConfig(name: "pine tree"), FieldConfig(name: "rose")],
                         extras: [ExtraStep(kind: "bug_run")])
         let bug = "e:" + p.extras[0].id.uuidString
+        let sun = "f:" + p.fields[0].id.uuidString, pine = "f:" + p.fields[1].id.uuidString, rose = "f:" + p.fields[2].id.uuidString
         XCTAssertEqual(p.orderKeys.last, bug)               // default: after every field
-        p.move(bug, before: "f:pine tree")
-        XCTAssertEqual(p.orderKeys, ["f:sunflower", bug, "f:pine tree", "f:rose"])
-        p.move("f:rose", before: "f:sunflower")
+        p.move(bug, before: pine)
+        XCTAssertEqual(p.orderKeys, [sun, bug, pine, rose])
+        p.move(rose, before: sun)
         XCTAssertEqual(p.fields.map(\.name), ["rose", "sunflower", "pine tree"])
-        XCTAssertEqual(p.orderKeys, ["f:rose", "f:sunflower", bug, "f:pine tree"])
+        XCTAssertEqual(p.orderKeys, [rose, sun, bug, pine])
     }
 }
 
@@ -103,5 +112,30 @@ final class PlanterTimerTests: XCTestCase {
         XCTAssertEqual(e.planterRemaining(1, now: now), 3 * 3600)
         XCTAssertNil(e.planterRemaining(2, now: now))
         XCTAssertEqual(e.planterSlotsReady(now: now), [0])
+    }
+
+    func testPlanterGrowTimeComesFromThePlanterAndTheField() {
+        var pl = ExtraStep(kind: "planters")
+        pl.planterFields = ["rose", "bamboo", "pine tree"]; pl.planterTypes = ["paper", "hydroponic", "festive"]
+        XCTAssertEqual(pl.growHours(0), 1)                      // Natro: paper, 1 hour anywhere
+        XCTAssertEqual(pl.growHours(1), 8.73, accuracy: 0.01)   // hydroponic is faster near blue flowers
+        XCTAssertEqual(pl.growHours(2), PlanterGrowth.fallbackHours)
+        pl.planterPlanted = [1_000, 0, 0]
+        XCTAssertEqual(pl.planterRemaining(0, now: 1_000 + 1800), 1800)
+        pl.harvestHours = 3                                     // an override still wins
+        XCTAssertEqual(pl.growHours(0), 3)
+    }
+}
+
+final class RoundEstimateTests: XCTestCase {
+    func testStepsAddToTheRoundEstimate() {
+        var clock = ExtraStep(kind: "pickups"); clock.bugs = ["wealth clock", "honey dispenser"]
+        var memory = ExtraStep(kind: "memory"); memory.bugs = ["normal memory match"]
+        var planters = ExtraStep(kind: "planters"); planters.planterFields = ["pine tree", "", "bamboo"]
+        XCTAssertEqual(clock.estimatedMinutes, 1.4, accuracy: 0.01)
+        XCTAssertEqual(memory.estimatedMinutes, 3)
+        XCTAssertEqual(planters.estimatedMinutes, 4)
+        memory.enabled = false
+        XCTAssertEqual(memory.estimatedMinutes, 0)
     }
 }

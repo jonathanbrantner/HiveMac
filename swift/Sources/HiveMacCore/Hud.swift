@@ -62,6 +62,101 @@ public enum Hud {
         return nil
     }
 
+    /// "23,763/140,827,431 (+3,683/sec)" -> 0 to 100, the exact share of the bag that is full.
+    /// nil when the text has no "current/maximum" pair.
+    public static func pollenPercent(fromText text: String) -> Int? {
+        let pattern = #"([0-9][0-9, ]*)\s*/\s*([0-9][0-9, ]*)"#
+        guard let re = try? NSRegularExpression(pattern: pattern),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let a = Range(m.range(at: 1), in: text), let b = Range(m.range(at: 2), in: text) else { return nil }
+        func number(_ s: Substring) -> Double? { Double(s.filter(\.isNumber)) }
+        guard let cur = number(text[a]), let cap = number(text[b]), cap > 0, cur <= cap * 1.05 else { return nil }
+        return min(100, Int((cur / cap * 100).rounded(.down)))
+    }
+
+    /// The backpack bar read by its length instead of one pixel: the fill is a saturated colour
+    /// (green to red) growing from the left, the empty part is grey. The text sits in the middle of
+    /// the bar, so two rows near its top and bottom edge are used. Always returns a number; an empty
+    /// bar is 0. Steps of 5 percent like the ladder.
+    public static func barPercent(_ bar: RGBImage, saturation: Int = 45) -> Int {
+        guard bar.width >= 20, bar.height >= 4 else { return 0 }
+        func run(_ y: Int) -> Int {
+            var length = 0, gap = 0
+            for x in 0..<bar.width {
+                let c = bar.pixel(x, y)
+                if max(c.r, c.g, c.b) - min(c.r, c.g, c.b) >= saturation { length = x + 1; gap = 0 }
+                else { gap += 1; if gap > 3 { break } }
+            }
+            return length
+        }
+        let rows = [min(2, bar.height - 1), max(0, bar.height - 3)]
+        let best = rows.map(run).max() ?? 0
+        return min(100, Int((Double(best) / Double(bar.width) * 20).rounded()) * 5)
+    }
+
+    /// How much of the middle of the screen is the honeycomb's gold and orange, 0 to 1. Facing your hive
+    /// it is about 0.12 to 0.14; facing the field about 0.02 (measured on real screenshots).
+    public static func honeycombShare(_ image: RGBImage) -> Double {
+        let x0 = image.width / 5, x1 = image.width * 4 / 5, y0 = image.height / 8, y1 = image.height * 3 / 4
+        guard x1 > x0, y1 > y0 else { return 0 }
+        var gold = 0, total = 0
+        for y in stride(from: y0, to: y1, by: 3) {
+            for x in stride(from: x0, to: x1, by: 3) {
+                let p = image.pixel(x, y)
+                let c = ImageSearch.hls(r: p.r, g: p.g, b: p.b)
+                total += 1
+                if c.h >= 28 && c.h <= 52 && c.s > 60 && c.l > 35 && c.l < 70 { gold += 1 }
+            }
+        }
+        return total == 0 ? 0 : Double(gold) / Double(total)
+    }
+
+    /// "Use the Strawberry Dispenser (3:59:58)" -> 14398 seconds left. nil when the prompt shows no countdown,
+    /// which is what a ready dispenser looks like.
+    public static func cooldownSeconds(fromText text: String) -> TimeInterval? {
+        let pattern = #"\(\s*(?:(\d{1,2})\s*:\s*)?(\d{1,2})\s*:\s*(\d{2})\s*\)"#
+        guard let re = try? NSRegularExpression(pattern: pattern),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let b = Range(m.range(at: 2), in: text), let c = Range(m.range(at: 3), in: text) else { return nil }
+        let h = Range(m.range(at: 1), in: text).flatMap { Int(text[$0]) } ?? 0
+        guard let mi = Int(text[b]), let se = Int(text[c]), mi < 60, se < 60 else { return nil }
+        return TimeInterval(h * 3600 + mi * 60 + se)
+    }
+
+    /// Mob health bars on screen: the bright green fill (1FE744) with a dark red part (6B131A) where it
+    /// lost health. Returns the percent left of each bar found. Only the middle of the screen is looked at,
+    /// so the game's own bars at the top and the hotbar at the bottom are left out.
+    public static func mobHealthBars(_ image: RGBImage, tolerance: Int = 8) -> [Double] {
+        func near(_ c: (r: Int, g: Int, b: Int), _ r: Int, _ g: Int, _ b: Int) -> Bool {
+            abs(c.r - r) <= tolerance && abs(c.g - g) <= tolerance && abs(c.b - b) <= tolerance
+        }
+        struct Bar { var y: Int; var x0: Int; var x1: Int; var green: Int; var red: Int }
+        var bars: [Bar] = []
+        let y0 = image.height * 12 / 100, y1 = image.height * 78 / 100
+        guard y1 > y0 else { return [] }
+        for y in stride(from: y0, to: y1, by: 2) {
+            var x = 0
+            while x < image.width {
+                let c = image.pixel(x, y)
+                guard near(c, 0x1F, 0xE7, 0x44) || near(c, 0x6B, 0x13, 0x1A) else { x += 1; continue }
+                var end = x, g = 0, r = 0
+                while end < image.width {
+                    let p = image.pixel(end, y)
+                    if near(p, 0x1F, 0xE7, 0x44) { g += 1 } else if near(p, 0x6B, 0x13, 0x1A) { r += 1 } else { break }
+                    end += 1
+                }
+                if g + r >= 10 {
+                    if let i = bars.firstIndex(where: { abs($0.y - y) <= 8 && $0.x0 <= end && x <= $0.x1 }) {
+                        bars[i].y = y; bars[i].x0 = min(bars[i].x0, x); bars[i].x1 = max(bars[i].x1, end)
+                        bars[i].green = max(bars[i].green, g); bars[i].red = max(bars[i].red, r)
+                    } else { bars.append(Bar(y: y, x0: x, x1: end, green: g, red: r)) }
+                }
+                x = end + 1
+            }
+        }
+        return bars.map { Double($0.green) / Double(max(1, $0.green + $0.red)) * 100 }
+    }
+
     /// Natro's health bar check: dead when all three channels sit in the grey band.
     public static func isGrey(r: Int, g: Int, b: Int, low: Int = 0x4D, high: Int = 0x83) -> Bool {
         [r, g, b].allSatisfy { (low...high).contains($0) }

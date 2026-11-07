@@ -52,10 +52,31 @@ extension AppModel {
         guard let crop = snapshot.cropped(x: x, y: y, width: w, height: h), crop.width >= 4, crop.height >= 4 else {
             calibMessage = "That area is too small."; return
         }
+        if key == "backpack_bar" {
+            let w = Double(snapshot.width), h = Double(snapshot.height)
+            store.set("hud.backpack_bar", ["fx": Double(x) / w, "fy": Double(y) / h, "fw": Double(crop.width) / w, "fh": Double(crop.height) / h])
+            store.set("hud.calibrated", true)
+            try? store.save()
+            calibMessage = "Saved the backpack bar (\(crop.width) by \(crop.height))."
+            append("Calibrate: saved the backpack bar")
+            settingsVersion += 1
+            refreshLive()
+            return
+        }
         let name = "\(key).png"
         guard ScreenCapture.savePNG(crop, to: dirs.templates.appendingPathComponent(name)) else { calibMessage = "Could not save the picture."; return }
         store.set("hud.\(key)_template", name)
-        if key != "cannon_prompt" {                                        // the cannon prompt looks in the hive prompt area
+        if key == "hive_prompt_stop" || key == "hive_prompt_empty" {                                     // same place as the hive prompt: widen that area
+            let pad = 24
+            let rx = max(0, x - pad), ry = max(0, y - pad)
+            let rw = min(snapshot.width - rx, w + 2 * pad), rh = min(snapshot.height - ry, h + 2 * pad)
+            var l = Double(rx) / Double(snapshot.width), t = Double(ry) / Double(snapshot.height)
+            var r = l + Double(rw) / Double(snapshot.width), b = t + Double(rh) / Double(snapshot.height)
+            if let old = HudConfig.region(store.get("hud.hive_prompt_region")) {
+                l = min(l, old.fx); t = min(t, old.fy); r = max(r, old.fx + old.fw); b = max(b, old.fy + old.fh)
+            }
+            store.set("hud.hive_prompt_region", ["fx": l, "fy": t, "fw": r - l, "fh": b - t])
+        } else if key != "cannon_prompt" {                                 // the cannon prompt looks in the hive prompt area
             let pad = 24
             let rx = max(0, x - pad), ry = max(0, y - pad)
             let rw = min(snapshot.width - rx, w + 2 * pad), rh = min(snapshot.height - ry, h + 2 * pad)
@@ -65,6 +86,7 @@ extension AppModel {
         store.set("hud.calibrated", true)
         try? store.save()
         calibMessage = "Saved \(name) (\(crop.width) by \(crop.height))."
+        settingsVersion += 1
         append("Calibrate: saved \(name)")
         refreshLive()
     }
@@ -78,13 +100,15 @@ extension AppModel {
             append("Detect Roblox: no Roblox window found. Open it first.")
             refreshLive(); return
         }
-        let d = Layout.natroDefaults(w)
+        let d = Layout.natroDefaults(w, offsetY: store.int("game.ui_offset_y", 36))
         func pt(_ p: RelPoint) -> [String: Any] { ["fx": p.fx, "fy": p.fy] }
         func rg(_ r: RelRegion) -> [String: Any] { ["fx": r.fx, "fy": r.fy, "fw": r.fw, "fh": r.fh] }
-        let seeds: [(String, Any)] = [("backpack_pixel", pt(d.backpackPixel)), ("health_pixel", pt(d.healthPixel)),
+        let seeds: [(String, Any)] = [("backpack_pixel", pt(d.backpackPixel)), ("backpack_bar", rg(d.backpackBar)), ("hive_message_region", rg(d.hiveMessageRegion)), ("health_pixel", pt(d.healthPixel)),
                                       ("hive_prompt_region", rg(d.hivePromptRegion)), ("hive_view_region", rg(d.hiveViewRegion)),
                                       ("hive_strip_region", rg(d.hiveStripRegion))]
-        for (key, value) in seeds where store.get("hud.\(key)") == nil || store.get("hud.\(key)") is NSNull {
+        // The two reading spots follow the window every time Detect is pressed; the picture areas you picked stay.
+        let always: Set<String> = ["backpack_pixel", "health_pixel", "hive_message_region"]      // the picked backpack bar stays once you pick it
+        for (key, value) in seeds where always.contains(key) || store.get("hud.\(key)") == nil || store.get("hud.\(key)") is NSNull {
             store.set("hud.\(key)", value)
         }
         store.set("hud.calibrated", true)
@@ -116,12 +140,20 @@ extension AppModel {
             r.windowText = win.map { "Roblox found, \($0.width) by \($0.height)" } ?? "Roblox not found"
             r.calibrated = store.bool("hud.calibrated")
             if allowed, let win, r.calibrated {
-                let hud = HudConfig(store: store) { ScreenCapture.loadPNG(dirs.templates.appendingPathComponent($0)) }
+                let hud = HudConfig(store: store) { [templates = dirs.templates] in Self.hudPicture($0, templates: templates) }
                 let s = ScreenSensors(screen: capture, window: { win }, config: hud)
+                s.textReader = BarText.read
                 if let raw = s.backpackRaw() { r.backpack = raw }
+                r.barText = s.lastBarText
+                if let bar = s.backpackBarImage() {
+                    let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("hivemac-bar.png")
+                    if ScreenCapture.savePNG(bar, to: tmp) { r.barPNG = try? Data(contentsOf: tmp) }
+                }
                 if let c = s.lastBackpackRGB { r.backpackRGB = "rgb(\(c.r), \(c.g), \(c.b))" }
                 r.healthGrey = s.healthGrey()
                 r.hivePrompt = s.hivePromptVisible()
+                r.hiveText = s.lastHiveText
+                r.hiveShare = s.hiveViewShare()
             }
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -129,5 +161,79 @@ extension AppModel {
                 if !self.running { self.backpack = r.backpack }
             }
         }
+    }
+}
+
+// MARK: Debug snapshot
+extension AppModel {
+    /// One folder with everything needed to understand a test: the Roblox window, the readings,
+    /// the settings (without the phone remote token) and the log. Opens it in Finder.
+    @discardableResult
+    func saveSnapshot(quiet: Bool = false) -> URL? {
+        let stamp = DateFormatter()
+        stamp.dateFormat = "yyyyMMdd-HHmmss"
+        let folder = dirs.data.appendingPathComponent("snapshots/\(stamp.string(from: Date()))")
+        do { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) } catch { return nil }
+
+        if let shot = snapshotRoblox() { _ = ScreenCapture.savePNG(shot, to: folder.appendingPathComponent("roblox-window.png")) }
+
+        // Fresh reads of everything the macro looks at, so a failed step can be understood from the folder alone.
+        var extra = ""
+        if let win = robloxBounds, permissions.screenRecording {
+            let templates = dirs.templates, images = Self.builtInImages
+            let hud = HudConfig(store: store) { Self.hudPicture($0, templates: templates) }
+            let sensors = ScreenSensors(screen: capture, window: { win }, config: hud) { name in
+                ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
+            }
+            sensors.textReader = BarText.read
+            extra = """
+            Backpack now: \(sensors.backpackRaw().map { "\($0) percent" } ?? "unreadable") (bar text: \(sensors.lastBarText ?? "none"))
+            Top prompt reads: \(sensors.promptText() ?? "unreadable")
+            Hive message reads: \(sensors.hiveMessage() ?? "none") (\(sensors.lastHiveText ?? "no text"))
+            Mob health bars: \(sensors.mobBars().map { $0.isEmpty ? "none" : $0.map { String(format: "%.0f%%", $0) }.joined(separator: ", ") } ?? "unreadable")
+            Honeycomb share: \(sensors.hiveViewShare().map { String(format: "%.1f%%", $0 * 100) } ?? "unreadable")
+            """
+        }
+        let l = live
+        let readings = """
+        State: \(state.label) (\(detail))
+        Roblox: \(l.windowText)
+        Calibrated: \(l.calibrated)
+        Backpack: \(l.backpack.map { "\($0) percent" } ?? "not readable") \(l.backpackRGB ?? "")
+        Health bar grey: \(l.healthGrey.map(String.init) ?? "not read")
+        Hive prompt seen: \(l.hivePrompt.map(String.init) ?? "no picture set")
+        Permissions: screen recording \(permissions.screenRecording), accessibility \(permissions.accessibility)
+        Practice mode: \(store.bool("app.practice_mode", false))
+        Cycles \(stats.cycles), converts \(stats.converts), deaths \(stats.deaths)
+        \(extra)
+        """
+        try? readings.write(to: folder.appendingPathComponent("readings.txt"), atomically: true, encoding: .utf8)
+
+        if let data = try? Data(contentsOf: dirs.settings),
+           var obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if var remote = obj["remote"] as? [String: Any] { remote["token"] = "removed"; obj["remote"] = remote }
+            if let clean = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]) {
+                try? clean.write(to: folder.appendingPathComponent("settings.json"))
+            }
+        }
+        try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("log.txt"), atomically: true, encoding: .utf8)
+        append("Saved a snapshot: \(folder.path)")
+        if !quiet { NSWorkspace.shared.activateFileViewerSelecting([folder]) }
+        return folder
+    }
+}
+
+// MARK: Removing a picture
+extension AppModel {
+    /// Forgets a saved picture (the file and the setting that points at it). The check that used it
+    /// then counts as "not set", and the macro assumes the best, like Natro does.
+    func removePicture(_ key: String) {
+        try? FileManager.default.removeItem(at: dirs.templates.appendingPathComponent("\(key).png"))
+        store.set("hud.\(key)_template", "")
+        try? store.save()
+        calibMessage = "Removed the \(key.replacingOccurrences(of: "_", with: " ")) picture."
+        append("Calibrate: removed \(key).png")
+        settingsVersion += 1
+        refreshLive()
     }
 }

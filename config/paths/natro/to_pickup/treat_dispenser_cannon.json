@@ -1,0 +1,60 @@
+{
+ "name": "treat_dispenser_cannon",
+ "source": "NatroMacro paths/gtc-treatdis.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "keydown",
+   "keys": [
+    "a"
+   ]
+  },
+  {
+   "type": "wait",
+   "seconds": 1.81
+  },
+  {
+   "type": "tap",
+   "key": "space",
+   "count": 2
+  },
+  {
+   "type": "wait",
+   "seconds": 1.925
+  },
+  {
+   "type": "keyup",
+   "keys": [
+    "a"
+   ]
+  },
+  {
+   "type": "tap",
+   "key": "space"
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 4
+  },
+  {
+   "type": "wait",
+   "seconds": 1.5
+  }
+ ]
+}

@@ -6,11 +6,17 @@ struct ExtraRow: View {
     @Binding var step: ExtraStep
     var key: String
     var remove: () -> Void
-    @State private var open = true
+    @State private var open = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
 
-    private var title: String { step.kind == "planters" ? "Planters" : step.kind == "pickups" ? "Clock and dispensers" : "Bug run" }
+    private var title: String {
+        switch step.kind { case "planters": "Planters"; case "pickups": "Clock and dispensers"; case "mondo": "Mondo Chick"; case "memory": "Memory match"; case "quests": "Quests"; default: "Bug run" }
+    }
 
     var body: some View {
+        content.onChange(of: model.collapseTick) { _ in open = false }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
             HStack(spacing: Theme.s2) {
                 DragHandle(key: key)
@@ -27,40 +33,72 @@ struct ExtraRow: View {
             if open {
                 VStack(alignment: .leading, spacing: Theme.s2) {
                     Toggle("Use this step", isOn: $step.enabled).toggleStyle(.checkbox).font(Theme.body)
-                    if step.kind == "planters" { planters } else { bugRun }
+                    if step.kind == "planters" { planters } else if step.kind == "mondo" { mondo } else { bugRun }
                 }.padding(.leading, 34).padding(.bottom, Theme.s3)
             }
         }
     }
 
+    private var mondo: some View {
+        VStack(alignment: .leading, spacing: Theme.s2) {
+            HStack(spacing: Theme.s3) {
+                Text("What to do").font(Theme.body).foregroundStyle(Theme.resin).frame(width: 110, alignment: .leading)
+                Choice(options: [("buff", "Stand by it for the buff"), ("kill", "Kill it")], selection: $step.mondoAction, width: 200)
+            }
+        }
+    }
+
+    private var listItems: [String] {
+        step.kind == "pickups" ? MobTimers.pickups
+            : step.kind == "memory" ? MemoryMatchKind.allCases.map(\.pickup)
+            : step.kind == "quests" ? QuestGivers.all
+            : ExtraStep.bugs.filter { !MobFields.notBuilt.contains($0) }
+    }
+
     private var bugRun: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
-            Text(step.kind == "pickups" ? "Each one is only collected once its own timer has run out." : "A mob is only visited once its own timer has run out.").font(Theme.caption).foregroundStyle(Theme.dust)
-            ForEach(step.kind == "pickups" ? MobTimers.pickups : ExtraStep.bugs, id: \.self) { bug in
+            HStack(spacing: Theme.s2) {
+                Button("All") { step.bugs = listItems }.buttonStyle(QuietButtonStyle())
+                if step.kind == "pickups" {
+                    Button("Dispensers") { step.bugs = MobTimers.dispenserPickups }.buttonStyle(QuietButtonStyle())
+                    Button("Tickets") { step.bugs = MobTimers.ticketPickups }.buttonStyle(QuietButtonStyle())
+                }
+                if step.kind == "bug_run" {
+                    Button("Mobs") { step.bugs = listItems.filter { Bosses.spec($0) == nil && $0 != "mondo chick" && !MobFields.notBuilt.contains($0) } }.buttonStyle(QuietButtonStyle())
+                    Button("Bosses") { step.bugs = listItems.filter { Bosses.spec($0) != nil } }.buttonStyle(QuietButtonStyle())
+                }
+                Button("None") { step.bugs = [] }.buttonStyle(QuietButtonStyle())
+                Spacer(minLength: 0)
+            }
+            ForEach(listItems, id: \.self) { bug in
                 HStack(spacing: Theme.s3) {
                     Toggle(bug.capitalized, isOn: Binding(
                         get: { step.bugs.contains(bug) },
                         set: { on in
                             if on { if !step.bugs.contains(bug) { step.bugs.append(bug) } } else { step.bugs.removeAll { $0 == bug } }
                         })).toggleStyle(.checkbox).font(Theme.body).frame(width: 150, alignment: .leading)
-                    let timed = MobTimers.respawn[bug] != nil
-                    let left = model.mobTimers.remaining(bug, now: Date().timeIntervalSince1970)
-                    Text(MobTimers.describe(remaining: left, timed: timed)).font(Theme.caption)
+                    let unbuilt = step.kind == "bug_run" && MobFields.notBuilt.contains(bug)
+                    let tkey = step.kind == "quests" ? bug + " quest" : bug
+                    let timed = MobTimers.respawn[tkey] != nil
+                    let left = model.mobTimers.remaining(tkey, now: Date().timeIntervalSince1970)
+                    Text(unbuilt ? "not hunted yet" : MobTimers.describe(remaining: left, timed: timed)).font(Theme.caption)
                         .foregroundStyle(timed && left == 0 ? Theme.leaf : Theme.dust)
                     Spacer(minLength: 0)
-                    if let wait = MobTimers.respawn[bug] {
-                        Text((step.kind == "pickups" ? "every " : "respawns every ") + (wait < 3600 ? "\(Int(wait / 60)) min" : "\(Int(wait / 3600)) h"))
-                            .font(Theme.caption).foregroundStyle(Theme.dust)
-                    }
+                }
+            }
+            if step.kind == "bug_run", step.bugs.contains("mondo chick") {
+                HStack(spacing: Theme.s3) {
+                    Text("Mondo Chick").font(Theme.body).foregroundStyle(Theme.resin).frame(width: 110, alignment: .leading)
+                    Choice(options: [("buff", "Stand by it for the buff"), ("kill", "Kill it")], selection: $step.mondoAction, width: 200)
                 }
             }
         }
     }
 
+    private static func hoursText(_ h: Double) -> String { h == h.rounded() ? "\(Int(h)) h" : String(format: "%.1f h", h) }
+
     private var planters: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
-            Text("Each slot has its own timer. A round only visits slots that are grown and skips the rest.")
-                .font(Theme.caption).foregroundStyle(Theme.dust)
             ForEach(0..<3, id: \.self) { i in
                 HStack(spacing: Theme.s2) {
                     Text("Slot \(i + 1)").font(Theme.caption).foregroundStyle(Theme.dust).frame(width: 44, alignment: .leading)
@@ -73,7 +111,8 @@ struct ExtraRow: View {
                 HStack(spacing: Theme.s3) {
                     Color.clear.frame(width: 44, height: 1)
                     let left = step.planterRemaining(i, now: Date().timeIntervalSince1970)
-                    Text(left == nil ? "Empty" : left == 0 ? "Ready" : "Ready in " + MobTimers.describeDuration(left ?? 0))
+                    Text(left == nil ? (step.planterFields[i].isEmpty ? "Empty" : "Grows \(Self.hoursText(step.growHours(i)))")
+                         : left == 0 ? "Ready" : "Ready in " + MobTimers.describeDuration(left ?? 0))
                         .font(Theme.caption).foregroundStyle(left == 0 ? Theme.leaf : Theme.dust)
                     Spacer(minLength: 0)
                     Button("Planted now") { step.planterPlanted[i] = Date().timeIntervalSince1970 }
@@ -82,11 +121,6 @@ struct ExtraRow: View {
                 }
             }
             Toggle("Replant after every harvest", isOn: $step.planterReplant).toggleStyle(.checkbox).font(Theme.body)
-            HStack(spacing: Theme.s2) {
-                Text("Grows for").font(Theme.caption).foregroundStyle(Theme.dust)
-                TextField("", value: $step.harvestHours, format: .number).fieldStyle(width: 56)
-                Text("hours").font(Theme.caption).foregroundStyle(Theme.dust)
-            }
         }
     }
 }

@@ -8,16 +8,25 @@ import HiveMacPlatform
 final class ReportingSensors: Sensors {
     let inner: Sensors
     var onBackpack: (Int) -> Void = { _ in }
+    /// Practice mode: nothing is really reset, so the hive and respawn checks must not hold the run up.
+    var practice = false
     init(_ inner: Sensors) { self.inner = inner }
     func robloxPresent() -> Bool { inner.robloxPresent() }
     func backpackPercent() -> Int { let p = inner.backpackPercent(); onBackpack(p); return p }
     func backpackUnreadableStreak() -> Int { inner.backpackUnreadableStreak() }
     func resetBackpackFilter() { inner.resetBackpackFilter() }
-    func healthGrey() -> Bool { inner.healthGrey() }
-    func hivePromptVisible() -> Bool? { inner.hivePromptVisible() }
-    func hiveViewVisible() -> Bool? { inner.hiveViewVisible() }
+    func healthGrey() -> Bool { practice ? false : inner.healthGrey() }
+    func hivePromptVisible() -> Bool? { practice ? nil : inner.hivePromptVisible() }
+    func hiveViewVisible() -> Bool? { practice ? nil : inner.hiveViewVisible() }
+    func honeyRunning() -> Bool? { practice ? nil : inner.honeyRunning() }
+    func hiveMessage() -> String? { practice ? nil : inner.hiveMessage() }
+    func hiveViewShare() -> Double? { practice ? nil : inner.hiveViewShare() }
+    func mobBars() -> [Double]? { practice ? nil : inner.mobBars() }
+    func promptText() -> String? { practice ? nil : inner.promptText() }
+    func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? { inner.picture(left: left, top: top, width: width, height: height) }
     func cannonPromptVisible() -> Bool? { inner.cannonPromptVisible() }
     func deathTextVisible() -> Bool? { inner.deathTextVisible() }
+    func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { inner.find(template, in: region, tolerance: tolerance) }
 }
 
 enum RunState: String {
@@ -33,6 +42,14 @@ struct LiveReadings: Equatable {
     var backpackRGB: String?
     var healthGrey: Bool?
     var hivePrompt: Bool?
+    /// The part of the screen the backpack reading looks at (a PNG), so you can see what it sees.
+    var barPNG: Data?
+    /// The numbers read from the bar, e.g. "23,763/140,827,431".
+    var barText: String?
+    /// The words read from the hive message area.
+    var hiveText: String?
+    /// How much of the screen is honeycomb gold (0 to 1): high when the camera faces the hive.
+    var hiveShare: Double?
     var calibrated = false
 }
 
@@ -41,7 +58,9 @@ final class AppModel: ObservableObject {
     // MARK: Published state
     @Published var state: RunState = .idle
     @Published var detail = ""
-    @Published var running = false
+    @Published var running = false { didSet { syncHotKey() } }
+    /// Bumped by the Collapse button; every step row folds itself shut when it changes.
+    @Published var collapseTick = 0
     @Published var paused = false
     @Published var runtimeSeconds = 0
     @Published var stats = LoopStats()
@@ -68,6 +87,7 @@ final class AppModel: ObservableObject {
     @Published var hive = HiveProfile()
     @Published var stopKeyName = "f9"
     @Published var stopKeyMessage: String?
+    var capturingStopKey = false
     @Published var settingsVersion = 0
 
     // MARK: Engine
@@ -84,6 +104,8 @@ final class AppModel: ObservableObject {
     let pollQueue = DispatchQueue(label: "hivemac.poll", qos: .utility)
     let builtInPaths: URL
     var logFile: FileHandle?
+    var lastAutoSnapshot = Date.distantPast
+    var logWrites = 0
 
     init() {
         dirs = AppDirs.standard()
@@ -101,9 +123,9 @@ final class AppModel: ObservableObject {
         logFile = AppModel.openLog(dirs.logs.appendingPathComponent("hivemac.log"))
         stopKeyName = store.string("app.emergency_stop_key", "f9")
         hotKey.onPress = { [weak self] in self?.stop() }
-        if case .success(let code) = KeyCodes.validateStopKey(stopKeyName) { hotKey.register(keyCode: UInt32(code)) }
-        else { setStopKey("f9") }
+        if case .failure = KeyCodes.validateStopKey(stopKeyName) { setStopKey("f9") }
         append("HiveMac started. Data folder: \(dirs.data.path)")
+        if !isDemo && !permissions.allGranted { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Permissions.request() } }
         if ProcessInfo.processInfo.environment["HIVEMAC_DEMO"] != nil { applyDemo() } else { startPolling() }
     }
 
@@ -125,6 +147,14 @@ final class AppModel: ObservableObject {
     }
 
     static func findBuiltInPaths() -> URL { resource("paths", dev: "config/paths/natro") }
+    static var builtInImages: URL { resource("images", dev: "config/images/natro") }
+    static var builtInHud: URL { resource("hud", dev: "config/images/hud") }
+
+    /// A HUD picture: the user's own calibration picture if there is one, else the one shipped in the app.
+    static func hudPicture(_ name: String, templates: URL) -> RGBImage? {
+        ScreenCapture.loadPNG(templates.appendingPathComponent(name)) ?? ScreenCapture.loadPNG(builtInHud.appendingPathComponent(name))
+    }
+
     static func findDefaultConfig() -> URL { resource("default_config.json", dev: "config/default_config.json") }
 
     static func openLog(_ url: URL) -> FileHandle? {
@@ -140,7 +170,31 @@ final class AppModel: ObservableObject {
         let text = "\(stamp)  \(line)"
         log.append(text)
         if log.count > 400 { log.removeFirst(log.count - 400) }
+        let mode = store.string("app.log_mode", "capped")
+        guard mode != "off" else { return }
         logFile?.write(Data((text + "\n").utf8))
+        logWrites += 1
+        if mode == "capped", logWrites % 50 == 0 { trimLog(maxBytes: 2_000_000) }
+    }
+
+    /// Keeps the log file under `maxBytes`: when it grows past that, only the newest half is kept.
+    func trimLog(maxBytes: UInt64) {
+        let url = dirs.logs.appendingPathComponent("hivemac.log")
+        guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? nil, size > maxBytes,
+              let data = try? Data(contentsOf: url) else { return }
+        var tail = data.suffix(Int(maxBytes / 2))
+        if let nl = tail.firstIndex(of: 10) { tail = tail.suffix(from: tail.index(after: nl)) }     // start on a whole line
+        try? logFile?.close()
+        try? Data(tail).write(to: url, options: .atomic)
+        logFile = AppModel.openLog(url)
+    }
+
+    /// Deletes the oldest snapshot folders beyond `keep`.
+    func pruneSnapshots(keep: Int) {
+        let dir = dirs.data.appendingPathComponent("snapshots")
+        guard keep > 0, let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        let folders = names.filter { !$0.hasPrefix(".") }.sorted()                                   // names are timestamps
+        for old in folders.dropLast(keep) { try? FileManager.default.removeItem(at: dir.appendingPathComponent(old)) }
     }
 
     // MARK: Start, pause, stop
@@ -160,16 +214,25 @@ final class AppModel: ObservableObject {
             setStatus(.error, "No field is switched on. Turn one on in Fields.")
             return
         }
-        let settings = store.gameSettings()
+        var settings = store.gameSettings()
+        if store.bool("app.practice_mode", false) { settings.respawnTimeoutS = 0.3; settings.resetWaitS = 0.5; settings.convertTimeoutS = 5 }
         stopSignal.clear(); pauseSignal.clear()
 
-        let hud = HudConfig(store: store) { name in ScreenCapture.loadPNG(self.dirs.templates.appendingPathComponent(name)) }
-        let screenSensors = ScreenSensors(screen: capture, window: { [store] in Self.bounds(store) }, config: hud)
+        let hud = HudConfig(store: store) { [templates = dirs.templates] in Self.hudPicture($0, templates: templates) }
+        let images = Self.builtInImages, templates = dirs.templates
+        let screenSensors = ScreenSensors(screen: capture, window: { [store] in Self.bounds(store) }, config: hud) { name in
+            ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
+        }
+        screenSensors.textReader = BarText.read
         let sensors = ReportingSensors(screenSensors)
+        sensors.practice = store.bool("app.practice_mode", false)
         sensors.onBackpack = { [weak self] p in self?.beat(); DispatchQueue.main.async { self?.backpack = p } }
 
         let builtIn = builtInPaths, dirs = self.dirs
-        let g = Game(actuator: input, sensors: sensors, settings: settings, clock: RealClock(),
+        let practice = store.bool("app.practice_mode", false)
+        let actuator: Actuator = practice ? LoggingActuator { [weak self] line in DispatchQueue.main.async { self?.append(line) } } : input
+        if practice { append("Practice mode: the macro reads the screen but presses nothing.") }
+        let g = Game(actuator: actuator, sensors: sensors, settings: settings, clock: RealClock(),
                      stop: stopSignal, pause: pauseSignal,
                      status: { [weak self] s, d in self?.beat(); DispatchQueue.main.async { self?.setStatus(RunState(rawValue: s) ?? .warning, d) } },
                      windowSize: { [store] in Self.bounds(store).map { ($0.left, $0.top, $0.width, $0.height) } },
@@ -177,8 +240,19 @@ final class AppModel: ObservableObject {
                          dirs.findPath(kind: kind, field: field, variant: variant, builtIn: builtIn).flatMap { try? PathFile.load($0) }
                      })
         game = g
-        let loop = FarmLoop(g, fields: profile.fields)
+        let runner = GameExtraRunner(timers: mobTimers) { [weak self] t in
+            DispatchQueue.main.async { self?.mobTimers = t; t.save(to: dirs.data.appendingPathComponent("mob_timers.json")) }
+        }
+        runner.mine = profile.fields.map(\.name)
+        runner.onPlanter = { [weak self] id, slot, time in
+            DispatchQueue.main.async {
+                guard let self, let i = self.profile.extras.firstIndex(where: { $0.id == id }) else { return }
+                self.profile.extras[i].planterPlanted[slot] = time
+            }
+        }
+        let loop = FarmLoop(g, profile: profile, extras: runner)
         loop.onStats = { [weak self] s in DispatchQueue.main.async { self?.stats = s } }
+        loop.onBlessingLearned = { [weak self] m in DispatchQueue.main.async { self?.profile.blessingMinutes = m; self?.append("Balloon blessing lasts about \(Int(m)) minutes, coming back 10 minutes before.") } }
 
         watchdog = Watchdog(timeout: store.double("timing.watchdog_timeout_sec", 90), now: Date().timeIntervalSince1970)
         running = true; paused = false; runtimeSeconds = 0; stats = LoopStats()
@@ -235,6 +309,14 @@ final class AppModel: ObservableObject {
         state = s; detail = d
         if s == .gathering || s == .traveling { currentField = d.split(separator: " ").first.map(String.init) ?? currentField }
         if !d.isEmpty { append("\(s.label): \(d)") }
+        // A warning or an error is exactly when a picture of the screen helps: keep one, at most once a minute.
+        let snaps = store.string("app.snapshots", store.bool("app.auto_snapshots", true) ? "keep20" : "off")
+        if (s == .warning || s == .error), running, snaps != "off",
+           Date().timeIntervalSince(lastAutoSnapshot) > 60 {
+            lastAutoSnapshot = Date()
+            saveSnapshot(quiet: true)
+            if snaps == "keep20" { pruneSnapshots(keep: 20) }
+        }
     }
 
 }

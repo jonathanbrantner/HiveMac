@@ -37,7 +37,7 @@ extension FieldConfig {
 /// A step in a run besides a field. Saved with the run; the engine does not run these yet.
 public struct ExtraStep: Equatable, Identifiable, Sendable {
     public static let bugs = ["ladybug", "rhino beetle", "spider", "mantis", "scorpion", "werewolf",
-                              "coconut crab", "king beetle", "black bear"]
+                              "coconut crab", "king beetle", "tunnel bear", "stump snail", "black bear", "mondo chick"]
     public var id = UUID()
     public var kind: String                 // bug_run, planters, pickups
     public var enabled = true
@@ -47,9 +47,12 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
     public var planterFields: [String] = ["", "", ""]
     public var planterTypes: [String] = ["paper", "paper", "paper"]
     /// Natro's 12 planters.
-    public static let planters = ["paper", "ticking", "plastic", "candy", "red clay", "blue clay", "tacky",
+    public static let planters = ["paper", "ticket", "festive", "plastic", "candy", "red clay", "blue clay", "tacky",
                                   "pesticide", "heat-treated", "hydroponic", "petal", "planter of plenty"]
-    public var harvestHours = 4.0
+    /// 0 = work it out from the planter and the field (Natro's numbers). Above 0 overrides that for every slot.
+    public var harvestHours = 0.0
+    /// Mondo Chick: "buff" (stand by it for the buff) or "kill".
+    public var mondoAction = "buff"
     /// One switch for all slots: plant again as soon as a slot is harvested.
     public var planterReplant = true
     /// Unix time each slot was planted; 0 = nothing planted.
@@ -61,7 +64,20 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
     public func planterRemaining(_ slot: Int, now: Double) -> Double? {
         guard planterFields.indices.contains(slot), !planterFields[slot].isEmpty,
               planterPlanted.indices.contains(slot), planterPlanted[slot] > 0 else { return nil }
-        return max(0, planterPlanted[slot] + harvestHours * 3600 - now)
+        return max(0, planterPlanted[slot] + growHours(slot) * 3600 - now)
+    }
+
+    /// Hours the planter in this slot takes to grow in its field.
+    public func growHours(_ slot: Int) -> Double {
+        if harvestHours > 0 { return harvestHours }
+        guard planterFields.indices.contains(slot), planterTypes.indices.contains(slot) else { return PlanterGrowth.fallbackHours }
+        return PlanterGrowth.hours(planter: planterTypes[slot], field: planterFields[slot])
+    }
+
+    /// Slots with a field chosen and nothing planted yet.
+    public func planterSlotsToPlant() -> [Int] {
+        (0..<3).filter { planterFields.indices.contains($0) && !planterFields[$0].isEmpty
+                         && !(planterPlanted.indices.contains($0) && planterPlanted[$0] > 0) }
     }
 
     /// The slots worth a visit now: planted and grown. A round skips every other slot.
@@ -69,7 +85,22 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         (0..<3).filter { planterRemaining($0, now: now) == 0 }
     }
 
-    public init(kind: String) { self.kind = kind; if kind == "pickups" { bugs = ["wealth clock", "honey dispenser"] } }
+    /// A rough upper bound for one visit, in minutes, for the "Round" line. A step only runs when something in it is due,
+    /// so most rounds take less. Walks to a pickup are about 40 seconds, a memory match about 3 minutes.
+    public var estimatedMinutes: Double {
+        guard enabled else { return 0 }
+        switch kind {
+        case "pickups": return 0.7 * Double(bugs.count)
+        case "memory": return 3.0 * Double(bugs.count)
+        case "mondo": return 3
+        case "planters": return 2.0 * Double(planterFields.filter { !$0.isEmpty }.count)
+        case "bug_run":
+            return bugs.reduce(0) { $0 + ($1 == "mondo chick" ? 3.0 : Bosses.spec($1) != nil ? 6.0 : 1.5) }
+        default: return 0
+        }
+    }
+
+    public init(kind: String) { self.kind = kind; if kind == "pickups" { bugs = ["wealth clock", "honey dispenser"] } else if kind == "mondo" { bugs = [] } else if kind == "memory" { bugs = ["normal memory match"] } else if kind == "quests" { bugs = QuestGivers.all } }
 
     public init(json d: [String: Any]) {
         self.init(kind: (d["kind"] as? String) ?? "bug_run")
@@ -77,8 +108,9 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         if let v = (d["every_minutes"] as? NSNumber)?.doubleValue { everyMinutes = v }
         if let v = d["bugs"] as? [String] { bugs = v }
         if let v = d["planter_fields"] as? [String] { planterFields = (v + ["", "", ""]).prefix(3).map { $0 } }
-        if let v = d["planter_types"] as? [String] { planterTypes = (v + ["paper", "paper", "paper"]).prefix(3).map { $0 } }
-        if let v = (d["harvest_hours"] as? NSNumber)?.doubleValue { harvestHours = v }
+        if let v = d["planter_types"] as? [String] { planterTypes = (v + ["paper", "paper", "paper"]).prefix(3).map { $0 == "ticking" ? "ticket" : $0 } }
+        if let v = (d["harvest_hours"] as? NSNumber)?.doubleValue, v > 0, v != 4 { harvestHours = v }   // 4 was the old default, not a choice
+        if let v = d["mondo_action"] as? String { mondoAction = v }
         if let v = (d["after"] as? NSNumber)?.intValue { after = v }
         if let v = (d["planter_replant"] as? NSNumber)?.boolValue { planterReplant = v }
         if let v = d["planter_planted"] as? [NSNumber] { planterPlanted = (v.map(\.doubleValue) + [0, 0, 0]).prefix(3).map { $0 } }
@@ -87,7 +119,7 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
     public var json: [String: Any] {
         ["kind": kind, "enabled": enabled, "every_minutes": everyMinutes, "bugs": bugs,
          "planter_fields": planterFields, "planter_types": planterTypes, "harvest_hours": harvestHours,
-         "after": min(after, 1000), "planter_replant": planterReplant, "planter_planted": planterPlanted]
+         "after": min(after, 1000), "mondo_action": mondoAction, "planter_replant": planterReplant, "planter_planted": planterPlanted]
     }
 }
 
@@ -97,6 +129,38 @@ public struct Profile: Equatable {
     public var fields: [FieldConfig]
     public var notes: String
     public var extras: [ExtraStep]
+    /// What the whole run does: "none" (the field list and its steps), "booster" (cycle the field boosters) or "quests"
+    /// (one quest giver). Booster and Quests are modes of their own: one idle field, no other steps.
+    public static let modes = ["none", "booster", "quests"]
+    public var mode = "none"
+    public var questGiver = "black bear"
+    /// In Booster and Quests mode: visit the wealth clock when it is back.
+    public var modeClock = false
+    /// In Booster and Quests mode: be back at the hive 10 minutes before the balloon blessing runs out.
+    public var keepBlessing = false
+    /// How long the blessing lasts, learned from the buff bar. 0 = not learned yet.
+    public var blessingMinutes = 0.0
+    public var boosterMode: Bool {
+        get { mode == "booster" }
+        set { if newValue { mode = "booster" } else if mode == "booster" { mode = "none" } }
+    }
+
+    /// True in Booster and Quests mode, where only one field and no steps are kept.
+    public var isSpecialMode: Bool { mode != "none" }
+
+    /// What switching to `new` would throw away: fields beyond the first, and every step.
+    public func lossOnEntering(_ new: String) -> (fields: Int, steps: Int) {
+        new == "none" ? (0, 0) : (max(0, fields.count - 1), extras.count)
+    }
+
+    /// Switches mode. Booster and Quests keep the first field and no steps.
+    public mutating func enterMode(_ new: String) {
+        guard Profile.modes.contains(new) else { return }
+        if new != "none" { fields = Array(fields.prefix(1)); extras = [] }
+        mode = new
+    }
+    public var boosters: [String] = Booster.allCases.map(\.rawValue)
+    public var autoBoost = AutoBoost()
 
     public init(name: String = "default", fields: [FieldConfig] = [FieldConfig(name: "sunflower")], notes: String = "", extras: [ExtraStep] = []) {
         self.name = name; self.fields = fields; self.notes = notes; self.extras = extras
@@ -107,7 +171,7 @@ public struct Profile: Equatable {
         var out: [String] = []
         for i in 0...fields.count {
             for e in extras where min(e.after, fields.count) == i { out.append("e:" + e.id.uuidString) }
-            if i < fields.count { out.append("f:" + fields[i].name) }
+            if i < fields.count { out.append("f:" + fields[i].id.uuidString) }
         }
         return out
     }
@@ -120,7 +184,7 @@ public struct Profile: Equatable {
         if let t = target, let to = keys.firstIndex(of: t) { keys.insert(key, at: to) } else { keys.append(key) }
         var newFields: [FieldConfig] = [], newExtras: [ExtraStep] = []
         for k in keys {
-            if k.hasPrefix("f:"), let f = fields.first(where: { "f:" + $0.name == k }) { newFields.append(f) }
+            if k.hasPrefix("f:"), let f = fields.first(where: { "f:" + $0.id.uuidString == k }) { newFields.append(f) }
             else if k.hasPrefix("e:"), var e = extras.first(where: { "e:" + $0.id.uuidString == k }) {
                 e.after = newFields.count; newExtras.append(e)
             }
@@ -131,15 +195,33 @@ public struct Profile: Equatable {
     public static func load(_ url: URL) throws -> Profile {
         let obj = (try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]) ?? [:]
         let fields = ((obj["fields"] as? [[String: Any]]) ?? []).map(FieldConfig.init(json:))
-        return Profile(name: (obj["name"] as? String) ?? url.deletingPathExtension().lastPathComponent,
-                       fields: fields.isEmpty ? [FieldConfig(name: "sunflower")] : fields,
-                       notes: (obj["notes"] as? String) ?? "",
-                       extras: ((obj["extras"] as? [[String: Any]]) ?? []).map(ExtraStep.init(json:)))
+        var profile = Profile(name: (obj["name"] as? String) ?? url.deletingPathExtension().lastPathComponent,
+                              fields: fields.isEmpty ? [FieldConfig(name: "sunflower")] : fields,
+                              notes: (obj["notes"] as? String) ?? "",
+                              extras: ((obj["extras"] as? [[String: Any]]) ?? []).map(ExtraStep.init(json:)))
+        if let m = obj["mode"] as? String, Profile.modes.contains(m) { profile.mode = m }
+        else if (obj["mode"] as? String) == "fields" { profile.mode = "none" }
+        else if (obj["booster_mode"] as? NSNumber)?.boolValue == true { profile.mode = "booster" }
+        if let g = obj["quest_giver"] as? String, QuestGivers.all.contains(g) { profile.questGiver = g }
+        profile.modeClock = (obj["mode_clock"] as? NSNumber)?.boolValue ?? false
+        profile.keepBlessing = (obj["keep_blessing"] as? NSNumber)?.boolValue ?? false
+        profile.blessingMinutes = (obj["blessing_minutes"] as? NSNumber)?.doubleValue ?? 0
+        // Quests used to be a step with several givers. Now it is a mode with one: keep the first giver.
+        if let old = profile.extras.first(where: { $0.kind == "quests" }) {
+            if let g = old.bugs.first(where: QuestGivers.all.contains), obj["quest_giver"] == nil { profile.questGiver = g }
+            // Only a run that was just quests becomes a quests run; a mixed run keeps its steps and loses the quest one.
+            profile.extras.removeAll { $0.kind == "quests" }
+            if profile.mode == "none", profile.extras.isEmpty { profile.mode = "quests" }
+        }
+        if let list = obj["boosters"] as? [String] { profile.boosters = list.filter { Booster(rawValue: $0) != nil } }
+        if let o = obj["auto_boost"] as? [String: Any] { profile.autoBoost = AutoBoost(json: o) }
+        return profile
     }
 
     public func save(to url: URL) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let obj: [String: Any] = ["name": name, "fields": fields.map(\.json), "notes": notes, "extras": extras.map(\.json)]
+        let obj: [String: Any] = ["name": name, "fields": fields.map(\.json), "notes": notes, "extras": extras.map(\.json),
+                                  "mode": mode, "quest_giver": questGiver, "mode_clock": modeClock, "keep_blessing": keepBlessing, "blessing_minutes": blessingMinutes, "boosters": boosters, "auto_boost": autoBoost.json]
         try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
     }
 }

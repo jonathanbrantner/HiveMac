@@ -12,10 +12,19 @@ public protocol Actuator: AnyObject {
     func releaseAll()
     /// Optional: park the pointer. Defaults to doing nothing.
     func moveMouse(_ x: Int, _ y: Int)
+    /// Optional: one left click at a screen point.
+    func click(_ x: Int, _ y: Int)
+    /// Optional: press at one point, drag to another, let go.
+    func drag(fromX: Int, fromY: Int, toX: Int, toY: Int)
+    /// Optional: wheel ticks at the pointer, positive scrolls up.
+    func scroll(_ ticks: Int)
 }
 
 public extension Actuator {
     func moveMouse(_ x: Int, _ y: Int) {}
+    func click(_ x: Int, _ y: Int) {}
+    func drag(fromX: Int, fromY: Int, toX: Int, toY: Int) {}
+    func scroll(_ ticks: Int) {}
 }
 
 public protocol Clock: AnyObject {
@@ -137,6 +146,8 @@ public final class Walker {
             switch s.type {
             case "walk": walk(s.keys.map(mapped), tiles: s.tiles)
             case "hold": hold(s.keys.map(mapped), s.seconds)
+            case "keydown": s.keys.map(mapped).forEach { act.keyDown($0) }
+            case "keyup": s.keys.map(mapped).reversed().forEach { act.keyUp($0) }
             case "rotate": rotate(s.direction, taps: s.count, leftKey: keymap["rot_left"] ?? ",", rightKey: keymap["rot_right"] ?? ".")
             case "tap": taps(mapped(s.key), count: s.count)
             case "wait": wait(s.seconds)

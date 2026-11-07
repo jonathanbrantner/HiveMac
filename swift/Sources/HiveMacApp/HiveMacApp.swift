@@ -16,10 +16,10 @@ struct HiveMacApp: App {
                 .environmentObject(model)
                 .environmentObject(updates)
                 .task { if ProcessInfo.processInfo.environment["HIVEMAC_DEMO"] == nil { updates.checkOnLaunch() } }
-                .frame(minWidth: 620, idealWidth: 640, minHeight: 700, idealHeight: 760)
+                .frame(minWidth: 720, idealWidth: 740, minHeight: 700, idealHeight: 760)
                 .background(WindowChrome())
         }
-        .defaultSize(width: 640, height: 780)
+        .defaultSize(width: 740, height: 780)
         .windowResizability(.contentMinSize)
         .commands { CommandGroup(replacing: .newItem) {} }
     }
@@ -32,7 +32,8 @@ struct WindowChrome: NSViewRepresentable {
         DispatchQueue.main.async {
             guard let w = v.window else { return }
             w.titlebarAppearsTransparent = true
-            w.titleVisibility = .hidden
+            w.titleVisibility = .visible
+            w.title = "HiveMac"
             w.styleMask.insert(.fullSizeContentView)
             w.isMovableByWindowBackground = true
             w.backgroundColor = NSColor(name: nil) { a in a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

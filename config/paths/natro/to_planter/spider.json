@@ -1,0 +1,47 @@
+{
+ "name": "spider",
+ "source": "NatroMacro paths/gtp-spider.ahk (walk branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "a"
+   ],
+   "tiles": 67.5
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 4
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 37.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a",
+    "w"
+   ],
+   "tiles": 38.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "d"
+   ],
+   "tiles": 9.0
+  }
+ ]
+}

@@ -4,29 +4,40 @@ import HiveMacCore
 struct FieldRow: View {
     @Binding var field: FieldConfig
     var key: String
+    /// Names of all fields in this run, so the same field is not picked twice.
+    @EnvironmentObject var model: AppModel
+    var taken: [String] = []
     var remove: () -> Void
     @State private var open = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
 
     private static let locations = ["center", "upper left", "upper", "upper right", "left", "right", "lower left", "lower", "lower right"]
 
     var body: some View {
+        content.onChange(of: model.collapseTick) { _ in open = false }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.s2) {
                 DragHandle(key: key)
-                Button { open.toggle() } label: {
-                    HStack(spacing: Theme.s1) {
-                        Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
-                        Text(field.name.capitalized).font(Theme.body)
-                            .foregroundStyle(field.enabled ? Theme.wax : Theme.dust)
+                if model.profile.isSpecialMode {
+                    // One idle field and no Add button: the name is a menu to pick which field it is.
+                    Choice(options: FieldDefaults.order.map { ($0, $0.capitalized) }, selection: fieldName, width: 130)
+                        .disabled(model.running)
+                } else {
+                    Button { open.toggle() } label: {
+                        HStack(spacing: Theme.s1) {
+                            Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
+                            Text(field.name.capitalized).font(Theme.body)
+                                .foregroundStyle(field.enabled ? Theme.wax : Theme.dust)
+                        }
+                        .frame(width: 100, alignment: .leading)
                     }
-                    .frame(width: 100, alignment: .leading)
+                    .buttonStyle(.plain).help("Show every option for this field")
                 }
-                .buttonStyle(.plain).help("Show every option for this field")
                 TextField("", value: $field.minutes, format: .number).fieldStyle(width: 56)
                 TextField("", value: $field.backpackPercent, format: .number).fieldStyle(width: 56)
-                Choice(options: [("walk", "Walk"), ("reset", "Reset")], selection: $field.returnMethod, width: 76)
-                Choice(options: [("default", "Default"), ("walk", "Walk"), ("cannon", "Cannon")], selection: $field.travel, width: 88)
-                Choice(options: Patterns.names.map { ($0, Self.pretty($0)) }, selection: $field.pattern, width: 132)
+                Choice(options: Patterns.names.map { ($0, Self.pretty($0)) }, selection: $field.pattern, width: 140)
                 Spacer(minLength: 0)
                 Button(action: remove) { Image(systemName: "minus.circle") }
                     .buttonStyle(.plain).foregroundStyle(Theme.ember).help("Remove this field")
@@ -35,6 +46,18 @@ struct FieldRow: View {
 
             if open { more.padding(.leading, 34).padding(.bottom, Theme.s3) }
         }
+    }
+
+    /// Picking another field keeps this row's minutes and stop percent and takes that field's own pattern defaults.
+    private var fieldName: Binding<String> {
+        Binding(get: { field.name },
+                set: { new in
+                    guard new != field.name else { return }
+                    var f = FieldConfig(name: new)
+                    f.id = field.id; f.minutes = field.minutes; f.backpackPercent = field.backpackPercent
+                    f.enabled = field.enabled; f.returnMethod = field.returnMethod; f.travel = field.travel
+                    field = f
+                })
     }
 
     private static func pretty(_ s: String) -> String { s.replacingOccurrences(of: "_", with: " ").capitalized }
@@ -49,49 +72,90 @@ struct FieldRow: View {
         })
     }
 
+    @State private var showMore = false
+
+    /// One setting: a name and the control. No explanations; the names say it.
+    private func setting<Control: View>(_ name: String, @ViewBuilder _ control: () -> Control) -> some View {
+        HStack(alignment: .center, spacing: Theme.s3) {
+            Text(name).font(Theme.body).foregroundStyle(Theme.resin).frame(width: 150, alignment: .leading)
+            control()
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: 28)
+    }
+
     private var more: some View {
-        Grid(alignment: .leading, horizontalSpacing: Theme.s3, verticalSpacing: Theme.s2) {
-            GridRow {
-                Color.clear.frame(width: 1, height: 1)
-                Toggle("Use this field", isOn: $field.enabled).toggleStyle(.checkbox).font(Theme.body).gridCellColumns(3)
+        VStack(alignment: .leading, spacing: 0) {
+            setting("Use this field") { Toggle("", isOn: $field.enabled).toggleStyle(.checkbox).labelsHidden() }
+            setting("Pattern size") {
+                Choice(options: [("xs", "Tiny"), ("s", "Small"), ("m", "Medium"), ("l", "Large"), ("xl", "Huge")], selection: sizeBinding, width: 120)
             }
-            GridRow {
-                label("Size")
-                Choice(options: ["xs", "s", "m", "l", "xl"].map { ($0, $0.uppercased()) }, selection: sizeBinding, width: 76)
-                Text("Sets how far the pattern spreads. The sprinkler distance follows it.")
-                    .font(Theme.caption).foregroundStyle(Theme.dust).gridCellColumns(2)
+            setting("Sprinkler spot") { spotPicker }
+
+            Button { withAnimation(.snappy(duration: 0.15)) { showMore.toggle() } } label: {
+                HStack(spacing: Theme.s1) {
+                    Image(systemName: showMore ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
+                    Text("More").font(Theme.bodyStrong)
+                }.foregroundStyle(Theme.honeyText)
             }
-            GridRow {
-                label("Camera")
-                Choice(options: [("none", "None"), ("left", "Left"), ("right", "Right")], selection: $field.camera, width: 76)
-                label("Turns")
-                TextField("", value: $field.turns, format: .number).fieldStyle(width: 56)
-            }
-            GridRow {
-                label("Sprinkler")
-                Choice(options: Self.locations.map { ($0, $0.capitalized) }, selection: $field.sprinklerLocation, width: 110)
-                label("Distance")
-                TextField("", value: $field.sprinklerDistance, format: .number).fieldStyle(width: 56)
-            }
-            GridRow {
-                label("Repeats")
-                TextField("", value: $field.width, format: .number).fieldStyle(width: 56)
-                Text("How many times the pattern repeats.").font(Theme.caption).foregroundStyle(Theme.dust).gridCellColumns(2)
-            }
-            GridRow {
-                Color.clear.frame(width: 1, height: 1)
-                Toggle("Shift lock", isOn: $field.shiftLock).toggleStyle(.checkbox).font(Theme.body)
-                Toggle("Flip forward and back", isOn: $field.invertFB).toggleStyle(.checkbox).font(Theme.body).gridCellColumns(2)
-            }
-            GridRow {
-                Color.clear.frame(width: 1, height: 1)
-                Toggle("Flip left and right", isOn: $field.invertLR).toggleStyle(.checkbox).font(Theme.body).gridCellColumns(2)
-                Button("Natro defaults") {
+            .buttonStyle(.plain).padding(.vertical, Theme.s2)
+
+            if showMore {
+                setting("Sprinkler distance") { TextField("", value: $field.sprinklerDistance, format: .number).fieldStyle(width: 56) }
+                setting("Pattern repeats") { TextField("", value: $field.width, format: .number).fieldStyle(width: 56) }
+                setting("Shift lock") { Toggle("", isOn: $field.shiftLock).toggleStyle(.checkbox).labelsHidden() }
+                setting("Mirror forward and back") { Toggle("", isOn: $field.invertFB).toggleStyle(.checkbox).labelsHidden() }
+                setting("Mirror left and right") { Toggle("", isOn: $field.invertLR).toggleStyle(.checkbox).labelsHidden() }
+                Button("Reset to Natro's values") {
                     var d = FieldConfig(name: field.name)
                     d.enabled = field.enabled; d.minutes = field.minutes; d.backpackPercent = field.backpackPercent
                     d.returnMethod = field.returnMethod; d.travel = field.travel
                     field = d
-                }.buttonStyle(QuietButtonStyle()).help("Put pattern, size, camera and sprinkler back to Natro's values for this field")
+                }
+                .buttonStyle(QuietButtonStyle()).padding(.top, Theme.s2)
+            }
+        }
+    }
+
+    private static let spotGrid: [[String]] = [["upper left", "upper", "upper right"], ["left", "center", "right"], ["lower left", "lower", "lower right"]]
+
+    /// Natro's pick for this field: the spot its route and camera turn were tuned for.
+    private var bestSpot: String { FieldDefaults.table[field.name.lowercased()]?.sprinkler ?? "center" }
+
+    /// A 3 by 3 picture of the field as it looks when you arrive. Tap where the sprinkler goes; the star marks the best
+    /// spot for this field (Natro's own pick for its route).
+    private var spotPicker: some View {
+        HStack(alignment: .center, spacing: Theme.s3) {
+            VStack(spacing: 3) {
+                ForEach(Self.spotGrid, id: \.self) { row in
+                    HStack(spacing: 3) {
+                        ForEach(row, id: \.self) { spot in
+                            let chosen = field.sprinklerLocation == spot
+                            Button { field.sprinklerLocation = spot } label: {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 4).fill(chosen ? Theme.honeyText : Theme.plank)
+                                    if spot == bestSpot { Image(systemName: "star.fill").font(.system(size: 8)).foregroundStyle(chosen ? Theme.shed : Theme.honeyText) }
+                                }
+                                .frame(width: 26, height: 20)
+                            }
+                            .buttonStyle(.plain).help(spot.capitalized + (spot == bestSpot ? " (best for this field)" : ""))
+                        }
+                    }
+                }
+            }
+            .padding(5).background(RoundedRectangle(cornerRadius: 6).stroke(Theme.grain))
+            VStack(alignment: .leading, spacing: Theme.s1) {
+                Text(field.sprinklerLocation.capitalized).font(Theme.body).foregroundStyle(Theme.wax)
+                if field.sprinklerLocation != bestSpot {
+                    Button("Use the best spot") {
+                        field.sprinklerLocation = bestSpot
+                        if let d = FieldDefaults.table[field.name.lowercased()] {
+                            field.sprinklerDistance = max(1, Int((Double(d.distance) * Patterns.sizeFactor(field.size) / Patterns.sizeFactor(d.size)).rounded()))
+                        }
+                    }.buttonStyle(QuietButtonStyle())
+                } else {
+                    Text("Best for this field").font(Theme.caption).foregroundStyle(Theme.leaf)
+                }
             }
         }
     }

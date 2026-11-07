@@ -1,0 +1,101 @@
+{
+ "name": "polar",
+ "source": "NatroMacro paths/gtq-polar.ahk (walk branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "a"
+   ],
+   "tiles": 67.5
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 4
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 31.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 9.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 9.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 58.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 49.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 3.375
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 36.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 60.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 60.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 9.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 9.0
+  }
+ ]
+}

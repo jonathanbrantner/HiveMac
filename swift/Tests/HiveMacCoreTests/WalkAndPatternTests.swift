@@ -20,6 +20,9 @@ final class FakeActuator: Actuator {
     func mouseDown() { mouse = true; events.append("mouse down") }
     func mouseUp() { mouse = false; events.append("mouse up") }
     func moveMouse(_ x: Int, _ y: Int) { events.append("move \(x) \(y)") }
+    func click(_ x: Int, _ y: Int) { events.append("click \(x) \(y)") }
+    func drag(fromX: Int, fromY: Int, toX: Int, toY: Int) { events.append("drag \(fromX) \(fromY) \(toX) \(toY)") }
+    func scroll(_ ticks: Int) { events.append("scroll \(ticks)") }
     func releaseAll() { down.removeAll(); mouse = false; events.append("release") }
     func taps(_ key: String) -> Int { events.filter { $0 == "tap \(key)" }.count }
 }
@@ -122,5 +125,29 @@ final class WalkAndPatternTests: XCTestCase {
         XCTAssertEqual(Sprinkler.placementSteps(type: "supreme", location: "center", slotKey: "3", speed: 28), [.tap("3")])
         let diamond = Sprinkler.placementSteps(type: "diamond", location: "upper left", slotKey: "1", speed: 28)
         XCTAssertEqual(diamond.filter { $0.type == "tap" }.count, 4)
+    }
+}
+
+final class LoggingActuatorTests: XCTestCase {
+    func testLogsWhatItWouldDoAndPressesNothing() {
+        var lines: [String] = []
+        var t = 0.0
+        let a = LoggingActuator(clock: { t }, log: { lines.append($0) })
+        a.keyDown("w"); t = 1.25; a.keyUp("w")
+        a.tap("e", holdS: 0.03)
+        a.mouseDown(); a.mouseDown(); a.mouseUp()
+        a.keyDown("a"); a.releaseAll(); a.keyUp("a")        // released without a log line: nothing was pressed
+        XCTAssertEqual(lines, ["Practice: would hold w for 1.2 s", "Practice: would press e",
+                               "Practice: would hold the mouse button down", "Practice: would let the mouse button go"])
+    }
+}
+
+final class CannonRouteTests: XCTestCase {
+    func testCannonRoutesKeepDirectionHeldThroughTheJump() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("config/paths/natro/to_pickup/treat_dispenser_cannon.json")
+        let pf = try PathFile.load(url)
+        let types = pf.steps.map(\.type)
+        XCTAssertEqual(Array(types[2...8]), ["wait", "tap", "keydown", "wait", "tap", "wait", "keyup"])
     }
 }

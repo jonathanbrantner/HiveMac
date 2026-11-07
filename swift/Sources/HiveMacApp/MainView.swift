@@ -3,7 +3,7 @@ import AppKit
 import HiveMacCore
 
 enum Tab: String, CaseIterable, Identifiable {
-    case fields = "Fields", settings = "Macro", calibrate = "Calibrate", log = "Log"
+    case fields = "Fields", settings = "Settings", log = "Log"
     var id: String { rawValue }
 }
 
@@ -33,7 +33,6 @@ struct MainView: View {
                 switch tab {
                 case .fields: FieldsView()
                 case .settings: SettingsView()
-                case .calibrate: CalibrateView()
                 case .log: LogView()
                 }
             }
@@ -44,13 +43,13 @@ struct MainView: View {
         .tint(Theme.honey)
         .onAppear {
             model.refreshLive()
-            if !model.live.calibrated && ProcessInfo.processInfo.environment["HIVEMAC_TAB"] == nil { tab = .calibrate }
         }
     }
 }
 
 struct HeaderView: View {
     @EnvironmentObject var model: AppModel
+    @State private var showApp = false
 
     private var dot: Color {
         switch model.state {
@@ -68,23 +67,23 @@ struct HeaderView: View {
         return String(format: "%d:%02d:%02d", s / 3600, (s / 60) % 60, s % 60)
     }
 
-    @State private var showSettings = ProcessInfo.processInfo.environment["HIVEMAC_SHEET"] != nil
-
     var body: some View {
         HStack(spacing: Theme.s3) {
-            Spacer().frame(width: 68)          // clears the window buttons
             HiveMark(size: 24)
-            Text("HiveMac").font(Theme.serif(20, .semibold)).foregroundStyle(Theme.wax)
+            Text(model.profile.name).font(Theme.serif(20, .semibold)).foregroundStyle(Theme.wax).lineLimit(1)
             Spacer()
             HexDot(color: dot)
             Text(model.state.label).font(Theme.bodyStrong).foregroundStyle(Theme.wax)
             Text(timer).font(Theme.figure).foregroundStyle(Theme.resin)
-            Button { showSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 15)) }
-                .buttonStyle(.plain).foregroundStyle(Theme.resin).help("App settings")
+            Button { showApp = true } label: {
+                Image(systemName: "gearshape").font(.system(size: 15))
+                    .foregroundStyle(model.permissions.allGranted ? Theme.resin : Theme.ember)
+            }
+            .buttonStyle(.plain).help(model.permissions.allGranted ? "App settings" : "App settings: a permission is missing").padding(.leading, Theme.s2)
         }
-        .padding(.trailing, Theme.s6)
+        .sheet(isPresented: $showApp) { AppSettingsView() }
+        .padding(.horizontal, Theme.s6)
         .frame(height: 52)
-        .sheet(isPresented: $showSettings) { AppSettingsView() }
     }
 }
 

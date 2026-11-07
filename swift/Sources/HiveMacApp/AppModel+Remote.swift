@@ -31,10 +31,21 @@ extension AppModel {
         switch KeyCodes.validateStopKey(name) {
         case .failure(let e): stopKeyMessage = e.message
         case .success(let code):
+            // Probe that macOS accepts the key, then arm it only if a run is going.
             if hotKey.register(keyCode: UInt32(code)) {
                 stopKeyName = name.lowercased(); stopKeyMessage = nil
                 store.set("app.emergency_stop_key", stopKeyName); try? store.save()
-            } else { stopKeyMessage = "macOS would not register that key. Try another." }
+                syncHotKey()
+            } else { stopKeyMessage = "macOS would not register that key. Try another."; syncHotKey() }
         }
+    }
+
+    /// The stop key is a system-wide hot key, so macOS swallows it everywhere while it is armed.
+    /// Arm it only during a run (and never while the user is picking a new key); otherwise the
+    /// key could not be typed in any text field.
+    func syncHotKey() {
+        if running && !capturingStopKey, case .success(let code) = KeyCodes.validateStopKey(stopKeyName) {
+            if hotKey.keyCode != UInt32(code) { hotKey.register(keyCode: UInt32(code)) }
+        } else { hotKey.unregister() }
     }
 }

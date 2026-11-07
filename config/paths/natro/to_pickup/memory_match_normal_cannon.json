@@ -1,0 +1,73 @@
+{
+ "name": "memory_match_normal_cannon",
+ "source": "NatroMacro paths/gtc-normalmm.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "wait",
+   "seconds": 2.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 30.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 2.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 22.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 12.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 3.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 5.0
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 2
+  }
+ ]
+}

@@ -1,0 +1,103 @@
+{
+ "name": "pineapple_cannon",
+ "source": "NatroMacro paths/gtp-pineapple.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.5
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 4
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d"
+   ],
+   "seconds": 1.0
+  },
+  {
+   "type": "tap",
+   "key": "space"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d"
+   ],
+   "seconds": 0.5
+  },
+  {
+   "type": "tap",
+   "key": "space"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d"
+   ],
+   "seconds": 2.9
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "w",
+    "a"
+   ],
+   "seconds": 1.6
+  },
+  {
+   "type": "tap",
+   "key": "space"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "w",
+    "a"
+   ],
+   "seconds": 1.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w",
+    "a"
+   ],
+   "tiles": 14.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 10.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "d"
+   ],
+   "tiles": 7.0
+  }
+ ]
+}

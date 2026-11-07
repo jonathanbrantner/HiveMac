@@ -1,0 +1,47 @@
+{
+ "name": "sunflower",
+ "source": "NatroMacro paths/gtp-sunflower.ahk (walk branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 14.0
+  },
+  {
+   "type": "rotate",
+   "direction": "right"
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 25.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 15.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 9.0
+  },
+  {
+   "type": "rotate",
+   "direction": "right"
+  }
+ ]
+}

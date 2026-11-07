@@ -99,3 +99,46 @@ final class ScreenSensorsTests: XCTestCase {
         XCTAssertNotNil(cfg.hivePromptTemplate); XCTAssertNil(cfg.hiveViewTemplate)
     }
 }
+
+final class HiveMessageTests: XCTestCase {
+    private func sensors(reading text: String?) -> ScreenSensors {
+        let screen = FakeScreen()
+        screen.image = RGBImage(width: 10, height: 10, fill: (0, 0, 0))
+        let s = ScreenSensors(screen: screen, window: { WindowBounds(left: 0, top: 0, width: 1600, height: 900) }, config: HudConfig())
+        s.textReader = { _ in text }
+        return s
+    }
+
+    func testAllThreeHiveMessagesCountAsAtTheHive() {
+        for t in ["Make Honey", "Stop Making Honey", "To Make Honey, Collect Pollen From Flower Fields"] {
+            XCTAssertEqual(sensors(reading: t).hivePromptVisible(), true, t)
+        }
+    }
+
+    func testOnlyStopMakingHoneyMeansHoneyIsRunning() {
+        XCTAssertEqual(sensors(reading: "E Stop Making Honey").honeyRunning(), true)
+        XCTAssertEqual(sensors(reading: "E Make Honey").honeyRunning(), false)
+        XCTAssertEqual(sensors(reading: "To Make Honey, Collect Pollen From Flower Fields").honeyRunning(), false)
+    }
+
+    func testNoHiveMessageMeansNotAtTheHive() {
+        XCTAssertEqual(sensors(reading: "").hivePromptVisible(), false)
+        XCTAssertEqual(sensors(reading: "Mantis: 15:38").hivePromptVisible(), false)
+    }
+}
+
+final class CannonPromptTests: XCTestCase {
+    private func sensors(reading text: String) -> ScreenSensors {
+        let screen = FakeScreen()
+        screen.image = RGBImage(width: 10, height: 10, fill: (0, 0, 0))
+        let s = ScreenSensors(screen: screen, window: { WindowBounds(left: 0, top: 0, width: 1600, height: 900) }, config: HudConfig())
+        s.textReader = { _ in text }
+        return s
+    }
+
+    func testReadsTheRedCannonPrompt() {
+        XCTAssertEqual(sensors(reading: "Fire the Red Cannon").cannonPromptVisible(), true)
+        XCTAssertEqual(sensors(reading: "To Make Honey, Collect Pollen From Flower Fields").cannonPromptVisible(), false)
+        XCTAssertEqual(sensors(reading: "").cannonPromptVisible(), false)
+    }
+}

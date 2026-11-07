@@ -50,3 +50,78 @@ final class HudTests: XCTestCase {
         XCTAssertFalse(Hud.isGrey(r: 0xF0, g: 0x20, b: 0x20))
     }
 }
+
+final class BarPercentTests: XCTestCase {
+    private func bar(width: Int = 200, filled: Int, textInMiddle: Bool = true) -> RGBImage {
+        var img = RGBImage(width: width, height: 20, fill: (127, 125, 119))
+        for y in 0..<20 { for x in 0..<filled { img.set(x, y, (60, 230, 120)) } }
+        if textInMiddle { for x in stride(from: 5, to: width, by: 3) { for y in 7..<13 { img.set(x, y, (240, 240, 240)) } } }
+        return img
+    }
+
+    func testEmptyBarIsZeroNotUnreadable() { XCTAssertEqual(Hud.barPercent(bar(filled: 0)), 0) }
+    func testReadsTheFilledLengthInFivePercentSteps() {
+        XCTAssertEqual(Hud.barPercent(bar(filled: 50)), 25)
+        XCTAssertEqual(Hud.barPercent(bar(filled: 100)), 50)
+        XCTAssertEqual(Hud.barPercent(bar(filled: 200)), 100)
+    }
+    func testTextInsideTheBarDoesNotCountAsFill() { XCTAssertEqual(Hud.barPercent(bar(filled: 0, textInMiddle: true)), 0) }
+}
+
+final class PollenTextTests: XCTestCase {
+    func testDividesCurrentByMaximum() {
+        XCTAssertEqual(Hud.pollenPercent(fromText: "0/209,081,730"), 0)
+        XCTAssertEqual(Hud.pollenPercent(fromText: "78,752,940/744,422,396 (+2,954,258/sec)"), 10)
+        XCTAssertEqual(Hud.pollenPercent(fromText: "Pollen 100/200"), 50)
+        XCTAssertEqual(Hud.pollenPercent(fromText: "209,081,730 / 209,081,730"), 100)
+    }
+    func testRejectsTextWithoutTwoNumbers() {
+        XCTAssertNil(Hud.pollenPercent(fromText: "Honey 9,896,212,560,191"))
+        XCTAssertNil(Hud.pollenPercent(fromText: "5/0"))
+        XCTAssertNil(Hud.pollenPercent(fromText: "(+3,683/sec)"))
+    }
+}
+
+final class HoneycombTests: XCTestCase {
+    func testGoldMassMeansFacingTheHive() {
+        let gold = RGBImage(width: 120, height: 80, fill: (214, 150, 40))        // honeycomb orange/gold
+        let grass = RGBImage(width: 120, height: 80, fill: (60, 150, 60))
+        XCTAssertGreaterThan(Hud.honeycombShare(gold), 0.9)
+        XCTAssertEqual(Hud.honeycombShare(grass), 0, accuracy: 0.001)
+    }
+}
+
+final class MobBarTests: XCTestCase {
+    private func screen(bars: [(y: Int, green: Int, red: Int)]) -> RGBImage {
+        var img = RGBImage(width: 300, height: 200, fill: (70, 120, 70))
+        for b in bars {
+            for dy in 0..<4 {
+                for x in 0..<b.green { img.set(40 + x, b.y + dy, (0x1F, 0xE7, 0x44)) }
+                for x in 0..<b.red { img.set(40 + b.green + x, b.y + dy, (0x6B, 0x13, 0x1A)) }
+            }
+        }
+        return img
+    }
+
+    func testFindsEachBarAndItsHealth() {
+        let found = Hud.mobHealthBars(screen(bars: [(60, 30, 30), (120, 50, 0)]))
+        XCTAssertEqual(found.count, 2)
+        XCTAssertEqual(found.sorted(), [50, 100])
+    }
+    func testNoBarsMeansNoMobs() { XCTAssertTrue(Hud.mobHealthBars(screen(bars: [])).isEmpty) }
+    func testTheTopAndBottomOfTheScreenAreIgnored() {
+        XCTAssertTrue(Hud.mobHealthBars(screen(bars: [(5, 40, 0), (190, 40, 0)])).isEmpty)
+    }
+}
+
+final class CooldownTextTests: XCTestCase {
+    func testReadsTheCountdownInThePrompt() {
+        XCTAssertEqual(Hud.cooldownSeconds(fromText: "Use the Strawberry Dispenser (3:59:58)"), 14398)
+        XCTAssertEqual(Hud.cooldownSeconds(fromText: "use the wealth clock ( 0:12:05 )"), 725)
+        XCTAssertEqual(Hud.cooldownSeconds(fromText: "use the clock (45:10)"), 2710)
+    }
+    func testReadyPromptHasNoCountdown() {
+        XCTAssertNil(Hud.cooldownSeconds(fromText: "Use the Strawberry Dispenser"))
+        XCTAssertNil(Hud.cooldownSeconds(fromText: "Honey 9,903,501,328,981 Pollen 0/234,341,250"))
+    }
+}

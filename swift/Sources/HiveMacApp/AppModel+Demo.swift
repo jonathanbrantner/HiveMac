@@ -23,5 +23,6 @@ extension AppModel {
         hive.color = "blue"; hive.cubBuddy = true
         ["Resetting: attempt 1", "Converting: done", "Traveling: sunflower", "Gathering: sunflower corner_x_snake m w4 until 95% or 10 min",
          "Traveling: hive", "Converting: done"].forEach(append)
+        if let m = ProcessInfo.processInfo.environment["HIVEMAC_MODE"], Profile.modes.contains(m) { profile.enterMode(m); running = false }
     }
 }

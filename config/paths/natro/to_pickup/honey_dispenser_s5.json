@@ -1,0 +1,37 @@
+{
+ "name": "honey_dispenser_s5",
+ "source": "NatroMacro paths/gtc-honeydis.ahk (walk branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 1.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 28.4
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "d"
+   ],
+   "tiles": 2.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 2.0
+  }
+ ]
+}

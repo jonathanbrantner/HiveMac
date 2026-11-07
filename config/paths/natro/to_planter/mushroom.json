@@ -1,0 +1,46 @@
+{
+ "name": "mushroom",
+ "source": "NatroMacro paths/gtp-mushroom.ahk (walk branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "a"
+   ],
+   "tiles": 36.0
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 4
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 47.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "d"
+   ],
+   "tiles": 23.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "a"
+   ],
+   "tiles": 3.0
+  }
+ ]
+}

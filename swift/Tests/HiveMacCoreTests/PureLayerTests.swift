@@ -130,3 +130,98 @@ final class PureLayerTests: XCTestCase {
 private extension Result {
     var failureValue: Failure? { if case .failure(let f) = self { return f } else { return nil } }
 }
+
+final class QuestLogTests: XCTestCase {
+    func testBlackBearBoxParses() {
+        let e = QuestLog.parse("Black Bear: Delve Into Dandelions\nCollect 200,000,000 Pollen from the\nDandelion Field. Complete! Talk to Black Bear.")
+        XCTAssertEqual(e?.giver, "Black Bear")
+        XCTAssertEqual(e?.name, "Delve Into Dandelions")
+        XCTAssertEqual(e?.pollen, 200_000_000)
+        XCTAssertEqual(e?.complete, true)
+        XCTAssertEqual(QuestLog.giverKey("Black Bear"), "black")
+    }
+    func testUnfinishedAndNoise() {
+        let e = QuestLog.parse("Black Bear: Delve Into Dandelions\nCollect 200.000.000 Pollen from the Dandelion Field. 31%")
+        XCTAssertEqual(e?.complete, false)
+        XCTAssertEqual(e?.pollen, 200_000_000)
+        XCTAssertNil(QuestLog.parse("Collect 5 Pollen"))
+    }
+}
+
+final class QuestLogProgressTests: XCTestCase {
+    func testBuckoBoxProgress() {
+        let e = QuestLog.parse("Bucko Bee: Skirmish\nCollect 330,000,000 Pollen from the Blue Flower Field. 9,035,765/330,000,000\nDefeat 10 Rhino Beetles. 6/10")
+        XCTAssertEqual(e?.progress, [QuestProgress(done: 9_035_765, goal: 330_000_000), QuestProgress(done: 6, goal: 10)])
+        XCTAssertEqual(e?.complete, false)
+        XCTAssertTrue(QuestLog.isDialog("You never let me down!\nClick to continue"))
+    }
+}
+
+final class QuestLogDialogTests: XCTestCase {
+    func testTurnInEndsWithHourlyCooldown() {
+        XCTAssertTrue(QuestLog.isCooldownDialog("Here's a little something as a thank you. I can give you a quest once an hour, so check with me again later!"))
+        XCTAssertFalse(QuestLog.isCooldownDialog("You never let me down!"))
+        let e = QuestLog.parse("Black Bear: Any Pollen\nCollect 500,000,000 Pollen.\nComplete! Talk to Black Bear.")
+        XCTAssertEqual(e?.name, "Any Pollen")
+        XCTAssertEqual(e?.complete, true)
+    }
+}
+
+final class QuestBoxTests: XCTestCase {
+    let log = """
+    Black Bear: Any Pollen
+    Collect 500,000,000 Pollen.
+    Complete! Talk to Black Bear.
+    Bucko Bee: Skirmish
+    Collect 330,000,000 Pollen from the Blue
+    Flower Field. 9,035,765/330,000,000
+    Defeat 10 Rhino Beetles.
+    6/10
+    Riley Bee: Rampage
+    Collect 88 Rage Tokens.
+    14/88
+    """
+    func testBoxAndTasks() {
+        let box = QuestLog.box(for: "bucko bee", in: log)!
+        let t = QuestLog.tasks(in: box)
+        XCTAssertEqual(t.count, 2)
+        XCTAssertEqual(t[0].action, .gather(field: "blue flower"))
+        XCTAssertEqual(t[1].action, .kill(["rhino beetle"]))
+        XCTAssertTrue(t.allSatisfy { !$0.complete })
+        let black = QuestLog.tasks(in: QuestLog.box(for: "black bear", in: log)!)
+        XCTAssertEqual(black.first?.action, .gatherColor("any"))
+        XCTAssertTrue(black.allSatisfy(\.complete))
+        guard case .unsupported = QuestLog.tasks(in: QuestLog.box(for: "riley bee", in: log)!)[0].action else { return XCTFail() }
+    }
+}
+
+final class QuestScrollTests: XCTestCase {
+    func testLastBoxIsCutOff() {
+        let text = "Black Bear: Any Pollen\nCollect 5 Pollen.\nRiley Bee: Rampage\nCollect 88 Rage Tokens."
+        XCTAssertTrue(QuestLog.isCutOff(QuestLog.box(for: "riley bee", in: text)!, in: text))
+        XCTAssertFalse(QuestLog.isCutOff(QuestLog.box(for: "black bear", in: text)!, in: text))
+    }
+}
+
+final class QuestLogOpenTests: XCTestCase {
+    func testLooksOpen() {
+        XCTAssertTrue(QuestLog.looksOpen("Bucko Bee: Skirmish\nDefeat 10 Rhino Beetles."))
+        XCTAssertFalse(QuestLog.looksOpen("Honey 9,917,442\nPollen 128"))
+    }
+}
+
+final class MemoryColourTests: XCTestCase {
+    func testTileBackColour() {
+        XCTAssertTrue(Game.isTileBack(177, 128, 62))
+        XCTAssertTrue(Game.isTileBack(170, 120, 70))
+        XCTAssertFalse(Game.isTileBack(235, 200, 76))      // the gold panel between tiles
+        XCTAssertFalse(Game.isTileBack(40, 120, 200))      // a revealed picture
+    }
+}
+
+final class LogTrimNoteTests: XCTestCase {
+    func testSnapshotNamesSortOldestFirst() {
+        let names = ["20261107-003624", "20261106-235959", "20261107-002502"].sorted()
+        XCTAssertEqual(names.dropLast(2).first, "20261106-235959")
+    }
+}

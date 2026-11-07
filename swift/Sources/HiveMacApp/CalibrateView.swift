@@ -2,18 +2,12 @@ import SwiftUI
 import HiveMacCore
 import HiveMacPlatform
 
-struct CalibrateView: View {
+/// Roblox detection and what HiveMac reads from it right now.
+struct RobloxSection: View {
     @EnvironmentObject var model: AppModel
-    @State private var advanced = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                if !model.permissions.allGranted {
-                    Text("Screen Recording or Accessibility is off. Turn them on with the gear at the top right.")
-                        .font(Theme.caption).foregroundStyle(Theme.ember).padding(.top, Theme.s4)
-                }
-
+        VStack(alignment: .leading, spacing: 0) {
                 SectionTitle("Roblox")
                 HStack(spacing: Theme.s3) {
                     HexDot(color: model.live.windowFound ? Theme.leaf : Theme.ember)
@@ -22,33 +16,36 @@ struct CalibrateView: View {
                     Button("Detect Roblox") { model.detectRoblox() }.buttonStyle(HoneyButtonStyle())
                 }
                 .frame(minHeight: Theme.rowHeight)
-                Text("Open Roblox, stand in your hive, press Detect. That is all most people need.")
+                Text("Open Roblox, stand in your hive, press Detect.")
                     .font(Theme.caption).foregroundStyle(Theme.dust).fixedSize(horizontal: false, vertical: true)
 
                 if model.live.calibrated {
                     HStack(spacing: Theme.s4) {
                         Text("Backpack").font(Theme.body).foregroundStyle(Theme.resin)
                         Text(model.live.backpack.map { "\($0) percent" } ?? "not readable").font(Theme.figure).foregroundStyle(Theme.wax)
-                        Text("Gather a little by hand: it should follow the bar.").font(Theme.caption).foregroundStyle(Theme.dust)
+                        Text("Should follow the bar.").font(Theme.caption).foregroundStyle(Theme.dust)
                         Spacer()
                     }
                     .padding(.top, Theme.s3)
+                    HStack(spacing: Theme.s4) {
+                        Text("At the hive").font(Theme.body).foregroundStyle(Theme.resin)
+                        Text(model.live.hivePrompt.map { $0 ? "yes" : "no" } ?? "unknown").font(Theme.figure).foregroundStyle(Theme.wax)
+                        if let t = model.live.hiveText, !t.isEmpty { Text("reads: \(t)").font(Theme.caption).foregroundStyle(Theme.dust).lineLimit(1) }
+                        Spacer()
+                    }
+                    .padding(.top, Theme.s1)
+                    if let data = model.live.barPNG, let img = NSImage(data: data) {
+                        VStack(alignment: .leading, spacing: Theme.s1) {
+                            Text(model.live.barText.map { "It reads: \($0)" } ?? "It could not read numbers here, so it falls back to the fill colour. The whole Pollen bar should be in this picture.").font(Theme.caption).foregroundStyle(Theme.dust)
+                            Image(nsImage: img).interpolation(.none).resizable().scaledToFit()
+                                .frame(maxWidth: 360, maxHeight: 60, alignment: .leading)
+                                .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.grain, lineWidth: 1))
+                        }
+                        .padding(.top, Theme.s2)
+                    }
                 }
 
-                Button { withAnimation(.snappy(duration: 0.15)) { advanced.toggle() } } label: {
-                    HStack(spacing: Theme.s1) {
-                        Image(systemName: advanced ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .bold)).frame(width: 10)
-                        Text("Advanced").font(Theme.body)
-                    }.foregroundStyle(Theme.resin)
-                }
-                .buttonStyle(.plain).padding(.top, Theme.s6)
-                if advanced {
-                    RecordWalkSection()
-                    PicturesSection()
-                }
             }
-            .padding(.horizontal, Theme.s6).padding(.bottom, Theme.s6)
-        }
         .onAppear { model.refreshLive() }
     }
 
@@ -68,7 +65,8 @@ struct PermissionRow: View {
                 Text(ok ? "On" : why).font(Theme.caption).foregroundStyle(ok ? Theme.dust : Theme.resin).fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            if !ok { Button("Open") { Permissions.openSettings(pane) }.buttonStyle(QuietButtonStyle()) }
+            Button(ok ? "Open" : "Turn on") { if !ok { Permissions.request(pane) }; Permissions.openSettings(pane) }
+                .buttonStyle(QuietButtonStyle()).help("Open this page in System Settings")
         }
         .frame(minHeight: Theme.rowHeight + 8)
     }
@@ -104,15 +102,38 @@ struct PicturesSection: View {
     @EnvironmentObject var model: AppModel
     @State private var sheet: PictureKind?
 
+    /// "84 by 21" when the picture is saved, nil when it is not.
+    private func size(_ k: PictureKind) -> String? {
+        _ = model.settingsVersion
+        if k == .backpack { return model.store.get("hud.backpack_bar") != nil ? "bar set" : nil }
+        guard let img = ScreenCapture.loadPNG(model.dirs.templates.appendingPathComponent("\(k.rawValue).png"))
+                ?? ScreenCapture.loadPNG(AppModel.builtInHud.appendingPathComponent("\(k.rawValue).png")) else { return nil }
+        return "\(img.width) by \(img.height)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionTitle("Pictures")
             Text("Pictures HiveMac looks for on screen. Stand where the picture is visible, then pick it out.").font(Theme.caption).foregroundStyle(Theme.dust)
                 .padding(.bottom, Theme.s2)
-            HStack(spacing: Theme.s2) {
-                ForEach(PictureKind.allCases) { k in
-                    Button(k.title) { sheet = k }.buttonStyle(QuietButtonStyle())
+            ForEach(PictureKind.allCases) { k in
+                HStack(spacing: Theme.s3) {
+                    Text(k.title).font(Theme.body).foregroundStyle(Theme.wax).frame(width: 110, alignment: .leading)
+                    if let s = size(k) {
+                        HexDot(color: Theme.leaf); Text("Saved, \(s)").font(Theme.caption).foregroundStyle(Theme.leaf)
+                    } else {
+                        HexDot(color: Theme.dust); Text("Not set").font(Theme.caption).foregroundStyle(Theme.dust)
+                    }
+                    Spacer()
+                    if k != .backpack, size(k) != nil {
+                        Button("Remove") { model.removePicture(k.rawValue) }.buttonStyle(QuietButtonStyle(tint: Theme.ember))
+                    }
+                    Button(size(k) == nil ? "Pick" : "Pick again") { sheet = k }.buttonStyle(QuietButtonStyle())
                 }
+                .frame(minHeight: Theme.rowHeight)
+            }
+            if let m = model.calibMessage {
+                Text(m).font(Theme.caption).foregroundStyle(Theme.resin).padding(.top, Theme.s2)
             }
         }
         .sheet(item: $sheet) { PictureSheet(kind: $0) }
@@ -120,16 +141,20 @@ struct PicturesSection: View {
 }
 
 enum PictureKind: String, CaseIterable, Identifiable {
-    case hivePrompt = "hive_prompt", hiveView = "hive_view", cannonPrompt = "cannon_prompt"
+    case backpack = "backpack_bar", hivePrompt = "hive_prompt", hivePromptStop = "hive_prompt_stop", hivePromptEmpty = "hive_prompt_empty", hiveView = "hive_view", cannonPrompt = "cannon_prompt", balloonBlessing = "balloon_blessing"
     var id: String { rawValue }
     var title: String {
-        switch self { case .hivePrompt: "Hive prompt"; case .hiveView: "Hive view"; case .cannonPrompt: "Cannon prompt" }
+        switch self { case .backpack: "Backpack bar"; case .hivePrompt: "Hive prompt"; case .hivePromptStop: "Hive prompt, honey on"; case .hivePromptEmpty: "Hive prompt, bag empty"; case .hiveView: "Hive view"; case .cannonPrompt: "Cannon prompt"; case .balloonBlessing: "Balloon blessing" }
     }
     var help: String {
         switch self {
-        case .hivePrompt: "Stand at your hive until the Make Honey prompt shows, then drag a box around the prompt."
+        case .backpack: "Drag a box around the whole Pollen bar at the top (the grey bar with the numbers). HiveMac reads how far it is filled."
+        case .hivePrompt: "Stand at your hive when it says Make Honey (honey making off), then drag a box around the whole prompt, the E square and the words."
+        case .hivePromptEmpty: "Stand at your hive with an empty bag until it says To Make Honey, Collect Pollen From Flower Fields, then drag a box around that message."
+        case .hivePromptStop: "Press E at your hive so it says Stop Making Honey, then drag a box around the whole prompt. Press E again afterwards to turn it back off. HiveMac never presses E while it says this."
         case .hiveView: "Face the hive from the ramp and drag a box around something that only shows there, like the hive's front."
         case .cannonPrompt: "Stand on the cannon button until its prompt shows, then drag a box around it."
+        case .balloonBlessing: "Convert at your hive so the Balloon Blessing icon shows in the buff bar at the top left, then drag a box around just that icon."
         }
     }
 }

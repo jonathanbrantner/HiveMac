@@ -1,0 +1,73 @@
+{
+ "name": "polar_cannon",
+ "source": "NatroMacro paths/gtq-polar.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "rotate",
+   "direction": "left",
+   "count": 4
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "w"
+   ],
+   "seconds": 0.8
+  },
+  {
+   "type": "wait",
+   "seconds": 2.1
+  },
+  {
+   "type": "tap",
+   "key": "space"
+  },
+  {
+   "type": "wait",
+   "seconds": 1.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "a"
+   ],
+   "tiles": 7.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a",
+    "w"
+   ],
+   "tiles": 9.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 5.0
+  }
+ ]
+}

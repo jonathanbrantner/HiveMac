@@ -12,6 +12,38 @@ public protocol Sensors: AnyObject {
     func hiveViewVisible() -> Bool?
     func cannonPromptVisible() -> Bool?
     func deathTextVisible() -> Bool?
+    /// Centre of a named picture (a file in the templates or built-in images) inside a part of the
+    /// window, in screen coordinates (ready to click). nil when it is not there or there is no such picture.
+    func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)?
+    /// True while the hive prompt says "Stop Making Honey" (converting is already on). nil when unknown.
+    func honeyRunning() -> Bool?
+    /// What the hive message says: "make" (E starts converting), "stop" (converting now), "empty" (nothing
+    /// left to convert, balloon included). nil when it cannot be read.
+    func hiveMessage() -> String?
+    /// Share of the screen that is honeycomb gold, 0 to 1: high when the camera faces the hive. nil when unreadable.
+    func hiveViewShare() -> Double?
+    /// Percent left of every mob health bar on screen. nil when the screen cannot be read.
+    func mobBars() -> [Double]?
+    /// Words of the prompt at the top of the screen ("Use the Strawberry Dispenser (3:59:58)"). nil when unreadable.
+    func promptText() -> String?
+    /// A picture of an absolute screen rectangle. nil when unreadable.
+    func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage?
+    /// Words in a part of the window (the quest log, a dialog box). nil when unreadable.
+    func textIn(_ region: RelRegion) -> String?
+    /// A spot in the window by its share of width and height, in screen coordinates (ready to click).
+    func point(fx: Double, fy: Double) -> (x: Int, y: Int)?
+}
+
+public extension Sensors {
+    func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { nil }
+    func honeyRunning() -> Bool? { nil }
+    func hiveMessage() -> String? { nil }
+    func hiveViewShare() -> Double? { nil }
+    func mobBars() -> [Double]? { nil }
+    func promptText() -> String? { nil }
+    func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? { nil }
+    func textIn(_ region: RelRegion) -> String? { nil }
+    func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
@@ -22,12 +54,22 @@ public struct GameSettings: Equatable, Sendable {
     public var travel = "walk"              // default path variant: walk or cannon
     public var windowMode = "windowed"
     public var titleBarHeight = 28
+    /// Natro measures its menu spots in window pixels. Scale and the top bar height can be tuned if a Mac window differs.
+    public var uiScale = 1.0
+    public var uiOffsetY = 36
     public var zoomOutTaps = 6
     public var resetWaitS = 2.0             // minimum time between reset and the next walk
     public var deathExtraWaitS = 18.0       // the death screen is longer than a plain reset
-    public var resetAttempts = 5
+    /// Resets tried before giving up. Capped at 2: a third Esc, R, Enter never fixes a check that is wrong.
+    public var resetAttempts = 2
+    /// After a reset the hive prompt may show a moment late: look this long before calling it a miss.
+    public var hivePromptRecheckS = 4.0
     public var respawnTimeoutS = 12.0
     public var convertTimeoutS = 300.0
+    /// After the bag is empty, keep converting until the hive balloon is empty too (Natro's "convert balloon").
+    public var convertBalloon = true
+    /// The honeycomb share that counts as "the hive is in view".
+    public var hiveShareMin = 0.05
     public var convertPressRetryS = 6.0
     public var cameraSearchTaps = 2         // yaw step while looking for the hive view
     public var cameraAfterFoundTaps = 4     // Natro: 180 degrees once the hive is in view
@@ -51,6 +93,8 @@ public struct GameSettings: Equatable, Sendable {
 }
 
 public struct FieldConfig: Equatable, Sendable {
+    /// Tells two rows of the same field apart. Not saved, and not part of equality.
+    public var id = UUID()
     public var name: String
     public var pattern = "corner_x_snake"
     public var size = "m"
@@ -81,6 +125,15 @@ public struct FieldConfig: Equatable, Sendable {
             sprinklerLocation = d.sprinkler; sprinklerDistance = d.distance
             invertFB = d.invertFB; invertLR = d.invertLR
         }
+    }
+
+    public static func == (a: FieldConfig, b: FieldConfig) -> Bool {
+        var x = a; x.id = b.id
+        return x.name == b.name && x.pattern == b.pattern && x.size == b.size && x.width == b.width
+            && x.invertFB == b.invertFB && x.invertLR == b.invertLR && x.camera == b.camera && x.turns == b.turns
+            && x.minutes == b.minutes && x.backpackPercent == b.backpackPercent
+            && x.sprinklerLocation == b.sprinklerLocation && x.sprinklerDistance == b.sprinklerDistance
+            && x.shiftLock == b.shiftLock && x.travel == b.travel && x.returnMethod == b.returnMethod && x.enabled == b.enabled
     }
 }
 
@@ -113,6 +166,8 @@ public final class Game {
 
     public private(set) var shiftLocked = false
     public var died = false
+    /// Seconds since 1970; replaced in tests.
+    public var unixNow: () -> TimeInterval = { Date().timeIntervalSince1970 }
 
     public init(actuator: Actuator, sensors: Sensors, settings: GameSettings, clock: Clock,
                 stop: Signal = Signal(), pause: Signal = Signal(),
@@ -129,19 +184,19 @@ public final class Game {
 
     public var stopped: Bool { stop.isSet }
 
-    private func wait(_ s: Double) { walker.wait(s) }
-    private func tap(_ key: String) { actuator.tap(key, holdS: 0.03) }
+    func wait(_ s: Double) { walker.wait(s) }
+    func tap(_ key: String) { actuator.tap(key, holdS: 0.03) }
 
     public func keymap() -> [String: String] {
         ["rot_left": settings.rotLeft, "rot_right": settings.rotRight,
          "zoom_in": settings.zoomIn, "zoom_out": settings.zoomOut]
     }
 
-    private func run(_ steps: [Step], _ km: [String: String]? = nil) {
+    func run(_ steps: [Step], _ km: [String: String]? = nil) {
         _ = try? walker.run(steps, keymap: km ?? keymap())
     }
 
-    private func iterSteps(_ pf: PathFile) -> [Step] {
+    func iterSteps(_ pf: PathFile) -> [Step] {
         Paths.scaleHolds(Paths.expand(pf.steps, hiveSlot: settings.hiveSlot),
                          recordedSpeed: pf.walkSpeed, actualSpeed: speed.current())
     }
@@ -165,7 +220,7 @@ public final class Game {
         let s = settings
         releaseEverything()
         setShiftLock(false)
-        for attempt in 1...max(1, s.resetAttempts) {
+        for attempt in 1...min(2, max(1, s.resetAttempts)) {
             if stopped { return false }
             status("resetting", "attempt \(attempt)")
             parkMouse()
@@ -178,16 +233,21 @@ public final class Game {
             wait(s.resetWaitS + extra)
             if stopped { return false }
             sensors.resetBackpackFilter()
-            let atHive = sensors.hivePromptVisible()
+            var atHive = sensors.hivePromptVisible()
+            let looked = clock.now()
+            while atHive == false && clock.now() - looked < s.hivePromptRecheckS && !stopped {
+                wait(0.5)
+                atHive = sensors.hivePromptVisible()
+            }
             if atHive == false {
-                status("resetting", "hive prompt not seen, retrying")
+                status("resetting", attempt < min(2, max(1, s.resetAttempts)) ? "hive prompt not seen, trying one more reset" : "hive prompt not seen")
                 continue
             }
             if atHive == nil { status("resetting", "no hive prompt template, assuming at hive") }
             _ = fixCamera()
             return true
         }
-        status("error", "could not confirm the hive after reset")
+        status("error", "could not see the hive prompt after the reset. Check that you are not stuck somewhere, and check the Hive prompt pictures in Calibrate.")
         return false
     }
 
@@ -202,27 +262,43 @@ public final class Game {
         if !seenGrey { wait(1.0) }
     }
 
-    /// Rotate until the hive is in view (when a check exists), face away, zoom out.
+    /// Face away from the hive, whichever way the character spawned, then zoom out.
+    /// Turn one full circle in eighths (one tap is an eighth), measure the honeycomb at each step, and
+    /// finish by turning to half a circle past the heading where it was biggest.
     @discardableResult
     public func fixCamera() -> Bool {
         let s = settings
-        var found = sensors.hiveViewVisible()
-        if found != nil {
+        var faced = true
+        if sensors.hiveViewShare() != nil {
+            var best = -1.0, bestStep = 0
+            for step in 0..<8 {
+                if stopped { return false }
+                let share = sensors.hiveViewShare() ?? 0
+                if share > best { best = share; bestStep = step }
+                walker.rotate("right", taps: 1, leftKey: s.rotLeft, rightKey: s.rotRight)
+                wait(0.3)
+            }
+            if best >= s.hiveShareMin {
+                walker.rotate("right", taps: (bestStep + 4) % 8, leftKey: s.rotLeft, rightKey: s.rotRight)
+            } else {
+                faced = false
+                status("warning", "the hive was not seen while turning the camera")
+            }
+        } else if let first = sensors.hiveViewVisible() {
+            var found = first
+            // Older check: turn until the hive picture shows, then half a circle.
             var taps = 0
             while found == false && taps < 16 && !stopped {
                 walker.rotate("right", taps: s.cameraSearchTaps, leftKey: s.rotLeft, rightKey: s.rotRight)
                 taps += s.cameraSearchTaps
                 wait(0.25)
-                found = sensors.hiveViewVisible()
+                found = sensors.hiveViewVisible() ?? true
             }
-            if found == true {
-                walker.rotate("right", taps: s.cameraAfterFoundTaps, leftKey: s.rotLeft, rightKey: s.rotRight)
-            } else {
-                status("warning", "hive view not found while rotating")
-            }
+            if found { walker.rotate("right", taps: s.cameraAfterFoundTaps, leftKey: s.rotLeft, rightKey: s.rotRight) }
+            else { faced = false; status("warning", "hive view not found while rotating") }
         }
         walker.taps(s.zoomOut, count: s.zoomOutTaps)
-        return found ?? true
+        return faced
     }
 
     // MARK: Convert
@@ -239,13 +315,18 @@ public final class Game {
         while !stopped && clock.now() - t0 < s.convertTimeoutS {
             let pct = sensors.backpackPercent()
             if lastPct == nil || (clock.now() - lastPress > s.convertPressRetryS && pct >= lastPct! && pct > 0) {
-                tap("e")
+                // E toggles honey making: when the prompt already says "Stop Making Honey", pressing it would stop it.
+                if sensors.honeyRunning() != true { tap("e") }
                 lastPress = clock.now()
                 lastPct = pct
             }
             if pct <= 0 {
                 emptyReads += 1
-                if emptyReads >= 3 { status("converting", "done"); return true }
+                if emptyReads >= 3 {
+                    if s.convertBalloon { convertBalloon() }
+                    status("converting", "done")
+                    return true
+                }
             } else {
                 emptyReads = 0
                 lastPct = lastPct.map { min($0, pct) } ?? pct
@@ -253,6 +334,32 @@ public final class Game {
             wait(s.backpackSampleS)
         }
         return false
+    }
+
+    /// With the bag empty the hive can still hold balloon pollen: while the message says Make Honey, press E,
+    /// and wait through Stop Making Honey until it shows the empty-bag message. Capped at 10 minutes.
+    public func convertBalloon() {
+        let t0 = clock.now()
+        var unreadable = 0
+        while !stopped && clock.now() - t0 < 600 {
+            switch sensors.hiveMessage() {
+            case "empty"?:
+                if clock.now() - t0 > 1 { status("converting", "balloon done") }
+                return
+            case "make"?:
+                unreadable = 0
+                status("converting", "balloon")
+                tap("e")
+                wait(1.5)
+            case "stop"?:
+                unreadable = 0
+                wait(1)
+            default:
+                unreadable += 1
+                if unreadable >= 5 { return }
+                wait(1)
+            }
+        }
     }
 
     // MARK: Travel
@@ -267,6 +374,19 @@ public final class Game {
         }
         guard let path = pf else { status("error", "no path to \(f.name)"); return false }
         status("traveling", f.name)
+        if !walkPath(path) { return false }
+        run(Sprinkler.startLocationSteps(field: f.name, location: f.sprinklerLocation,
+                                         distance: f.sprinklerDistance, speed: speed.current()), [:])
+        run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
+                                     slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
+        if f.rotatesCamera {
+            walker.rotate(f.camera, taps: f.turns, leftKey: s.rotLeft, rightKey: s.rotRight)
+        }
+        return !stopped
+    }
+
+    /// Walks a route from the hive: shift lock off, mouse parked, every step, the cannon where the route asks.
+    public func walkPath(_ path: PathFile) -> Bool {
         setShiftLock(false)
         parkMouse()
         for step in iterSteps(path) {
@@ -276,13 +396,6 @@ public final class Game {
                 continue
             }
             run([step])
-        }
-        run(Sprinkler.startLocationSteps(field: f.name, location: f.sprinklerLocation,
-                                         distance: f.sprinklerDistance, speed: speed.current()), [:])
-        run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
-                                     slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
-        if f.rotatesCamera {
-            walker.rotate(f.camera, taps: f.turns, leftKey: s.rotLeft, rightKey: s.rotRight)
         }
         return !stopped
     }

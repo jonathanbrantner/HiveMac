@@ -109,6 +109,33 @@ final class GameFixture {
     var traveled: [String] { statuses.filter { $0.0 == "traveling" }.map(\.1) }
 }
 
+final class BoosterTests: XCTestCase {
+    func testRotationGoesRoundAndSkipsBoostersOnCooldown() {
+        let all = Booster.allCases
+        var cooling: Set<Booster> = [.coconut]
+        func ready(_ b: Booster) -> Bool { !cooling.contains(b) }
+        XCTAssertEqual(Booster.next(after: nil, enabled: all, ready: ready), .red)
+        XCTAssertEqual(Booster.next(after: .red, enabled: all, ready: ready), .blue)
+        XCTAssertEqual(Booster.next(after: .blue, enabled: all, ready: ready), .mountain)
+        XCTAssertEqual(Booster.next(after: .mountain, enabled: all, ready: ready), .red)
+        cooling.insert(.blue)
+        XCTAssertEqual(Booster.next(after: .red, enabled: all, ready: ready), .mountain)       // blue is cooling down
+        cooling = Set(all)
+        XCTAssertNil(Booster.next(after: .red, enabled: all, ready: ready))
+    }
+
+    func testCoconutComesFirstWhenReadyAndOnlyEnabledBoostersAreUsed() {
+        XCTAssertEqual(Booster.next(after: .red, enabled: Booster.allCases, ready: { _ in true }), .coconut)
+        XCTAssertEqual(Booster.next(after: nil, enabled: [.mountain], ready: { _ in true }), .mountain)
+        XCTAssertNil(Booster.next(after: nil, enabled: [], ready: { _ in true }))
+    }
+
+    func testIconNamesMatchTheExtractedFiles() {
+        XCTAssertEqual(Booster.iconName(for: "pine tree"), "boost/pinetree1")
+        XCTAssertEqual(Booster.iconName(for: "blue flower"), "boost/blueflower1")
+    }
+}
+
 final class GameLoopTests: XCTestCase {
     func testResetSendsKeysWaitsForRespawnAndFixesCamera() {
         let f = GameFixture()
@@ -126,7 +153,7 @@ final class GameLoopTests: XCTestCase {
         let f = GameFixture()
         f.world.hivePromptOverride = false
         XCTAssertFalse(f.game.resetToHive())
-        XCTAssertEqual(f.world.resets, f.game.settings.resetAttempts)
+        XCTAssertEqual(f.world.resets, 2)                      // never more than two resets in a row
     }
 
     func testConvertPressesEAndWaitsForEmpty() {
@@ -219,5 +246,704 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(f.pattern, "corner_x_snake"); XCTAssertEqual(f.width, 7)
         XCTAssertEqual(f.camera, "right"); XCTAssertEqual(f.turns, 2)
         XCTAssertEqual(FieldConfig(name: "mountain top").invertFB, true)
+    }
+
+    /// Records what the loop asks of the extras and finishes them like a real runner would.
+    final class SpyRunner: ExtraRunner {
+        var timers = MobTimers()
+        var performed: [(kind: String, due: [String])] = []
+        var now: () -> TimeInterval = { 0 }
+        func due(_ step: ExtraStep, now: TimeInterval) -> [String] {
+            step.kind == "planters" ? step.planterSlotsReady(now: now).map { "slot \($0 + 1)" } : timers.due(step.bugs, now: now)
+        }
+        func perform(_ step: ExtraStep, due: [String], game: Game) {
+            performed.append((step.kind, due))
+            for d in due { timers.markDone(d, at: now()) }
+        }
+    }
+
+    func testExtrasRunInOrderBetweenFieldsAndSkipWhatIsNotBack() {
+        let f = GameFixture(fillPerS: 50)
+        var f1 = FieldConfig(name: "sunflower"); f1.backpackPercent = 90; f1.returnMethod = "reset"
+        var f2 = FieldConfig(name: "dandelion"); f2.backpackPercent = 90; f2.returnMethod = "reset"
+        var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug"]
+        var off = ExtraStep(kind: "bug_run"); off.enabled = false
+        var p = Profile(fields: [f1, f2], extras: [bug, off])
+        p.move("e:" + bug.id.uuidString, before: "f:" + f2.id.uuidString)      // sunflower, bug run, dandelion
+        let spy = SpyRunner()
+        var unix = 1_000.0
+        spy.now = { unix }
+        let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 4, unixNow: { unix })
+        // The ladybug timer starts ready, runs once, then is skipped until 330 s have passed.
+        XCTAssertEqual(loop.run(), "cycles_done")
+        XCTAssertEqual(f.traveled, ["sunflower", "dandelion", "sunflower", "dandelion"])
+        XCTAssertEqual(spy.performed.count, 1)
+        XCTAssertEqual(spy.performed.first?.due, ["ladybug"])
+        unix += 400
+        spy.performed = []
+        let again = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 2, unixNow: { unix })
+        XCTAssertEqual(again.run(), "cycles_done")
+        XCTAssertEqual(spy.performed.count, 1)
+    }
+
+    func testPendingRunnerNeverMarksAnythingDone() {
+        let r = PendingExtraRunner()
+        var e = ExtraStep(kind: "bug_run"); e.bugs = ["ladybug"]
+        XCTAssertEqual(r.due(e, now: 5), ["ladybug"])
+        XCTAssertEqual(r.due(e, now: 5), ["ladybug"])
+        var pl = ExtraStep(kind: "planters")
+        pl.planterFields = ["rose", "", ""]; pl.planterPlanted = [100, 0, 0]; pl.harvestHours = 1
+        XCTAssertEqual(r.due(pl, now: 100 + 3600), ["slot 1"])
+        XCTAssertEqual(r.due(pl, now: 100 + 60), [])
+    }
+
+    func testCollectWalksTheRouteAndPressesE() {
+        let f = GameFixture()
+        XCTAssertEqual(f.game.collect("wealth clock"), .collected)
+        XCTAssertEqual(f.act.taps("e"), 2)
+        XCTAssertTrue(f.traveled.contains("wealth clock"))
+        XCTAssertTrue(f.traveled.contains("collected wealth clock"))
+    }
+
+    func testCollectWithoutARouteDoesNotPressE() {
+        let f = GameFixture()
+        let g = Game(actuator: f.act, sensors: f.world, settings: f.game.settings, clock: f.clock,
+                     status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) })
+        guard case .failed = g.collect("wealth clock") else { return XCTFail("should fail") }
+        XCTAssertEqual(f.act.taps("e"), 0)
+    }
+
+    func testHuntPlanSharesFields() {
+        let plan = MobFields.plan(["ladybug", "rhino beetle", "werewolf", "black bear"])
+        XCTAssertEqual(plan.map(\.field), ["clover", "pumpkin"])
+        XCTAssertEqual(plan[0].mobs, ["ladybug", "rhino beetle"])
+    }
+
+    func testRunnerMarksPickupsAndMobsDoneThenSkipsThemUntilBack() {
+        let f = GameFixture(fillPerS: 20)
+        var pick = ExtraStep(kind: "pickups"); pick.bugs = ["wealth clock"]
+        var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug", "black bear"]
+        var saved = 0
+        var unix = 5_000.0
+        let runner = GameExtraRunner(huntSeconds: 20, unixNow: { unix }, onTimers: { _ in saved += 1 })
+        XCTAssertEqual(runner.due(bug, now: unix), ["ladybug"])            // black bear is not hunted yet
+        runner.perform(pick, due: ["wealth clock"], game: f.game)
+        runner.perform(bug, due: ["ladybug"], game: f.game)
+        XCTAssertEqual(saved, 2)
+        XCTAssertEqual(runner.due(pick, now: unix + 100), [])
+        XCTAssertEqual(runner.due(bug, now: unix + 100), [])
+        unix += 3_700
+        XCTAssertEqual(runner.due(pick, now: unix), ["wealth clock"])
+        XCTAssertEqual(runner.due(bug, now: unix), ["ladybug"])
+        XCTAssertTrue(f.traveled.contains("clover"))
+    }
+
+    private func bossGame(_ bars: [[Double]]?) -> (Game, PictureWorld) {
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: [])
+        pw.barScript = bars; pw.act = f.act
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { kind, name, _ in
+                         kind == "to_field" ? PathFile(name: name, steps: [.walk(["a"], tiles: 3)]) : PathFile(name: name, steps: [.walk(["a"], tiles: 3)])
+                     })
+        return (g, pw)
+    }
+
+    func testBossIsKilledWhenItsHealthBarStaysGone() {
+        let (g, _) = bossGame([[0.9], [0.8], [0.4], [], [], [], []])
+        XCTAssertEqual(g.boss(Bosses.spec("king beetle")!), .killed)
+    }
+
+    func testBossThatIsNotThereIsMissedAndNoFightStarts() {
+        let (g, pw) = bossGame([[]])
+        XCTAssertEqual(g.boss(Bosses.spec("coconut crab")!), .none)
+        XCTAssertEqual(pw.finds, [])
+    }
+
+    func testBossWithAnUnreadableScreenIsSkipped() {
+        let (g, _) = bossGame(nil)
+        XCTAssertEqual(g.boss(Bosses.spec("stump snail")!), .none)
+    }
+
+    func testBossThatWillNotDieTimesOut() {
+        var spec = Bosses.spec("stump snail")!; spec.maxSeconds = 30
+        let (g, _) = bossGame([[0.9]])
+        XCTAssertEqual(g.boss(spec), .timeout)
+    }
+
+    func testBossDeadPictureEndsTheFightEvenWithABarStillShowing() {
+        let (g, pw) = bossGame([[0.9]])
+        pw.visible = ["crab"]
+        XCTAssertEqual(g.boss(Bosses.spec("coconut crab")!), .killed)
+    }
+
+    func testQuestBookFindsTheQuestByItsNameAndMapsObjectives() throws {
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let book = QuestBook.load(repo.appendingPathComponent("config/quests.json"))
+        XCTAssertEqual(Set(book.givers.keys), ["polar", "black", "bucko", "riley"])
+        let q = try XCTUnwrap(book.quest(in: "Quest: Beetle  Brew  collect pineapple", giver: "polar"))
+        XCTAssertEqual(q.name, "Beetle Brew")
+        XCTAssertEqual(q.objectives.map(\.slot), [1, 2, 3, 4])
+        XCTAssertEqual(QuestBook.action(for: q.objectives[0]), .gather(field: "pineapple"))
+        XCTAssertEqual(QuestBook.action(for: q.objectives[2]), .kill(["ladybug"]))
+        XCTAssertEqual(QuestBook.action(for: QuestObjective(slot: 1, kind: "Collect", target: "Blue")), .gatherColor("blue"))
+        XCTAssertEqual(QuestBook.action(for: QuestObjective(slot: 1, kind: "Get", target: "Ant")), .unsupported("get Ant"))
+        XCTAssertEqual(QuestBook.field(forColor: "red", preferring: ["bamboo", "rose"]), "rose")
+        XCTAssertNil(book.quest(in: "nothing here", giver: "polar"))
+    }
+
+    func testAutoBoostRollsUntilTheBoostIconShows() {
+        var cfg = AutoBoost(); cfg.enabled = true; cfg.diceSlot = 2; cfg.glitterSlot = 3
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: [])
+        var rolls = 0
+        f.act.onTap = { k in if k == "2" { rolls += 1; if rolls == 3 { pw.visible.insert("boost/pinetree0") } } }
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) }, pathLookup: { _, n, _ in PathFile(name: n, steps: []) })
+        XCTAssertTrue(g.boostField("pine tree", cfg))
+        XCTAssertEqual(rolls, 3)
+        XCTAssertEqual(f.act.taps("3"), 0)                    // no glitter: the dice did it
+    }
+
+    func testAutoBoostFallsBackToGlitterAndGivesUpQuietly() {
+        var cfg = AutoBoost(); cfg.enabled = true; cfg.diceSlot = 2; cfg.glitterSlot = 3; cfg.rollsPerVisit = 2
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: [])
+        f.act.onTap = { k in if k == "3" { pw.visible.insert("boost/rose1") } }
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) }, pathLookup: { _, n, _ in PathFile(name: n, steps: []) })
+        XCTAssertTrue(g.boostField("rose", cfg))
+        XCTAssertEqual(f.act.taps("2"), 2)
+        pw.visible = []
+        XCTAssertFalse(g.boostField("pumpkin", cfg))
+        var off = cfg; off.enabled = false
+        XCTAssertFalse(g.boostField("pumpkin", off))
+    }
+
+    func testAutoBoostSettingsRoundTrip() throws {
+        var p = Profile(); p.autoBoost.enabled = true; p.autoBoost.diceSlot = 4; p.autoBoost.glitterSlot = 9
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("ab-\(UUID()).json")
+        try p.save(to: url); defer { try? FileManager.default.removeItem(at: url) }
+        let back = try Profile.load(url)
+        XCTAssertTrue(back.autoBoost.enabled); XCTAssertEqual(back.autoBoost.diceSlot, 4)
+        XCTAssertEqual(back.autoBoost.glitterSlot, 0)         // 9 is not a hotbar slot
+    }
+
+    /// The real world plus a screen that shows only the pictures in `visible`.
+    final class PictureWorld: Sensors {
+        let inner: FakeWorld
+        var visible: Set<String>
+        var finds: [String] = []
+        /// Pictures that only show up after a drag, like the Yes dialog.
+        var afterDrag: Set<String> = []
+        var honey: Bool?
+        /// What the top prompt says on each look; nil = unreadable.
+        var prompts: [String]?
+        var promptLooks = 0
+        func promptText() -> String? {
+            guard let list = prompts else { return nil }
+            defer { promptLooks += 1 }
+            return promptLooks < list.count ? list[promptLooks] : list.last
+        }
+        func honeyRunning() -> Bool? { honey }
+        /// Health bars seen on each look; nil = the screen cannot be read.
+        var barScript: [[Double]]?
+        var barLooks = 0
+        func mobBars() -> [Double]? {
+            guard let script = barScript else { return nil }
+            defer { barLooks += 1 }
+            return barLooks < script.count ? script[barLooks] : script.last ?? []
+        }
+        var act: FakeActuator?
+        init(_ inner: FakeWorld, visible: Set<String>) { self.inner = inner; self.visible = visible }
+        func robloxPresent() -> Bool { inner.robloxPresent() }
+        func backpackPercent() -> Int { inner.backpackPercent() }
+        func backpackUnreadableStreak() -> Int { inner.backpackUnreadableStreak() }
+        func resetBackpackFilter() { inner.resetBackpackFilter() }
+        func healthGrey() -> Bool { inner.healthGrey() }
+        func hivePromptVisible() -> Bool? { inner.hivePromptVisible() }
+        func hiveViewVisible() -> Bool? { inner.hiveViewVisible() }
+        func cannonPromptVisible() -> Bool? { nil }
+        func deathTextVisible() -> Bool? { nil }
+        func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? {
+            finds.append(template)
+            if afterDrag.contains(template), !(act?.events.contains { $0.hasPrefix("drag ") } ?? false) { return nil }
+            return visible.contains(template) ? (400, 300) : nil
+        }
+    }
+
+    private func planterGame(visible: Set<String>, yesNeedsDrag: Bool = true) -> (Game, FakeActuator, PictureWorld) {
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: visible)
+        pw.afterDrag = yesNeedsDrag ? ["yes"] : []; pw.act = f.act
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { _, name, _ in PathFile(name: name, steps: [.walk(["a"], tiles: 3)]) })
+        return (g, f.act, pw)
+    }
+
+    func testPlacingNeedsTheInventoryAndThenDragsAndClicksYes() {
+        let (g, act, _) = planterGame(visible: ["item", "PaperPlanter", "yes"])
+        XCTAssertEqual(g.placePlanter("paper", field: "rose", atField: false), .done)
+        XCTAssertTrue(act.events.contains { $0.hasPrefix("drag ") })
+        XCTAssertEqual(act.events.filter { $0.hasPrefix("click ") }.count, 2)      // the menu, then Yes
+    }
+
+    func testPlacingDoesNothingWhenTheInventoryDoesNotOpen() {
+        let (g, act, _) = planterGame(visible: [])
+        guard case .failed = g.placePlanter("paper", field: "rose", atField: false) else { return XCTFail("should fail") }
+        XCTAssertFalse(act.events.contains { $0.hasPrefix("drag ") })
+        XCTAssertEqual(act.events.filter { $0.hasPrefix("click ") }.count, 1)      // only the menu button
+    }
+
+    func testMissingPlanterIsReportedAndNothingIsDragged() {
+        let (g, act, _) = planterGame(visible: ["item"])
+        XCTAssertEqual(g.placePlanter("paper", field: "rose", atField: false), .missing("paper"))
+        XCTAssertFalse(act.events.contains { $0.hasPrefix("drag ") })
+    }
+
+    func testHarvestPressesEOnlyWhenThePromptIsThere() {
+        var (g, act, _) = planterGame(visible: [])
+        guard case .failed = g.harvestPlanter(field: "rose") else { return XCTFail("should fail") }
+        XCTAssertEqual(act.taps("e"), 0)
+        (g, act, _) = planterGame(visible: ["e_button", "yes"], yesNeedsDrag: false)
+        XCTAssertEqual(g.harvestPlanter(field: "rose"), .done)
+        XCTAssertEqual(act.taps("e"), 1)
+    }
+
+    func testPlanterRunnerPlantsEmptySlotsThenHarvestsAndReplants() {
+        let (g, _, _) = planterGame(visible: ["item", "PaperPlanter", "yes", "e_button"])
+        var step = ExtraStep(kind: "planters")
+        step.planterFields = ["rose", "", ""]; step.harvestHours = 1
+        var unix = 1_000.0
+        var log: [(Int, Double)] = []
+        let r = GameExtraRunner(unixNow: { unix })
+        r.onPlanter = { _, slot, t in log.append((slot, t)) }
+        XCTAssertEqual(r.due(step, now: unix), ["plant 1"])
+        r.perform(step, due: ["plant 1"], game: g)
+        XCTAssertEqual(log.map(\.1), [1_000])
+        step.planterPlanted[0] = 1_000
+        XCTAssertEqual(r.due(step, now: unix + 100), [])
+        unix += 3_700
+        XCTAssertEqual(r.due(step, now: unix), ["harvest 1"])
+        r.perform(step, due: ["harvest 1"], game: g)
+        XCTAssertEqual(log.map(\.1), [1_000, 0, 4_700])                 // planted, emptied, replanted
+    }
+
+    func testConvertNeverPressesEWhileTheHivePromptSaysStopMakingHoney() {
+        let (g, act, pw) = planterGame(visible: [])
+        pw.honey = true
+        pw.inner.atHive = true; pw.inner.backpack = 80
+        _ = g.convert()
+        XCTAssertEqual(act.taps("e"), 0)
+        let (g2, act2, pw2) = planterGame(visible: [])
+        pw2.honey = false
+        pw2.inner.atHive = true; pw2.inner.backpack = 80
+        XCTAssertTrue(g2.convert())
+        XCTAssertGreaterThan(act2.taps("e"), 0)
+    }
+}
+
+extension GameLoopTests {
+    /// A hive whose message follows a script: make, make, stop, stop, empty.
+    final class MessageWorld: Sensors {
+        let inner: FakeWorld
+        var script: [String?]
+        var reads = 0
+        init(_ inner: FakeWorld, script: [String?]) { self.inner = inner; self.script = script }
+        func robloxPresent() -> Bool { true }
+        func backpackPercent() -> Int { 0 }
+        func backpackUnreadableStreak() -> Int { 0 }
+        func resetBackpackFilter() {}
+        func healthGrey() -> Bool { false }
+        func hivePromptVisible() -> Bool? { true }
+        func hiveViewVisible() -> Bool? { true }
+        func cannonPromptVisible() -> Bool? { nil }
+        func deathTextVisible() -> Bool? { nil }
+        func hiveMessage() -> String? { defer { reads += 1 }; return reads < script.count ? script[reads] : script.last ?? nil }
+    }
+
+    func testBalloonIsConvertedUntilTheHiveSaysEmpty() {
+        let f = GameFixture()
+        let w = MessageWorld(f.world, script: ["make", "stop", "stop", "make", "empty"])
+        let g = Game(actuator: f.act, sensors: w, settings: f.game.settings, clock: f.clock, status: { _, _ in })
+        g.convertBalloon()
+        XCTAssertEqual(f.act.taps("e"), 2)                  // pressed on each "make", never on "stop"
+        XCTAssertEqual(w.reads, 5)
+    }
+
+    func testBalloonGivesUpWhenTheMessageCannotBeRead() {
+        let f = GameFixture()
+        let w = MessageWorld(f.world, script: [nil])
+        let g = Game(actuator: f.act, sensors: w, settings: f.game.settings, clock: f.clock, status: { _, _ in })
+        g.convertBalloon()
+        XCTAssertEqual(f.act.taps("e"), 0)
+        XCTAssertEqual(w.reads, 5)
+    }
+}
+
+extension GameLoopTests {
+    /// The camera turns an eighth per tap of ".". The honeycomb is biggest at heading 0.
+    final class HeadingWorld: Sensors {
+        let inner: FakeWorld
+        let act: FakeActuator
+        let start: Int
+        init(_ inner: FakeWorld, act: FakeActuator, start: Int) { self.inner = inner; self.act = act; self.start = start }
+        var heading: Int { (start + act.taps(".")) % 8 }
+        func robloxPresent() -> Bool { true }
+        func backpackPercent() -> Int { 0 }
+        func backpackUnreadableStreak() -> Int { 0 }
+        func resetBackpackFilter() {}
+        func healthGrey() -> Bool { false }
+        func hivePromptVisible() -> Bool? { true }
+        func hiveViewVisible() -> Bool? { nil }
+        func cannonPromptVisible() -> Bool? { nil }
+        func deathTextVisible() -> Bool? { nil }
+        func hiveViewShare() -> Double? {
+            switch heading { case 0: return 0.13; case 1, 7: return 0.06; default: return 0.02 }
+        }
+    }
+
+    func testCameraEndsFacingAwayFromTheHiveFromEverySpawnDirection() {
+        for start in 0..<8 {
+            let f = GameFixture()
+            let w = HeadingWorld(f.world, act: f.act, start: start)
+            let g = Game(actuator: f.act, sensors: w, settings: f.game.settings, clock: f.clock, status: { _, _ in })
+            XCTAssertTrue(g.fixCamera())
+            XCTAssertEqual(w.heading, 4, "spawned at heading \(start)")             // half a circle from the hive
+        }
+    }
+
+    func testCameraLeavesTheViewAloneWhenNoHiveIsSeen() {
+        let f = GameFixture()
+        final class Blind: Sensors {
+            func robloxPresent() -> Bool { true }; func backpackPercent() -> Int { 0 }; func backpackUnreadableStreak() -> Int { 0 }
+            func resetBackpackFilter() {}; func healthGrey() -> Bool { false }; func hivePromptVisible() -> Bool? { true }
+            func hiveViewVisible() -> Bool? { nil }; func cannonPromptVisible() -> Bool? { nil }; func deathTextVisible() -> Bool? { nil }
+            func hiveViewShare() -> Double? { 0.01 }
+        }
+        let g = Game(actuator: f.act, sensors: Blind(), settings: f.game.settings, clock: f.clock, status: { _, _ in })
+        XCTAssertFalse(g.fixCamera())
+        XCTAssertEqual(f.act.taps(".") % 8, 0)                                        // one full circle, no extra turn
+    }
+
+    private func huntGame(script: [[Double]]?) -> (Game, PictureWorld, GameFixture) {
+        let f = GameFixture(fillPerS: 0)
+        let pw = PictureWorld(f.world, visible: [])
+        pw.barScript = script
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { _, name, _ in PathFile(name: name, steps: [.walk(["a"], tiles: 3)]) })
+        return (g, pw, f)
+    }
+
+    func testHuntFightsUntilTheHealthBarIsGone() {
+        let (g, pw, _) = huntGame(script: [[], [100], [60], [], [], []])           // nothing yet, a mob, hurt, gone
+        XCTAssertEqual(g.hunt(field: "rose"), .killed)
+        XCTAssertGreaterThanOrEqual(pw.barLooks, 5)
+    }
+
+    func testHuntGivesUpWhenNoMobIsThere() {
+        let (g, _, f) = huntGame(script: [[]])
+        XCTAssertEqual(g.hunt(field: "rose"), .none)
+        XCTAssertLessThan(f.clock.now(), 120)                                         // did not stay for minutes
+    }
+
+    func testHuntGivesUpOnAMobThatWillNotDie() {
+        let (g, _, _) = huntGame(script: [[80]])
+        XCTAssertEqual(g.hunt(field: "rose", maxSeconds: 60), .timeout)
+    }
+
+    func testGatheringInAMobsFieldCountsAsHuntingIt() {
+        var unix = 10_000.0
+        let r = GameExtraRunner(unixNow: { unix })
+        r.fieldGathered("pine tree", seconds: 30)
+        XCTAssertEqual(r.due(ExtraStep(kind: "bug_run").with(bugs: ["mantis"]), now: unix), ["mantis"])   // too short
+        r.fieldGathered("pine tree", seconds: 120)
+        XCTAssertEqual(r.due(ExtraStep(kind: "bug_run").with(bugs: ["mantis", "spider"]), now: unix), ["spider"])
+        unix += 1_300
+        XCTAssertEqual(r.due(ExtraStep(kind: "bug_run").with(bugs: ["mantis"]), now: unix), ["mantis"])
+    }
+
+    func testMondoOnlyComesUpInTheFirstFourteenMinutesOfTheHour() {
+        let r = GameExtraRunner()
+        let hour = 1_800_000_000.0 - (1_800_000_000.0.truncatingRemainder(dividingBy: 3600))       // a whole UTC hour
+        let step = ExtraStep(kind: "mondo")
+        XCTAssertEqual(r.due(step, now: hour + 5 * 60), ["mondo chick"])
+        XCTAssertEqual(r.due(step, now: hour + 20 * 60), [])
+    }
+
+    private func pickupGame(prompts: [String]) -> (Game, FakeActuator) {
+        let f = GameFixture()
+        let pw = PictureWorld(f.world, visible: [])
+        pw.prompts = prompts
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { _, _ in }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { _, name, _ in PathFile(name: name, steps: [.walk(["a"], tiles: 3)]) })
+        return (g, f.act)
+    }
+
+    func testPickupThatShowsACountdownIsNotPressedAndSyncsTheTimer() {
+        let (g, act) = pickupGame(prompts: ["use the strawberry dispenser (3:59:58)"])
+        XCTAssertEqual(g.collect("strawberry dispenser"), .onCooldown(3 * 3600 + 59 * 60 + 58))
+        XCTAssertEqual(act.taps("e"), 0)
+    }
+
+    func testPickupIsPressedWhenReadyAndTheCountdownProvesItWorked() {
+        let (g, act) = pickupGame(prompts: ["use the honey dispenser", "use the honey dispenser (0:59:59)"])
+        XCTAssertEqual(g.collect("honey dispenser"), .onCooldown(59 * 60 + 59))
+        XCTAssertEqual(act.taps("e"), 1)
+    }
+
+    func testPickupWhoseUsePromptDisappearsCountsAsCollected() {
+        let (g, act) = pickupGame(prompts: ["use the wealth clock", ""])
+        XCTAssertEqual(g.collect("wealth clock"), .collected)
+        XCTAssertEqual(act.taps("e"), 1)
+    }
+
+    func testPickupWithoutACountdownAfterEIsReportedAsFailed() {
+        let (g, act) = pickupGame(prompts: ["use the treat dispenser"])
+        guard case .failed = g.collect("treat dispenser") else { return XCTFail("should fail") }
+        XCTAssertEqual(act.taps("e"), 2)
+    }
+
+    final class BoosterRunner: ExtraRunner {
+        var used: [Booster] = []
+        func due(_ step: ExtraStep, now: TimeInterval) -> [String] { [] }
+        func perform(_ step: ExtraStep, due: [String], game: Game) {}
+        func boosterReady(_ booster: Booster) -> Bool { !used.contains(booster) }
+        func boosterUsed(_ booster: Booster) { used.append(booster) }
+    }
+
+    func testBoosterModeGathersTheBoostedFieldAndFallsBackWhenNoneIsReady() {
+        let f = GameFixture(fillPerS: 50)
+        let pw = PictureWorld(f.world, visible: ["boost/rose1"])                 // the red booster boosted Rose
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { kind, name, _ in
+                         kind == "to_field" ? PathFile(name: name, steps: [Step(type: "gotoramp"), .walk(["s"], tiles: 9), .rotate("right", count: 2), .walk(["d"], tiles: 29)])
+                                            : PathFile(name: name, steps: [.walk(["a"], tiles: 3)])
+                     })
+        var sunflower = FieldConfig(name: "sunflower"); sunflower.backpackPercent = 90; sunflower.returnMethod = "reset"
+        var profile = Profile(fields: [sunflower])
+        profile.boosterMode = true; profile.boosters = ["red"]
+        let runner = BoosterRunner()
+        let loop = FarmLoop(g, profile: profile, extras: runner, maxCycles: 2)
+        XCTAssertEqual(loop.run(), "cycles_done")
+        XCTAssertEqual(runner.used, [.red])                                        // used once, then on cooldown
+        let fields = f.log.items.filter { $0.0 == "traveling" }.map(\.1)
+        XCTAssertTrue(fields.contains("boosted field: rose"), "\(fields)")
+    }
+}
+
+extension ExtraStep {
+    func with(bugs: [String]) -> ExtraStep { var s = self; s.bugs = bugs; return s }
+
+}
+
+final class MemoryMatchTests: XCTestCase {
+    /// A board of `pairs` pairs laid out by a shuffle; each card is a flat colour so equal cards look equal.
+    private func board(pairs: Int, seed: Int) -> [RGBImage] {
+        var order = Array(0..<pairs) + Array(0..<pairs)
+        var s = UInt64(seed &* 2654435761 &+ 12345)
+        for i in stride(from: order.count - 1, to: 0, by: -1) {
+            s = s &* 6364136223846793005 &+ 1442695040888963407
+            order.swapAt(i, Int((s >> 33) % UInt64(i + 1)))
+        }
+        return order.map { RGBImage(width: 50, height: 50, fill: (UInt8(20 + $0 * 11), UInt8(240 - $0 * 9), UInt8(40 + $0 * 7))) }
+    }
+
+    func testSolvesSixteenAndTwentyTileBoardsInFewFlips() {
+        for (tiles, limit) in [(16, 40), (20, 52)] {
+            for seed in 0..<25 {
+                let cards = board(pairs: tiles / 2, seed: seed)
+                let solver = MemoryMatchSolver(tiles: tiles)
+                var seen: [Int] = []
+                let flips = solver.play(maxFlips: 80) { tile in seen.append(tile); return cards[tile] }
+                XCTAssertTrue(solver.finished, "\(tiles) tiles, seed \(seed)")
+                XCTAssertLessThanOrEqual(flips, limit, "\(tiles) tiles, seed \(seed): \(flips) flips")
+                XCTAssertEqual(seen.count, flips)
+            }
+        }
+    }
+
+    func testNeverFlipsAMatchedTileAgain() {
+        let cards = board(pairs: 8, seed: 3)
+        let solver = MemoryMatchSolver(tiles: 16)
+        var flipped: [Int] = []
+        solver.play(maxFlips: 80) { tile in
+            XCTAssertFalse(solver.matched.contains(tile), "flipped matched tile \(tile)")
+            flipped.append(tile); return cards[tile]
+        }
+        XCTAssertTrue(solver.finished)
+    }
+
+    func testStopsWhenARevealFails() {
+        let solver = MemoryMatchSolver(tiles: 16)
+        XCTAssertEqual(solver.play(maxFlips: 80) { _ in nil }, 0)
+    }
+
+    func testTileSpotsFollowNatrosGrid() {
+        let f = GameFixture()
+        let g = f.game       // window 1600 x 900 at 0,0 in the fixture: middle is 800, 450
+        XCTAssertEqual(g.memoryTilePoint(0, wide: false)?.x, 800 - 200 + 80)
+        XCTAssertEqual(g.memoryTilePoint(0, wide: false)?.y, 450 - 200 + 80)
+        XCTAssertEqual(g.memoryTilePoint(5, wide: false)?.x, 800 - 200 + 160)       // second column
+        XCTAssertEqual(g.memoryTilePoint(5, wide: true)?.x, 800 - 200 + 160 - 40)   // the wide board sits 40 px left
+        XCTAssertEqual(MemoryMatchKind.extreme.tiles, 20)
+        XCTAssertEqual(MemoryMatchKind.normal.pickup, "normal memory match")
+    }
+
+    func testMachineThatCannotBeOpenedIsReportedWithoutClickingTiles() {
+        let f = GameFixture()
+        let g = f.game
+        guard case .failed = g.playMemoryMatch(.normal) else { return XCTFail("should fail without the title on screen") }
+        XCTAssertFalse(f.act.events.contains { $0.hasPrefix("click ") })
+    }
+}
+
+final class QuestModeTests: XCTestCase {
+    final class QuestSpy: ExtraRunner {
+        var timers = MobTimers()
+        var performed: [(String, [String])] = []
+        var now: () -> TimeInterval = { 0 }
+        var onPerform: () -> Void = {}
+        func due(_ step: ExtraStep, now: TimeInterval) -> [String] {
+            step.kind == "quests" ? timers.due(step.bugs.map { $0 + " quest" }, now: now) : timers.due(step.bugs, now: now)
+        }
+        func perform(_ step: ExtraStep, due: [String], game: Game) {
+            performed.append((step.kind, due))
+            for d in due { timers.markDone(d, at: now()) }
+            onPerform()
+        }
+    }
+
+    private func field() -> FieldConfig {
+        var f = FieldConfig(name: "sunflower"); f.backpackPercent = 90; f.returnMethod = "reset"; return f
+    }
+
+    func testBlackBearQuestRunsOnceThenTheFieldsFillTheHour() {
+        let f = GameFixture(fillPerS: 50)
+        var p = Profile(fields: [field()])
+        p.mode = "quests"; p.questGiver = "black bear"
+        let spy = QuestSpy(); var unix = 1_000.0; spy.now = { unix }
+        let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 2, unixNow: { unix })
+        XCTAssertEqual(loop.run(), "cycles_done")
+        XCTAssertEqual(spy.performed.map(\.0), ["quests"])            // once; the hour has not passed
+        XCTAssertEqual(spy.performed.first?.1, ["black bear quest"])
+    }
+
+    func testBuckoChainsWithoutACooldown() {
+        let stop = Signal()
+        let f = GameFixture(fillPerS: 50, stop: stop)
+        var p = Profile(fields: [field()])
+        p.mode = "quests"; p.questGiver = "bucko bee"
+        let spy = QuestSpy(); let unix = 1_000.0; spy.now = { unix }
+        spy.onPerform = { if spy.performed.count >= 3 { stop.set() } }
+        let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 5, unixNow: { unix })
+        XCTAssertEqual(loop.run(), "stopped")
+        XCTAssertEqual(spy.performed.count, 3)
+    }
+
+    func testQuestModeNeverVisitsStepsAndRunsTheClockOnlyWhenAsked() {
+        for wantClock in [false, true] {
+            let f = GameFixture(fillPerS: 50)
+            var bug = ExtraStep(kind: "bug_run"); bug.bugs = ["ladybug"]
+            var p = Profile(fields: [field()], extras: [bug])
+            p.mode = "quests"; p.questGiver = "black bear"; p.modeClock = wantClock
+            let spy = QuestSpy(); let unix = 1_000.0; spy.now = { unix }
+            spy.timers.markDone("black bear quest", at: unix)           // on cooldown: only the idle field and the clock
+            let loop = FarmLoop(f.game, profile: p, extras: spy, maxCycles: 2, unixNow: { unix })
+            _ = loop.run()
+            XCTAssertFalse(spy.performed.contains { $0.0 == "bug_run" })
+            XCTAssertEqual(spy.performed.contains { $0.0 == "pickups" && $0.1 == ["wealth clock"] }, wantClock)
+        }
+    }
+}
+
+final class RunModeProfileTests: XCTestCase {
+    private func tmp(_ json: String) throws -> URL {
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try json.write(to: u, atomically: true, encoding: .utf8); return u
+    }
+
+    func testOldBoosterFlagBecomesTheBoosterMode() throws {
+        let p = try Profile.load(tmp(#"{"name":"a","fields":[{"name":"sunflower"}],"booster_mode":true}"#))
+        XCTAssertEqual(p.mode, "booster")
+    }
+
+    func testOldQuestsStepBecomesQuestsModeWithItsFirstGiver() throws {
+        let p = try Profile.load(tmp(#"{"name":"a","fields":[{"name":"sunflower"}],"extras":[{"kind":"quests","bugs":["polar bear","black bear"]}]}"#))
+        XCTAssertEqual(p.mode, "quests")
+        XCTAssertEqual(p.questGiver, "polar bear")
+        XCTAssertTrue(p.extras.isEmpty)
+    }
+
+    func testModeRoundTrips() throws {
+        var p = Profile(fields: [FieldConfig(name: "sunflower")])
+        p.mode = "quests"; p.questGiver = "riley bee"
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try p.save(to: u)
+        let q = try Profile.load(u)
+        XCTAssertEqual(q.mode, "quests"); XCTAssertEqual(q.questGiver, "riley bee")
+    }
+}
+
+final class RunModeMixedMigrationTests: XCTestCase {
+    func testAMixedRunKeepsItsStepsAndLosesTheQuestStep() throws {
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try #"{"name":"a","fields":[{"name":"sunflower"}],"extras":[{"kind":"bug_run","bugs":["ladybug"]},{"kind":"quests","bugs":["black bear"]}]}"#.write(to: u, atomically: true, encoding: .utf8)
+        let p = try Profile.load(u)
+        XCTAssertEqual(p.mode, "none")
+        XCTAssertEqual(p.extras.map(\.kind), ["bug_run"])
+    }
+}
+
+final class ModeSwitchTests: XCTestCase {
+    func testEnteringAModeKeepsTheFirstFieldAndClearsSteps() {
+        var p = Profile(fields: [FieldConfig(name: "pine tree"), FieldConfig(name: "bamboo")], extras: [ExtraStep(kind: "bug_run")])
+        XCTAssertEqual(p.lossOnEntering("quests").fields, 1)
+        XCTAssertEqual(p.lossOnEntering("quests").steps, 1)
+        XCTAssertEqual(p.lossOnEntering("none").fields + p.lossOnEntering("none").steps, 0)
+        p.enterMode("quests")
+        XCTAssertEqual(p.fields.map(\.name), ["pine tree"])
+        XCTAssertTrue(p.extras.isEmpty)
+        XCTAssertEqual(p.lossOnEntering("booster").fields + p.lossOnEntering("booster").steps, 0)   // nothing left to lose
+    }
+
+    func testOldFieldsModeNameLoadsAsNone() throws {
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try #"{"name":"a","fields":[{"name":"sunflower"}],"mode":"fields"}"#.write(to: u, atomically: true, encoding: .utf8)
+        XCTAssertEqual(try Profile.load(u).mode, "none")
+        XCTAssertEqual(Profile().mode, "none")
+    }
+
+    func testBlessingSettingsRoundTrip() throws {
+        var p = Profile(fields: [FieldConfig(name: "sunflower")])
+        p.mode = "booster"; p.modeClock = true; p.keepBlessing = true; p.blessingMinutes = 55
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try p.save(to: u)
+        let q = try Profile.load(u)
+        XCTAssertTrue(q.modeClock && q.keepBlessing); XCTAssertEqual(q.blessingMinutes, 55)
+    }
+}
+
+extension GameLoopTests {
+    func testBlessingReturnComesTenMinutesBeforeItRunsOut() {
+        let f = GameFixture(fillPerS: 0.1)                                   // a field takes about 15 minutes to fill
+        let pw = PictureWorld(f.world, visible: ["balloon_blessing"])
+        let g = Game(actuator: f.act, sensors: pw, settings: f.game.settings, clock: f.clock,
+                     status: { a, b in f.log.items.append((a, b)) }, windowSize: { (0, 0, 1600, 900) },
+                     pathLookup: { kind, name, _ in
+                         kind == "to_field" ? PathFile(name: name, steps: [Step(type: "gotoramp"), .walk(["s"], tiles: 9), .rotate("right", count: 2), .walk(["d"], tiles: 29)])
+                                            : PathFile(name: name, steps: [.walk(["a"], tiles: 3)])
+                     })
+        var sun = FieldConfig(name: "sunflower"); sun.backpackPercent = 90; sun.returnMethod = "reset"
+        var p = Profile(fields: [sun]); p.mode = "booster"; p.boosters = []; p.keepBlessing = true; p.blessingMinutes = 12
+        let loop = FarmLoop(g, profile: p, extras: GameLoopTests.BoosterRunner(), maxCycles: 3, unixNow: { 1_000 + f.clock.now() })
+        _ = loop.run()
+        let said = f.log.items.map(\.1)
+        XCTAssertTrue(said.contains("back to the hive for the balloon blessing"), "\(said)")
     }
 }

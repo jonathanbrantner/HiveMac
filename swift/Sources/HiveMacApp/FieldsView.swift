@@ -6,13 +6,12 @@ struct FieldsView: View {
     @State private var renaming = false
     @State private var nameDraft = ""
     @StateObject private var reorder = Reorder()
+    @State private var showBoosts = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.s2) {
-                Choice(options: model.runs.map { ($0.file, $0.name) },
-                       selection: Binding(get: { model.activeRunFile }, set: { model.switchRun($0) }), width: 200)
-                    .disabled(model.running)
+                RunPicker().disabled(model.running)
                 Menu {
                     Button("New run") { model.addRun(named: nextName(), copying: nil); begin() }
                     Button("Duplicate this run") { model.addRun(named: model.profile.name + " copy", copying: model.profile); begin() }
@@ -22,6 +21,8 @@ struct FieldsView: View {
                 } label: { Text("Manage") }
                 .menuStyle(.button).buttonStyle(QuietButtonStyle()).fixedSize().disabled(model.running)
                 Spacer()
+                if !model.profile.isSpecialMode { Button("Collapse") { model.collapseTick += 1 }.buttonStyle(QuietButtonStyle()).help("Fold every step shut") }
+                AllFieldsButton().disabled(model.running)
             }
             .padding(.horizontal, Theme.s6).padding(.top, Theme.s4)
             .alert("Name this run", isPresented: $renaming) {
@@ -32,22 +33,26 @@ struct FieldsView: View {
 
             HiveSlotPicker()
                 .padding(.horizontal, Theme.s6).padding(.top, Theme.s3)
+            Fold(title: "Run mode" + boostSummary, isOpen: $showBoosts) { ModeRow().padding(.leading, 14) }
+                .padding(.horizontal, Theme.s6).padding(.top, Theme.s2)
 
+            if model.profile.isSpecialMode {
+                Text("When there is nothing else to do").font(Theme.caption).foregroundStyle(Theme.dust)
+                    .padding(.horizontal, Theme.s6).padding(.top, Theme.s4)
+            }
             HStack(spacing: Theme.s2) {
                 Color.clear.frame(width: 24, height: 1)
                 Text("Field").frame(width: 100, alignment: .leading)
-                Text("Minutes").frame(width: 56, alignment: .leading)
-                Text("Pack %").frame(width: 56, alignment: .leading)
-                Text("Return").frame(width: 76, alignment: .leading)
-                Text("Travel").frame(width: 88, alignment: .leading)
-                Text("Pattern").frame(width: 132, alignment: .leading)
+                Text("Minutes").frame(width: 56, alignment: .leading).help("The most time to spend here")
+                Text("Stop at %").frame(width: 56, alignment: .leading).help("Leave the field when the backpack is this full")
+                Text("Pattern").frame(width: 140, alignment: .leading)
             }
             .font(Theme.caption).foregroundStyle(Theme.dust)
             .padding(.horizontal, Theme.s6).padding(.top, Theme.s4).padding(.bottom, Theme.s1)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(model.profile.orderKeys, id: \.self) { key in
+                    ForEach(model.profile.isSpecialMode ? Array(model.profile.orderKeys.filter { $0.hasPrefix("f:") }.prefix(1)) : model.profile.orderKeys, id: \.self) { key in
                         VStack(spacing: 0) {
                             rowView(key)
                             Divider().overlay(Theme.grain.opacity(0.6))
@@ -60,10 +65,6 @@ struct FieldsView: View {
                         .zIndex(reorder.dragging == key ? 1 : 0)
                         .shadow(color: .black.opacity(reorder.dragging == key ? 0.35 : 0), radius: 8, y: 2)
                     }
-                    if !model.profile.extras.isEmpty {
-                        Text("Bug runs, planters and pickups are saved with this run. HiveMac does not run them yet.")
-                            .font(Theme.caption).foregroundStyle(Theme.dust).frame(maxWidth: .infinity, alignment: .leading)
-                    }
                 }
                 .padding(.horizontal, Theme.s6)
                 .coordinateSpace(name: "rows")
@@ -72,22 +73,7 @@ struct FieldsView: View {
             .environmentObject(reorder)
 
             HStack {
-                Menu {
-                    Menu("Field") {
-                        ForEach(FieldDefaults.order, id: \.self) { name in
-                            Button(name.capitalized + (!FieldColors.recommended(for: model.hive.color).isEmpty && FieldColors.table[name] == model.hive.color ? "  (fits your bees)" : "")) {
-                                var f = FieldConfig(name: name)
-                                f.backpackPercent = model.hive.backpackPercent
-                                model.profile.fields.append(f)
-                            }
-                            .disabled(model.profile.fields.contains { $0.name == name })
-                        }
-                    }
-                    Button("Bug run") { model.profile.extras.append(ExtraStep(kind: "bug_run")) }
-                    Button("Clock and dispensers") { model.profile.extras.append(ExtraStep(kind: "pickups")) }
-                    Button("Planters") { model.profile.extras.append(ExtraStep(kind: "planters")) }
-                } label: { Text("Add") }
-                .menuStyle(.button).buttonStyle(QuietButtonStyle()).fixedSize()
+                if !model.profile.isSpecialMode { AddButton() }
                 Spacer()
                 Text("Round: \(roundMinutes)").font(Theme.caption).foregroundStyle(Theme.dust)
             }
@@ -100,17 +86,27 @@ struct FieldsView: View {
 
 extension FieldsView {
     @ViewBuilder func rowView(_ key: String) -> some View {
-        if key.hasPrefix("f:"), let i = model.profile.fields.firstIndex(where: { "f:" + $0.name == key }) {
-            FieldRow(field: $model.profile.fields[i], key: key) { model.profile.fields.remove(at: i) }
+        if key.hasPrefix("f:"), let i = model.profile.fields.firstIndex(where: { "f:" + $0.id.uuidString == key }) {
+            FieldRow(field: $model.profile.fields[i], key: key, taken: model.profile.fields.map(\.name)) { model.profile.fields.remove(at: i) }
         } else if let i = model.profile.extras.firstIndex(where: { "e:" + $0.id.uuidString == key }) {
             ExtraRow(step: $model.profile.extras[i], key: key) { model.profile.extras.remove(at: i) }
+
         }
     }
     var roundMinutes: String {
-        let m = model.profile.fields.filter(\.enabled).reduce(0) { $0 + $1.minutes }
-        let base = m >= 120 ? String(format: "%.1f h", m / 60) : "\(Int(m.rounded())) min"
-        let extras = model.profile.extras.filter(\.enabled).count
-        return extras == 0 ? base : base + " in fields, plus \(extras) extra step\(extras == 1 ? "" : "s")"
+        func text(_ m: Double) -> String { m >= 120 ? String(format: "%.1f h", m / 60) : "\(Int(m.rounded())) min" }
+        let fields = model.profile.fields.filter(\.enabled).reduce(0) { $0 + $1.minutes }
+        let steps = model.profile.extras.filter(\.enabled)
+        let extra = steps.reduce(0) { $0 + $1.estimatedMinutes }
+        if steps.isEmpty { return text(fields) }
+        return "about \(text(fields + extra)): \(text(fields)) in fields, up to \(text(extra)) in \(steps.count) step\(steps.count == 1 ? "" : "s")"
+    }
+    var boostSummary: String {
+        switch model.profile.mode {
+        case "booster": return ": booster mode"
+        case "quests": return ": \(model.profile.questGiver)"
+        default: return model.profile.autoBoost.enabled ? ": auto boost" : ""
+        }
     }
     func begin() { nameDraft = model.profile.name; renaming = true }
     func nextName() -> String { "Run \(model.runs.count + 1)" }

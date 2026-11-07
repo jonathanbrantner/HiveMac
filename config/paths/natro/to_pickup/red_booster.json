@@ -1,0 +1,119 @@
+{
+ "name": "red_booster",
+ "source": "NatroMacro paths/gtb-red.ahk (walk branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "a"
+   ],
+   "tiles": 67.5
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 4
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 31.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 9.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 9.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 58.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 49.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 20.25
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 4
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 60.75
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 2
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s"
+   ],
+   "tiles": 9.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "s",
+    "d"
+   ],
+   "tiles": 15.75
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 29.7
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w"
+   ],
+   "tiles": 11.25
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 13.5
+  }
+ ]
+}

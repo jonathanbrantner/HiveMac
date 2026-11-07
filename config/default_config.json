@@ -37,21 +37,56 @@
     ]
   },
   "hud": {
-    "calibrated": false,
-    "backpack_pixel": null,
-    "health_pixel": null,
-    "hive_prompt_region": null,
+    "calibrated": true,
+    "backpack_pixel": {
+      "fx": 0.5433869839048285,
+      "fy": 0.04745762711864407
+    },
+    "health_pixel": {
+      "fx": 0.947515745276417,
+      "fy": 0.04067796610169491
+    },
+    "hive_prompt_region": {
+      "fh": 0.1231638418079096,
+      "fw": 0.2890132960111966,
+      "fx": 0.3561931420573828,
+      "fy": 0.048587570621468935
+    },
     "hive_prompt_template": "hive_prompt.png",
-    "hive_view_region": null,
-    "hive_view_template": "hive_view.png",
-    "hive_strip_region": null,
+    "hive_view_region": {
+      "fh": 1,
+      "fw": 0.4793561931420574,
+      "fx": 0.26801959412176346,
+      "fy": 0
+    },
+    "hive_view_template": "",
+    "hive_strip_region": {
+      "fh": 0.011210762331838564,
+      "fw": 0.13995801259622112,
+      "fx": 0.43002099370188945,
+      "fy": 0.9887892376681614
+    },
     "hive_strip_enabled": false,
     "hive_strip_min_pixels": 40,
     "cannon_prompt_template": "cannon_prompt.png",
     "death_region": null,
     "death_template": "",
     "backpack_filter_size": 6,
-    "template_tolerance": 12
+    "template_tolerance": 12,
+    "backpack_bar": {
+      "fh": 0.0384180790960452,
+      "fw": 0.16165150454863542,
+      "fx": 0.5353393981805459,
+      "fy": 0.02824858757062147
+    },
+    "hive_message_region": {
+      "fh": 0.14689265536723164,
+      "fw": 0.363890832750175,
+      "fx": 0.3180545836249125,
+      "fy": 0.06892655367231638
+    },
+    "hive_prompt_empty_template": "hive_prompt_empty.png",
+    "hive_prompt_stop_template": "hive_prompt_stop.png"
   },
   "screen": {
     "roblox_window": {

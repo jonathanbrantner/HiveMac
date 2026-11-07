@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **New, untested in the real game (may not work):** run modes None, Booster mode and Quests with one idle field; quests for five givers (read from the quest log by OCR, with mob-aware waits for Polar Bear); Wealth clock and Keep balloon blessing in the modes; memory match by tile colour; pickup routes rewritten (cannon and walking fallback) with the prompt checked; log and snapshot size limits; two settings places (gear for the app, Settings tab for the macro).
+- The stop key is now armed only during a run, so it can be typed in text fields otherwise.
+- Tested in the real game: fields, bug runs and collecting pickups work. Planters and Mondo Chick are built and still in beta.
+- Bug runs now look for the mob's health bar and fight until it is gone, and gathering in a mob's own field counts as hunting it. New step: Mondo Chick.
+- The hive, camera and cannon checks read the words and the honeycomb on screen instead of matching pictures, and the backpack is read from the numbers in the Pollen bar.
+- Practice mode (reads the screen, presses nothing), Save snapshot in the Log tab, and bug runs, planters and pickups now take their turn between fields in the order you set and the clock, dispensers, passes and field boosters are collected (route, E press, timer). Bug runs go to the mob's field and gather with the tool for 90 s. Untested in the real game. Planters are built too (open the inventory, drag the planter on, Yes; harvest with E, replant), clicking only after the picture it aims at is found. Coconut crab, king beetle and black bear are still not built.
 - Removed the older Python app. HiveMac is the native Swift app only.
 - Drag to reorder, bug runs anywhere in a run, planter timers, hotbar section, simpler Calibrate.
 

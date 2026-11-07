@@ -1,0 +1,94 @@
+{
+ "name": "memory_match_winter_cannon",
+ "source": "NatroMacro paths/gtc-wintermm.ahk (cannon branch)",
+ "walk_speed": 28.0,
+ "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
+ "steps": [
+  {
+   "type": "gotoramp"
+  },
+  {
+   "type": "gotocannon"
+  },
+  {
+   "type": "wait",
+   "seconds": 0.1
+  },
+  {
+   "type": "tap",
+   "key": "e"
+  },
+  {
+   "type": "keydown",
+   "keys": [
+    "d",
+    "s"
+   ]
+  },
+  {
+   "type": "wait",
+   "seconds": 1.15
+  },
+  {
+   "type": "tap",
+   "key": "space",
+   "count": 2
+  },
+  {
+   "type": "wait",
+   "seconds": 4.05
+  },
+  {
+   "type": "keyup",
+   "keys": [
+    "d",
+    "s"
+   ]
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "d"
+   ],
+   "seconds": 1.0
+  },
+  {
+   "type": "wait",
+   "seconds": 2.2
+  },
+  {
+   "type": "rotate",
+   "direction": "right",
+   "count": 4
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 14.0
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "w",
+    "a"
+   ],
+   "tiles": 4.0
+  },
+  {
+   "type": "hold",
+   "keys": [
+    "space"
+   ],
+   "seconds": 0.5
+  },
+  {
+   "type": "walk",
+   "keys": [
+    "a"
+   ],
+   "tiles": 8.5
+  }
+ ]
+}

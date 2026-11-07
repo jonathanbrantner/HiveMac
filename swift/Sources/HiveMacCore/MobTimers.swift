@@ -6,14 +6,22 @@ import Foundation
 public struct MobTimers: Equatable, Sendable {
     public static let respawn: [String: TimeInterval] = [
         "ladybug": 330, "rhino beetle": 330, "spider": 1830, "mantis": 1230, "scorpion": 1230,
-        "werewolf": 3630, "king beetle": 24 * 3600, "coconut crab": 36 * 3600,
+        "werewolf": 3630, "king beetle": 24 * 3600, "coconut crab": 36 * 3600, "tunnel bear": 48 * 3600, "stump snail": 96 * 3600,
         // Timed pickups (Natro's cooldowns): same timer logic, not mobs.
         "wealth clock": 3600, "honey dispenser": 3600, "treat dispenser": 3600,
         "blueberry dispenser": 4 * 3600, "strawberry dispenser": 4 * 3600, "coconut dispenser": 4 * 3600,
         "honeystorm": 4 * 3600, "ant pass": 2 * 3600, "robo pass": 22 * 3600,
+        "mondo chick": 16 * 60,
+        "black bear quest": 3600, "polar bear quest": 3600, "brown bear quest": 3600, "bucko bee quest": 0, "riley bee quest": 0,
+        "normal memory match": 2 * 3600, "mega memory match": 4 * 3600, "extreme memory match": 8 * 3600, "blue booster": 45 * 60, "red booster": 45 * 60, "mountain booster": 45 * 60,
     ]
+    /// What the Clock and dispensers step offers. The boosters are in Booster mode, not here.
     public static let pickups = ["wealth clock", "honey dispenser", "treat dispenser", "blueberry dispenser",
-                                 "strawberry dispenser", "coconut dispenser", "honeystorm", "ant pass", "robo pass"]
+                                 "strawberry dispenser", "honeystorm", "ant pass", "robo pass"]
+    /// The four dispensers.
+    public static let dispenserPickups = ["strawberry dispenser", "treat dispenser", "blueberry dispenser", "honey dispenser"]
+    /// The ones bought with tickets.
+    public static let ticketPickups = ["ant pass", "robo pass"]
 
     public private(set) var lastDone: [String: TimeInterval] = [:]
 
@@ -30,6 +38,12 @@ public struct MobTimers: Equatable, Sendable {
     /// The selected mobs that are back, in the order given.
     public func due(_ selected: [String], now: TimeInterval) -> [String] {
         selected.filter { isReady($0, now: now) }
+    }
+
+    /// The game told us how long is left: make our timer agree with it.
+    public mutating func setRemaining(_ name: String, seconds: TimeInterval, now: TimeInterval) {
+        guard let wait = Self.respawn[name] else { return }
+        lastDone[name] = now - (wait - seconds)
     }
 
     public mutating func markDone(_ mob: String, at now: TimeInterval) { lastDone[mob] = now }

@@ -22,6 +22,8 @@ struct LogView: View {
             HStack {
                 Text("\(model.log.count) lines").font(Theme.caption).foregroundStyle(Theme.dust)
                 Spacer()
+                Button("Save snapshot") { model.saveSnapshot() }
+                    .buttonStyle(QuietButtonStyle()).help("Saves the Roblox window, readings, settings and log into one folder")
                 Button("Copy log") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(model.log.joined(separator: "\n"), forType: .string)

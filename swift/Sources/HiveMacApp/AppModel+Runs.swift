@@ -52,12 +52,13 @@ extension AppModel {
 
     var canDeleteRun: Bool { runs.count > 1 && !running }
 
-    func deleteRun() {
+    /// Deletes a run (the open one when `file` is nil). The next run in the list opens if it was the open one.
+    func deleteRun(_ file: String? = nil) {
         guard canDeleteRun else { return }
-        let gone = activeRunFile
+        let gone = file ?? activeRunFile
         try? FileManager.default.removeItem(at: dirs.profiles.appendingPathComponent(gone))
         refreshRuns()
-        if let next = runs.first?.file { activeRunFile = ""; switchRun(next) }
+        if gone == activeRunFile, let next = runs.first?.file { activeRunFile = ""; switchRun(next) }
     }
 
     func saveSettings() {

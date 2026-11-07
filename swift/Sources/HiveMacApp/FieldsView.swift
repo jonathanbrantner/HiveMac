@@ -11,9 +11,7 @@ struct FieldsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.s2) {
-                Choice(options: model.runs.map { ($0.file, $0.name) },
-                       selection: Binding(get: { model.activeRunFile }, set: { model.switchRun($0) }), width: 200)
-                    .disabled(model.running)
+                RunPicker().disabled(model.running)
                 Menu {
                     Button("New run") { model.addRun(named: nextName(), copying: nil); begin() }
                     Button("Duplicate this run") { model.addRun(named: model.profile.name + " copy", copying: model.profile); begin() }

@@ -140,7 +140,7 @@ extension AppModel {
             r.windowText = win.map { "Roblox found, \($0.width) by \($0.height)" } ?? "Roblox not found"
             r.calibrated = store.bool("hud.calibrated")
             if allowed, let win, r.calibrated {
-                let hud = HudConfig(store: store) { ScreenCapture.loadPNG(dirs.templates.appendingPathComponent($0)) }
+                let hud = HudConfig(store: store) { [templates = dirs.templates] in Self.hudPicture($0, templates: templates) }
                 let s = ScreenSensors(screen: capture, window: { win }, config: hud)
                 s.textReader = BarText.read
                 if let raw = s.backpackRaw() { r.backpack = raw }
@@ -181,7 +181,7 @@ extension AppModel {
         var extra = ""
         if let win = robloxBounds, permissions.screenRecording {
             let templates = dirs.templates, images = Self.builtInImages
-            let hud = HudConfig(store: store) { ScreenCapture.loadPNG(templates.appendingPathComponent($0)) }
+            let hud = HudConfig(store: store) { Self.hudPicture($0, templates: templates) }
             let sensors = ScreenSensors(screen: capture, window: { win }, config: hud) { name in
                 ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
             }

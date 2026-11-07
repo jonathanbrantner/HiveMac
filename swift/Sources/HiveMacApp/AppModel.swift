@@ -145,6 +145,13 @@ final class AppModel: ObservableObject {
 
     static func findBuiltInPaths() -> URL { resource("paths", dev: "config/paths/natro") }
     static var builtInImages: URL { resource("images", dev: "config/images/natro") }
+    static var builtInHud: URL { resource("hud", dev: "config/images/hud") }
+
+    /// A HUD picture: the user's own calibration picture if there is one, else the one shipped in the app.
+    static func hudPicture(_ name: String, templates: URL) -> RGBImage? {
+        ScreenCapture.loadPNG(templates.appendingPathComponent(name)) ?? ScreenCapture.loadPNG(builtInHud.appendingPathComponent(name))
+    }
+
     static func findDefaultConfig() -> URL { resource("default_config.json", dev: "config/default_config.json") }
 
     static func openLog(_ url: URL) -> FileHandle? {
@@ -184,7 +191,7 @@ final class AppModel: ObservableObject {
         if store.bool("app.practice_mode", false) { settings.respawnTimeoutS = 0.3; settings.resetWaitS = 0.5; settings.convertTimeoutS = 5 }
         stopSignal.clear(); pauseSignal.clear()
 
-        let hud = HudConfig(store: store) { name in ScreenCapture.loadPNG(self.dirs.templates.appendingPathComponent(name)) }
+        let hud = HudConfig(store: store) { [templates = dirs.templates] in Self.hudPicture($0, templates: templates) }
         let images = Self.builtInImages, templates = dirs.templates
         let screenSensors = ScreenSensors(screen: capture, window: { [store] in Self.bounds(store) }, config: hud) { name in
             ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))

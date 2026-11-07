@@ -126,3 +126,16 @@ final class PlanterTimerTests: XCTestCase {
         XCTAssertEqual(pl.growHours(0), 3)
     }
 }
+
+final class RoundEstimateTests: XCTestCase {
+    func testStepsAddToTheRoundEstimate() {
+        var clock = ExtraStep(kind: "pickups"); clock.bugs = ["wealth clock", "honey dispenser"]
+        var memory = ExtraStep(kind: "memory"); memory.bugs = ["normal memory match"]
+        var planters = ExtraStep(kind: "planters"); planters.planterFields = ["pine tree", "", "bamboo"]
+        XCTAssertEqual(clock.estimatedMinutes, 1.4, accuracy: 0.01)
+        XCTAssertEqual(memory.estimatedMinutes, 3)
+        XCTAssertEqual(planters.estimatedMinutes, 4)
+        memory.enabled = false
+        XCTAssertEqual(memory.estimatedMinutes, 0)
+    }
+}

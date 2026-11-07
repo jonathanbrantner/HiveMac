@@ -85,6 +85,21 @@ public struct ExtraStep: Equatable, Identifiable, Sendable {
         (0..<3).filter { planterRemaining($0, now: now) == 0 }
     }
 
+    /// A rough upper bound for one visit, in minutes, for the "Round" line. A step only runs when something in it is due,
+    /// so most rounds take less. Walks to a pickup are about 40 seconds, a memory match about 3 minutes.
+    public var estimatedMinutes: Double {
+        guard enabled else { return 0 }
+        switch kind {
+        case "pickups": return 0.7 * Double(bugs.count)
+        case "memory": return 3.0 * Double(bugs.count)
+        case "mondo": return 3
+        case "planters": return 2.0 * Double(planterFields.filter { !$0.isEmpty }.count)
+        case "bug_run":
+            return bugs.reduce(0) { $0 + ($1 == "mondo chick" ? 3.0 : Bosses.spec($1) != nil ? 6.0 : 1.5) }
+        default: return 0
+        }
+    }
+
     public init(kind: String) { self.kind = kind; if kind == "pickups" { bugs = ["wealth clock", "honey dispenser"] } else if kind == "mondo" { bugs = [] } else if kind == "memory" { bugs = ["normal memory match"] } else if kind == "quests" { bugs = QuestGivers.all } }
 
     public init(json d: [String: Any]) {

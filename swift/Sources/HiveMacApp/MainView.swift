@@ -15,7 +15,7 @@ struct MainView: View {
     var body: some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: 0).onAppear(perform: installClickAway)
-            HeaderView()
+            HeaderView(tab: $tab)
             Divider().overlay(Theme.grain)
             VStack(alignment: .leading, spacing: Theme.s3) {
                 BackpackBar(percent: model.backpack, active: model.running && !model.paused)
@@ -43,13 +43,13 @@ struct MainView: View {
         .tint(Theme.honey)
         .onAppear {
             model.refreshLive()
-            if !model.live.windowFound && ProcessInfo.processInfo.environment["HIVEMAC_TAB"] == nil { tab = .settings }
         }
     }
 }
 
 struct HeaderView: View {
     @EnvironmentObject var model: AppModel
+    @Binding var tab: Tab
 
     private var dot: Color {
         switch model.state {
@@ -75,6 +75,10 @@ struct HeaderView: View {
             HexDot(color: dot)
             Text(model.state.label).font(Theme.bodyStrong).foregroundStyle(Theme.wax)
             Text(timer).font(Theme.figure).foregroundStyle(Theme.resin)
+            Button { tab = .settings } label: {
+                Image(systemName: "gearshape").font(.system(size: 15)).foregroundStyle(tab == .settings ? Theme.honeyText : Theme.resin)
+            }
+            .buttonStyle(.plain).help("Settings").padding(.leading, Theme.s2)
         }
         .padding(.horizontal, Theme.s6)
         .frame(height: 52)

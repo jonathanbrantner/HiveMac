@@ -98,10 +98,12 @@ extension FieldsView {
         }
     }
     var roundMinutes: String {
-        let m = model.profile.fields.filter(\.enabled).reduce(0) { $0 + $1.minutes }
-        let base = m >= 120 ? String(format: "%.1f h", m / 60) : "\(Int(m.rounded())) min"
-        let extras = model.profile.extras.filter(\.enabled).count
-        return extras == 0 ? base : base + " in fields, plus \(extras) extra step\(extras == 1 ? "" : "s")"
+        func text(_ m: Double) -> String { m >= 120 ? String(format: "%.1f h", m / 60) : "\(Int(m.rounded())) min" }
+        let fields = model.profile.fields.filter(\.enabled).reduce(0) { $0 + $1.minutes }
+        let steps = model.profile.extras.filter(\.enabled)
+        let extra = steps.reduce(0) { $0 + $1.estimatedMinutes }
+        if steps.isEmpty { return text(fields) }
+        return "about \(text(fields + extra)): \(text(fields)) in fields, up to \(text(extra)) in \(steps.count) step\(steps.count == 1 ? "" : "s")"
     }
     var boostSummary: String {
         switch model.profile.mode {

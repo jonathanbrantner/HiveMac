@@ -6,7 +6,7 @@ struct ExtraRow: View {
     @Binding var step: ExtraStep
     var key: String
     var remove: () -> Void
-    @State private var open = true
+    @State private var open = ProcessInfo.processInfo.environment["HIVEMAC_OPEN"] != nil
 
     private var title: String {
         switch step.kind { case "planters": "Planters"; case "pickups": "Clock and dispensers"; case "mondo": "Mondo Chick"; case "memory": "Memory match"; case "quests": "Quests"; default: "Bug run" }

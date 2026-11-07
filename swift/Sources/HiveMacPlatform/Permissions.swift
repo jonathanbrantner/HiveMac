@@ -61,4 +61,15 @@ public enum Permissions {
             NSWorkspace.shared.open(url)
         }
     }
+
+    /// Forgets every permission macOS has stored for this app (Screen Recording, Accessibility, Input
+    /// Monitoring). Fixes entries that went stale after a build signed a different way; the app asks again.
+    @discardableResult
+    public static func reset() -> Bool {
+        guard let id = Bundle.main.bundleIdentifier else { return false }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        p.arguments = ["reset", "All", id]
+        do { try p.run(); p.waitUntilExit(); return p.terminationStatus == 0 } catch { return false }
+    }
 }

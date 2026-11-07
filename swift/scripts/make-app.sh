@@ -59,7 +59,7 @@ if [ -n "$IDENTITY" ]; then
     echo "Signing with identity $IDENTITY"
     codesign --force --sign "$IDENTITY" "$APP"
 else
-    echo "No signing identity found, signing ad hoc (permissions reset after each build)"
+    echo "No Apple Development certificate found: signing ad hoc, so macOS forgets the permissions after each build. Create one free in Xcode (Settings, Accounts) to keep them."
     codesign --force --sign - "$APP"
 fi
 echo "Built swift/$APP ($(du -sh "$APP" | cut -f1))"

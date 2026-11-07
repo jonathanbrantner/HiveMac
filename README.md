@@ -61,8 +61,13 @@ scripts/make-app.sh
 open build/HiveMac.app        # or copy it to /Applications
 ```
 
-On the first run macOS asks for **Screen Recording** and **Accessibility**. The gear at the top
-right shows their state. **Input Monitoring** is only needed to record your own walks.
+On the first run macOS asks for **Screen Recording** and **Accessibility**. The Settings tab shows their state.
+
+**Keeping the permissions.** macOS ties them to how the app is signed. `make-app.sh` signs with your
+Apple Development certificate when you have one (free with any Apple ID, create it in Xcode under
+Settings, Accounts), and then the permissions stay through every update. Without one it signs ad hoc, and
+macOS forgets the permissions after each build. If a permission shows as on but does nothing, use
+Settings, More, Permissions, Reset and ask again.
 
 ## Quick start
 
@@ -75,10 +80,10 @@ right shows their state. **Input Monitoring** is only needed to record your own 
 
 | Problem | Try this |
 |---|---|
-| "Roblox was not found" | Open Roblox first, then press Detect Roblox. Check the window or full screen choice in the Macro tab. |
+| "Roblox was not found" | Open Roblox first, then press Detect Roblox. Check the window or full screen choice in the Settings tab. |
 | Start does nothing or stops at once | Turn on Screen Recording and Accessibility for HiveMac in System Settings, then reopen the app. |
-| The character walks the wrong way | Check your hive slot on the Fields tab, and your walk speed without buffs on the Macro tab. |
-| Resets fail or loop | Stand in your hive, press Detect Roblox again, and see Advanced under Calibrate for the optional pictures. |
+| The character walks the wrong way | Check your hive slot on the Fields tab, and your walk speed without buffs in the Settings tab. |
+| Resets fail or loop | Stand in your hive, press Detect Roblox again, and see More in Settings for the optional pictures. |
 | Cannon travel fails | You need the Red Cannon and the Glider unlocked. Switch Default travel back to Walk to test. |
 
 Still stuck? Open an issue. The template asks for the few details that help most.

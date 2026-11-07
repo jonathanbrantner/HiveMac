@@ -52,6 +52,12 @@ struct MoreAppSettings: View {
             }
             if let m = model.remoteMessage { Text(m).font(Theme.caption).foregroundStyle(Theme.ember) }
             UpdateRow(checker: updates)
+            SettingRow(label: "Permissions") {
+                Button("Reset and ask again") {
+                    Permissions.reset(); Permissions.request(.screenRecording); Permissions.request(.accessibility)
+                    model.refreshPermissions()
+                }.buttonStyle(QuietButtonStyle()).help("For when a permission shows as on but does nothing. Then quit and reopen HiveMac.")
+            }
             SettingRow(label: "Data folder") {
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([model.dirs.data]) }.buttonStyle(QuietButtonStyle())
             }

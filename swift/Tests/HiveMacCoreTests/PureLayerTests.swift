@@ -194,3 +194,11 @@ final class QuestBoxTests: XCTestCase {
         guard case .unsupported = QuestLog.tasks(in: QuestLog.box(for: "riley bee", in: log)!)[0].action else { return XCTFail() }
     }
 }
+
+final class QuestScrollTests: XCTestCase {
+    func testLastBoxIsCutOff() {
+        let text = "Black Bear: Any Pollen\nCollect 5 Pollen.\nRiley Bee: Rampage\nCollect 88 Rage Tokens."
+        XCTAssertTrue(QuestLog.isCutOff(QuestLog.box(for: "riley bee", in: text)!, in: text))
+        XCTAssertFalse(QuestLog.isCutOff(QuestLog.box(for: "black bear", in: text)!, in: text))
+    }
+}

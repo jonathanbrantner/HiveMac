@@ -16,9 +16,31 @@ extension Game {
     /// The speech box at the bottom middle.
     static let dialogRegion = RelRegion(fx: 0.34, fy: 0.62, fw: 0.34, fh: 0.34)
 
+    /// The giver's box in the quest log. The log scrolls, so when the box is not on screen it scrolls down a
+    /// little at a time until the text stops changing, then goes back to the top. A box cut off at the bottom
+    /// is read again after one more scroll, so no objective is missed.
     func readQuestBox(_ giver: String) -> String? {
-        guard let text = sensors.textIn(Game.logRegion) else { return nil }
-        return QuestLog.box(for: giver, in: text)
+        guard var text = sensors.textIn(Game.logRegion) else { return nil }
+        if let box = QuestLog.box(for: giver, in: text), !QuestLog.isCutOff(box, in: text) { return box }
+        guard let spot = sensors.point(fx: 0.1, fy: 0.55) else { return QuestLog.box(for: giver, in: text) }
+        actuator.moveMouse(spot.x, spot.y)
+        var scrolled = 0
+        var found: String? = QuestLog.box(for: giver, in: text)
+        for _ in 0..<12 where !stopped {
+            actuator.scroll(-4); scrolled += 1
+            wait(0.4)
+            guard let next = sensors.textIn(Game.logRegion) else { break }
+            if QuestLog.squash(next) == QuestLog.squash(text) { break }       // the end of the list
+            text = next
+            if let box = QuestLog.box(for: giver, in: text) {
+                found = box
+                if !QuestLog.isCutOff(box, in: text) { break }
+            }
+        }
+        actuator.scroll(scrolled * 4 + 8)                                      // back to the top
+        wait(0.3)
+        parkMouse()
+        return found
     }
 
     /// Presses E at the quest giver and clicks through the speech until it ends. Returns the last words said.

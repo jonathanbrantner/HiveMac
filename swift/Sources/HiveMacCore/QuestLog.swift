@@ -116,3 +116,11 @@ public extension QuestLog {
         return .unsupported(text)
     }
 }
+
+public extension QuestLog {
+    /// True when the box is the last thing in the text, so the bottom of the visible log may cut it short.
+    static func isCutOff(_ box: String, in text: String) -> Bool {
+        let t = QuestLog.squash(text), b = QuestLog.squash(box)
+        return t.hasSuffix(b)
+    }
+}

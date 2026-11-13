@@ -9,8 +9,8 @@
 stay on each, and press Start. About 30 MB of memory, no Python, no extra installs.
 
 <p align="center">
-  <img src="docs/images/shot-fields.png" width="360" alt="Fields tab: your run, one row per field">
-  <img src="docs/images/shot-macro.png" width="360" alt="Macro tab: hive, walking, sprinkler and hotbar">
+  <img src="docs/images/fields.png" width="360" alt="Fields tab: your run, one row per field">
+  <img src="docs/images/macro.png" width="360" alt="Macro tab: hive, walking, sprinkler and hotbar">
 </p>
 
 > **Beta.** The basics work in the real game: **gathering fields, mob runs (bug runs) and collecting

@@ -9,8 +9,8 @@
 stay on each, and press Start. About 30 MB of memory, no Python, no extra installs.
 
 <p align="center">
-  <img src="docs/images/shot-fields.png" width="360" alt="Fields tab: your run, one row per field">
-  <img src="docs/images/shot-macro.png" width="360" alt="Macro tab: hive, walking, sprinkler and hotbar">
+  <img src="docs/images/fields.png" width="360" alt="Fields tab: your run, one row per field">
+  <img src="docs/images/macro.png" width="360" alt="Macro tab: hive, walking, sprinkler and hotbar">
 </p>
 
 > **Beta.** The basics work in the real game: **gathering fields, mob runs (bug runs) and collecting
@@ -58,7 +58,12 @@ in a run and HiveMac keeps their timers, but the macro does not carry them out y
 
 ## Install
 
-There is no download yet. Build it yourself:
+**Download (beta):** the [releases page](https://github.com/jonathanbrantner/HiveMac/releases) has a zip. It is not
+notarized by Apple yet (that needs a paid developer account), so macOS can block it or even move it to the Trash as
+"malware". It is not malware, but Apple has no way to know that. On a Mac you manage, building it yourself
+(below) always works. On a school or work Mac the block comes from the owner's rules, so use your own Mac.
+
+Build it yourself:
 
 ```sh
 git clone https://github.com/jonathanbrantner/HiveMac.git

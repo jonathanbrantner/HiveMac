@@ -88,6 +88,40 @@ extension Game {
         return nil
     }
 
+    /// Last resort: walk an outward square spiral from where the route ended (arms of 1, 1, 2, 2, 3, 3 ... tiles) with the
+    /// prompt probe running, jumping at the start of each arm. Stops the moment the pickup's prompt shows.
+    private func spiralSearch(_ pickup: String, needles: [String]) -> String? {
+        func prompt() -> String? {
+            let t = sensors.promptText() ?? ""
+            return needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) ? t : nil
+        }
+        status("traveling", "\(pickup): spiral search around the end of the route")
+        walker.armProbe({ [self] in
+            let t = sensors.promptText() ?? ""
+            return t.contains("use th") && needles.contains(where: { t.contains($0) })
+        })
+        defer { walker.armProbe(nil) }
+        let dirs = [["d"], ["w"], ["a"], ["s"]]
+        var arm = 0
+        for ring in 1...7 {
+            for _ in 0..<2 {
+                if stopped || walker.probeHit { break }
+                let keys = dirs[arm % 4]; arm += 1
+                actuator.tap("space", holdS: Walker.jumpHoldS)
+                walker.walk(keys, tiles: Double(ring) * 1.5)
+                wait(0.3)
+                if walker.probeHit { break }
+                if let t = prompt() { walker.armProbe(nil); status("traveling", "\(pickup): found by the spiral search"); return t }
+            }
+            if walker.probeHit { break }
+        }
+        if walker.probeHit || prompt() != nil {
+            status("traveling", "\(pickup): found by the spiral search")
+            return prompt() ?? "use the \(pickup)"
+        }
+        return nil
+    }
+
     /// The wealth clock stands on a platform up a ladder, and the open-loop walk can end a little to the side of the
     /// ladder (seen live: the character stays on the grass below). Push into the cliff, and when nothing happens
     /// sidestep in small steps, right first and then left, until the clock prompt shows.
@@ -147,6 +181,7 @@ extension Game {
         if let t = first, t.isEmpty, let needles = Game.pickupWords[pickup] {
             if pickup == "wealth clock", let found = ladderSearch(pickup, needles: needles) { first = found }
             else if let found = creepSearch(pickup, needles: needles, forward: Game.creepOverride[pickup] ?? creepKeys(path)) { first = found }
+            if first?.isEmpty == true, let found = spiralSearch(pickup, needles: needles) { first = found }
         }
         let needles = Game.pickupWords[pickup]
         func atRightSpot(_ t: String) -> Bool { needles == nil || needles!.contains { t.contains($0) } }

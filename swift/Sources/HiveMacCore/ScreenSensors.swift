@@ -279,6 +279,17 @@ public final class ScreenSensors: Sensors {
         return Hud.mobHealthBars(img)
     }
 
+    /// What the hive message says right now: "stop" while honey is being made ("Stop Making Honey"), "make" when pollen is
+    /// waiting ("Make Honey"), "empty" when the bag is empty ("To Make Honey, Collect Pollen From Flower Fields"), nil when
+    /// it cannot be read. (This was missing, so the wait for the balloon pollen always gave up after five unreadable reads.)
+    public func hiveMessage() -> String? {
+        guard let text = hiveText(), !text.isEmpty else { return nil }
+        if text.contains("stop") && text.contains("making") { return "stop" }
+        if text.contains("collect pollen") || text.contains("flower fields") { return "empty" }
+        if text.contains("make honey") || text.contains("making honey") { return text.contains("stop") ? "stop" : "make" }
+        return nil
+    }
+
     /// True while the message says "Stop Making Honey" (E would turn converting off); false when it says
     /// "Make Honey" or the empty-bag message; nil when unknown.
     public func honeyRunning() -> Bool? {

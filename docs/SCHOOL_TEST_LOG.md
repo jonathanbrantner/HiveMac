@@ -69,3 +69,6 @@ Next: find the first step where each failing route leaves Natro's path (frames),
 - A failed pickup used to wander for minutes (sideways, star, creep search, then a repeat). Now one short search, no repeat.
 - Bear morph adds 4 speed, the stats panel is not open so walks use the settings speed (29). Not fixed yet.
 - The Mac must be kept awake (caffeinate) or it locks and the run dies.
+- 12:35 Pine Tree CANNON now arrives in the field. Cause: a screenshot was taken between the cannon steps (trace default on) and delayed the glider. Fixed: no pictures during cannon routes, trace default off, quick double jump step (jump2), 5 zoom taps, 10 s cannon prompt wait.
+- Bamboo and Blue Flower cannon tested once each: did NOT arrive (Bamboo ended at the hive, Blue Flower ended on a blue pad outside a field). Other 9 field cannon routes untested. Travel setting stays walk.
+- Wealth clock walk passes after widening the ladder search to the right.

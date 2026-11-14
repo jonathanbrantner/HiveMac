@@ -30,6 +30,11 @@ public enum WindowFinder {
     @discardableResult
     public static func focusRoblox() -> Bool {
         guard let app = NSWorkspace.shared.runningApplications.first(where: { ($0.localizedName ?? "").lowercased().contains("roblox") }) else { return false }
-        return app.activate()
+        return app.activate(options: [.activateAllWindows])
+    }
+
+    /// True while Roblox is the active application.
+    public static func robloxIsFront() -> Bool {
+        (NSWorkspace.shared.frontmostApplication?.localizedName ?? "").lowercased().contains("roblox")
     }
 }

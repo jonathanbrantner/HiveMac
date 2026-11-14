@@ -271,6 +271,12 @@ public final class Game {
     private func pressReset() {
         let s = settings
         focusHook?(); wait(0.6)
+        if let front = frontCheck {
+            for _ in 0..<5 where !front() && !stopped { focusHook?(); wait(0.6) }
+            if !front(), let w = windowSize() {            // a click on the title bar also activates the window
+                actuator.click(w.left + w.width / 2, w.top - 14); wait(0.7)
+            }
+        }
         guard let ws = windowSize() else { tap("esc"); wait(s.keyGapS); tap("r"); wait(s.keyGapS); tap("enter"); return }
         func at(_ fx: Double, _ fy: Double) -> (Int, Int) { (ws.left + Int(Double(ws.width) * fx), ws.top + Int(Double(ws.height) * fy)) }
         let burger = at(0.065, 0.048), respawn = at(0.076, 0.64)
@@ -474,6 +480,8 @@ public final class Game {
     public private(set) var probeEnded = false
     /// Brings the game window to the front. Clicks and keys only reach Roblox while it is the active app.
     public var focusHook: (() -> Void)?
+    /// True while the game window is the active app (nil when it cannot be told).
+    public var frontCheck: (() -> Bool)?
     /// Set by the route test to try one travel variant ("walk" or "cannon") on its own, with no fallback to the other.
     public var testVariant: String?
     /// Set by the route test: run only the first N steps of the route (to start a recording from a known point).

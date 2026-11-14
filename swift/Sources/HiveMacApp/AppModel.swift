@@ -276,7 +276,12 @@ final class AppModel: ObservableObject {
         pendingRouteTest = nil
         Thread.detachNewThread { [weak self] in
             let why: String
-            if let t = routeTest {
+            if let t = routeTest, t.name == "reset" {
+                // Reset, camera and nothing else: leaves the character at the hive, facing away, ready for a recording.
+                let ok = g.resetToHive()
+                g.status(ok ? "traveling" : "warning", "RESET ONLY: \(ok ? "ready at the hive" : "failed")")
+                why = "stopped"
+            } else if let t = routeTest {
                 // One route at a time: reset, camera, the walk, the prompt check. A pass is the right prompt at the end.
                 var passes = 0
                 g.testVariant = t.variant
@@ -318,7 +323,7 @@ final class AppModel: ObservableObject {
 
     /// Runs one pickup route `times` times in a row, from the hive, and logs PASS or FAIL for each.
     func startRouteTest(_ name: String, _ times: Int, _ variant: String = "walk") {
-        guard !running, Game.pickupWords[name] != nil else { append("Route test: unknown pickup \"\(name)\" or a run is going."); return }
+        guard !running, name == "reset" || Game.pickupWords[name] != nil else { append("Route test: unknown pickup \"\(name)\" or a run is going."); return }
         pendingRouteTest = (name, times, variant)
         start()
     }

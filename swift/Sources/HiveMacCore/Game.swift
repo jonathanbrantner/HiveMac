@@ -180,6 +180,40 @@ public final class Game {
         self.windowSize = windowSize; self.pathLookup = pathLookup
         self.walker = Walker(actuator: actuator, speed: SpeedModel(baseSpeed: settings.walkSpeed, multiplier: speedMultiplier),
                              clock: clock, stop: stop, pause: pause)
+        let outer = speedMultiplier
+        self.walker.speed.multiplier = { [unowned self] in outer() * self.learnedSpeedFactor }
+    }
+
+    /// The real walk speed divided by the speed in the settings, learned from walks that reached their pickup prompt
+    /// (it includes Haste, Bear Morph and every other speed buff at once). 1.0 until the first arrival.
+    public private(set) var learnedSpeedFactor = 1.0
+    public var onSpeedLearned: (Double) -> Void = { _ in }
+
+    /// Planned duration of a route at the current speed: walking and holds scale with speed, waits and taps do not.
+    func plannedSeconds(_ steps: [Step]) -> (scaled: Double, fixed: Double) {
+        var scaled = 0.0, fixed = 0.0
+        for st in steps {
+            switch st.type {
+            case "walk": scaled += speed.secondsForTiles(st.tiles)
+            case "hold": scaled += st.seconds
+            case "wait": fixed += st.seconds
+            case "rotate", "tap", "zoom": fixed += Double(st.count) * (Walker.tapHoldS + 0.12)
+            default: break
+            }
+        }
+        return (scaled, fixed)
+    }
+
+    /// One arrival: `walked` seconds of real time for a route whose scaled part was planned as `planned` seconds.
+    func learnSpeed(plannedScaled planned: Double, plannedFixed fixed: Double, elapsed: Double) {
+        let moving = elapsed - fixed
+        guard planned > 3, moving > 1 else { return }
+        let observed = max(0.5, min(1.6, learnedSpeedFactor * planned / moving))     // faster arrival: higher speed
+        let blended = learnedSpeedFactor * 0.4 + observed * 0.6
+        learnedSpeedFactor = max(0.5, min(1.6, blended))
+        status("traveling", String(format: "speed learned: arrived after %.1f s, plan said %.1f s, real speed is about %.0f (settings %.0f)",
+                                   elapsed, planned + fixed, settings.walkSpeed * learnedSpeedFactor, settings.walkSpeed))
+        onSpeedLearned(learnedSpeedFactor)
     }
 
     public var stopped: Bool { stop.isSet }
@@ -496,6 +530,11 @@ public final class Game {
         walker.armProbe(probe)
         probeEnded = false
         defer { walker.armProbe(nil) }
+        let startedAt = clock.now()
+        let plan = plannedSeconds(steps)
+        defer {
+            if probeEnded, !stopped, testPrefix == nil { learnSpeed(plannedScaled: plan.scaled, plannedFixed: plan.fixed, elapsed: clock.now() - startedAt) }
+        }
         for (i, step) in steps.enumerated() {
             if stopped { return false }
             if walker.probeHit { probeEnded = true; stepHook?(path.name, i + 1, steps.count, "prompt-seen-end"); return true }

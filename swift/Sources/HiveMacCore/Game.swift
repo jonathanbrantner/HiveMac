@@ -302,16 +302,26 @@ public final class Game {
         let s = settings
         var faced = true
         if sensors.hiveViewShare() != nil {
-            var best = -1.0, bestStep = 0
+            var best = -1.0
+            var shares = [Double](repeating: 0, count: 8)
             for step in 0..<8 {
                 if stopped { return false }
                 let share = sensors.hiveViewShare() ?? 0
-                if share > best { best = share; bestStep = step }
+                shares[step] = share
+                if share > best { best = share }
                 walker.rotate("right", taps: 1, leftKey: s.rotLeft, rightKey: s.rotRight)
                 wait(0.3)
             }
             if best >= s.hiveShareMin {
-                walker.rotate("right", taps: (bestStep + 4) % 8, leftKey: s.rotLeft, rightKey: s.rotRight)
+                // The heading with the least honeycomb in view (smoothed over its neighbours) is the one that faces away
+                // from the hive. Taking "the biggest share plus half a circle" went wrong when two headings looked alike.
+                var bestStep = 0, bestScore = Double.greatestFiniteMagnitude
+                for i in 0..<8 {
+                    let score = shares[i] + 0.5 * (shares[(i + 7) % 8] + shares[(i + 1) % 8])
+                    if score < bestScore { bestScore = score; bestStep = i }
+                }
+                status("resetting", "camera: shares " + shares.map { String(format: "%.0f", $0 * 100) }.joined(separator: " ") + " percent, facing away at turn \(bestStep)")
+                walker.rotate("right", taps: bestStep, leftKey: s.rotLeft, rightKey: s.rotRight)
             } else {
                 faced = false
                 status("warning", "the hive was not seen while turning the camera")

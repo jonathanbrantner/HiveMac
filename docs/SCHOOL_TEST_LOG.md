@@ -50,3 +50,15 @@ Next: read the real walk speed in game and test one route (honey dispenser, the 
 | Other pickups, booster mode, quests, memory match, planters, bug run | not tested since the fixes | |
 
 Tools added: route frame traces (traces/<time>-<route>/NN-step.png, reset frames too), the route test, the creep and ladder searches.
+
+## Status 2026-11-13 20:30 (end of first long session)
+Works in the real game: reset (menu button, Respawn, Enter), camera facing check, screen capture of the Roblox window, live walk
+speed from the stats panel (Movespeed line, pairs label and number by row), prompt probe that stops a pickup walk when the prompt
+shows, honey dispenser route (most runs pass), Sunflower field loop (53 min live run earlier), route frame traces, the one-route test
+(POST /api/testroute?name=&n=&travel=&prefix=).
+Not working: wealth clock, treat dispenser, blueberry dispenser end up in the Blue HQ area; the blueberry machine stands on a raised
+ledge behind a blue wall (frames in ~/Library/Application Support/HiveMac/traces). Strawberry, honeystorm, ant pass, robo pass, cannon
+variants, memory match, bug runs, planters, Booster mode, Quests, balloon blessing: not verified.
+Gotchas found: the stop key "-" is global during a run (typing a hyphen stops it); Esc does not open the Roblox menu on this client;
+Roblox must be the active app for clicks and keys; stray runs were killed by relaunching the app.
+Next: find the first step where each failing route leaves Natro's path (frames), starting with blueberry (needs a jump onto the ledge).

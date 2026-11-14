@@ -208,6 +208,14 @@ extension Game {
         if probeEnded { status("traveling", "\(pickup): the prompt showed during the walk, stopped there") }
         if pickup == "glue dispenser", testPrefix == nil {
             // The Gummy Bear lair opens when a gumdrop is dragged out of the inventory onto the screen, then it is 6 tiles in.
+            if !settings.gumdropsKey.isEmpty {
+                // Gumdrops sit on the hotbar: use one right here, then walk in.
+                focusHook?(); wait(0.3)
+                actuator.tap(settings.gumdropsKey, holdS: 0.15)
+                wait(1.0)
+                walker.walk(["w"], tiles: 6)
+                wait(0.8)
+            } else {
             guard openItemMenu() else { return .failed("glue dispenser: the inventory did not open") }
             guard findInInventory("gumdrops", maxScrolls: 60) != nil, let spot = sensors.find("gumdrops", in: RelRegion(fx: 0, fy: 0.12, fw: 0.25, fh: 0.88), tolerance: 5),
                   let w = windowSize() else {
@@ -221,6 +229,7 @@ extension Game {
             wait(0.8)
             walker.walk(["w"], tiles: 6)
             wait(0.8)
+            }
         }
 
         // What does the prompt say here?

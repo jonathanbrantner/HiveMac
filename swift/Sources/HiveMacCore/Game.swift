@@ -52,6 +52,8 @@ public extension Sensors {
 public struct GameSettings: Equatable, Sendable {
     public var walkSpeed = 28.0
     public var hiveSlot = 1
+    /// The hotbar key that holds the Gumdrops (the glue dispenser uses one at the Gummy Bear lair). Empty: use the inventory.
+    public var gumdropsKey = ""
     public var sprinklerType = "none"
     public var sprinklerSlotKey = "1"
     public var travel = "walk"              // default path variant: walk or cannon
@@ -89,7 +91,7 @@ public struct GameSettings: Equatable, Sendable {
     public init() {}
 
     public static func == (a: GameSettings, b: GameSettings) -> Bool {
-        a.walkSpeed == b.walkSpeed && a.hiveSlot == b.hiveSlot && a.travel == b.travel
+        a.walkSpeed == b.walkSpeed && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
             && a.zoomOutTaps == b.zoomOutTaps && a.resetWaitS == b.resetWaitS
             && a.mousePark.x == b.mousePark.x && a.mousePark.y == b.mousePark.y
     }

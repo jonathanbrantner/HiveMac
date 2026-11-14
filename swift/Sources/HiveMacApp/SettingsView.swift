@@ -24,7 +24,7 @@ struct SettingsView: View {
 
     static let hotbarItems: [(String, String)] = [
         ("", "Empty"), ("sprinkler", "Sprinkler"), ("micro-converter", "Micro-Converter"), ("glitter", "Glitter"),
-        ("enzymes", "Enzymes"), ("oil", "Oil"), ("glue", "Glue"), ("stinger", "Stinger"), ("other", "Something else")]
+        ("enzymes", "Enzymes"), ("oil", "Oil"), ("glue", "Glue"), ("gumdrops", "Gumdrops"), ("stinger", "Stinger"), ("other", "Something else")]
 
     /// What is in hotbar slot `n`. A sprinkler slot is also the key the macro presses to place it.
     private func hotbar(_ n: Int) -> Binding<String> {
@@ -39,6 +39,8 @@ struct SettingsView: View {
             model.set("game.hotbar.\(n)", item)
             if item == "sprinkler" { model.set("game.sprinkler_slot_key", "\(n)") }
             if item == "micro-converter" { model.set("game.micro_converter_key", "\(n)") }
+            if item == "gumdrops" { model.set("game.gumdrops_key", "\(n)") }
+            else if model.store.string("game.gumdrops_key", "") == "\(n)" { model.set("game.gumdrops_key", "") }
         })
     }
 

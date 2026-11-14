@@ -72,6 +72,7 @@ public final class ConfigStore {
         var s = GameSettings()
         s.walkSpeed = double("game.walk_speed", s.walkSpeed)
         s.hiveSlot = int("game.hive_slot", s.hiveSlot)
+        s.gumdropsKey = string("game.gumdrops_key", s.gumdropsKey)
         s.sprinklerType = string("game.sprinkler_type", s.sprinklerType)
         s.sprinklerSlotKey = string("game.sprinkler_slot_key", s.sprinklerSlotKey)
         s.travel = string("game.travel", s.travel)

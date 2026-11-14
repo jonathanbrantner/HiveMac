@@ -187,7 +187,7 @@ public final class Game {
                              clock: clock, stop: stop, pause: pause)
         let outer = speedMultiplier
         self.walker.speed.multiplier = { [unowned self] in outer() * self.learnedSpeedFactor }
-        self.walker.speedSampler = { [unowned self] in self.sensors.moveSpeed() }
+        // The speed comes from the settings (and the learned arrival factor), not from the game stats panel.
         self.walker.speed.live = { [unowned self] in self.walker.liveSpeed }
     }
 

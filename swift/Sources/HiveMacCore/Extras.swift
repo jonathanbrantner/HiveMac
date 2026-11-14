@@ -173,7 +173,7 @@ extension Game {
             return needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) ? t : nil
         }
         status("traveling", "\(pickup): not on the ladder, searching sideways")
-        let rightSteps = 5, leftSteps = 10
+        let rightSteps = 11, leftSteps = 6
         for _ in 0..<rightSteps where !stopped {
             actuator.keyDown("w"); wait(1.2); actuator.keyUp("w")
             if let t = prompt() { status("traveling", "\(pickup): found it after the sideways search"); return t }

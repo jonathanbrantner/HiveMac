@@ -245,6 +245,7 @@ final class AppModel: ObservableObject {
                          dirs.findPath(kind: kind, field: field, variant: variant, builtIn: builtIn).flatMap { try? PathFile.load($0) }
                      })
         game = g
+        g.focusHook = { DispatchQueue.main.sync { WindowFinder.focusRoblox() } }
         if store.bool("app.trace", true) { g.stepHook = RouteTrace.hook(root: dirs.data.appendingPathComponent("traces")) { [weak self] in self?.snapshotRoblox() } }
         let runner = GameExtraRunner(timers: mobTimers) { [weak self] t in
             DispatchQueue.main.async { self?.mobTimers = t; t.save(to: dirs.data.appendingPathComponent("mob_timers.json")) }

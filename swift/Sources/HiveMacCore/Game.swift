@@ -270,6 +270,7 @@ public final class Game {
     /// one in focus). Old menus (Esc, R, Enter) are tried first when the screen cannot be read.
     private func pressReset() {
         let s = settings
+        focusHook?(); wait(0.6)
         guard let ws = windowSize() else { tap("esc"); wait(s.keyGapS); tap("r"); wait(s.keyGapS); tap("enter"); return }
         func at(_ fx: Double, _ fy: Double) -> (Int, Int) { (ws.left + Int(Double(ws.width) * fx), ws.top + Int(Double(ws.height) * fy)) }
         let burger = at(0.065, 0.048), respawn = at(0.076, 0.64)
@@ -471,6 +472,8 @@ public final class Game {
 
     /// True when the last walkPath ended early because its probe fired (the prompt it looked for was on screen).
     public private(set) var probeEnded = false
+    /// Brings the game window to the front. Clicks and keys only reach Roblox while it is the active app.
+    public var focusHook: (() -> Void)?
     /// Set by the route test to try one travel variant ("walk" or "cannon") on its own, with no fallback to the other.
     public var testVariant: String?
 

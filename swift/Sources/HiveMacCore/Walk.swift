@@ -83,11 +83,19 @@ public final class Walker {
 
     public var stopped: Bool { stop.isSet }
 
+    /// Checked about twice a second while keys are held. When it returns true the walk ends at once, so a walk to a
+    /// pickup can stop the moment the game shows that pickup's prompt, whatever the walk speed was.
+    public private(set) var probeHit = false
+    private var probe: (() -> Bool)?
+    private var lastProbeAt = 0.0
+    public var probeEveryS = 0.5
+    public func armProbe(_ p: (() -> Bool)?) { probe = p; probeHit = false; lastProbeAt = clock.now() }
+
     /// Hold keys for `seconds` of effective (unpaused) time. Returns how long they were held.
     @discardableResult
     public func hold(_ keys: [String], _ seconds: Double) -> Double {
         var held = 0.0
-        if stop.isSet { return held }
+        if stop.isSet || probeHit { return held }
         keys.forEach(act.keyDown)
         defer { keys.forEach(act.keyUp) }
         var remaining = seconds
@@ -105,6 +113,10 @@ public final class Walker {
             if dt <= 0 { dt = step }
             held += dt
             remaining -= dt
+            if let probe, clock.now() - lastProbeAt >= probeEveryS {
+                lastProbeAt = clock.now()
+                if probe() { probeHit = true; break }
+            }
         }
         return held
     }

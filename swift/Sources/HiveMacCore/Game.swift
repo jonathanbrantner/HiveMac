@@ -457,13 +457,20 @@ public final class Game {
     /// Arguments: route name, step number, number of steps, a short description of the step just done.
     public var stepHook: ((String, Int, Int, String) -> Void)?
 
-    public func walkPath(_ path: PathFile) -> Bool {
+    /// True when the last walkPath ended early because its probe fired (the prompt it looked for was on screen).
+    public private(set) var probeEnded = false
+
+    public func walkPath(_ path: PathFile, probe: (() -> Bool)? = nil) -> Bool {
         setShiftLock(false)
         parkMouse()
         let steps = iterSteps(path)
         stepHook?(path.name, 0, steps.count, "start")
+        walker.armProbe(probe)
+        probeEnded = false
+        defer { walker.armProbe(nil) }
         for (i, step) in steps.enumerated() {
             if stopped { return false }
+            if walker.probeHit { probeEnded = true; stepHook?(path.name, i + 1, steps.count, "prompt-seen-end"); return true }
             if step.type == "gotocannon" {
                 if !goToCannon() { return false }
                 continue
@@ -472,7 +479,8 @@ public final class Game {
             let what = step.type == "walk" ? "walk-" + step.keys.joined() + "-" + String(format: "%.1f", step.tiles) : step.type
             stepHook?(path.name, i + 1, steps.count, what)
         }
-        stepHook?(path.name, steps.count + 1, steps.count, "end")
+        if walker.probeHit { probeEnded = true }
+        stepHook?(path.name, steps.count + 1, steps.count, probeEnded ? "prompt-seen-end" : "end")
         return !stopped
     }
 

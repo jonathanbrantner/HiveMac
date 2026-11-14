@@ -37,9 +37,9 @@ extension Game {
     /// Words that must show in the prompt when you stand at the right spot. A countdown from some other
     /// prompt (another dispenser, a wrong turn) does not count as this pickup being collected.
     public static let pickupWords: [String: [String]] = [
-        "wealth clock": ["wealth", "clock"], "honey dispenser": ["honey disp", "honey"], "treat dispenser": ["treat"],
+        "wealth clock": ["wealth", "clock"], "honey dispenser": ["honey disp"], "treat dispenser": ["treat"],
         "blueberry dispenser": ["blueb"], "strawberry dispenser": ["strawb"], "honeystorm": ["storm"],
-        "ant pass": ["ant p", "ant"], "robo pass": ["robo"], "coconut dispenser": ["cocon"],
+        "ant pass": ["ant pass", "ant p"], "robo pass": ["robo"], "coconut dispenser": ["cocon"],
     ]
 
     public func collect(_ pickup: String) -> CollectResult {
@@ -115,7 +115,16 @@ extension Game {
         if pf == nil { pf = pathLookup("to_pickup", key, "walk") }
         guard let path = pf else { return .failed("no route for \(pickup)") }
         status("traveling", pickup)
-        guard walkPath(path) else { return .failed("stopped") }
+        var probe: (() -> Bool)?
+        if let needles = Game.pickupWords[pickup] {
+            // The game shows "Use the <pickup>" whenever the character is in range, so stop walking as soon as it does.
+            probe = { [self] in
+                let t = sensors.promptText() ?? ""
+                return t.contains("use th") && needles.contains(where: { t.contains($0) })
+            }
+        }
+        guard walkPath(path, probe: probe) else { return .failed("stopped") }
+        if probeEnded { status("traveling", "\(pickup): the prompt showed during the walk, stopped there") }
 
         // What does the prompt say here?
         func look(seconds: Double) -> String? {

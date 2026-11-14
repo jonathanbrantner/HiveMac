@@ -210,7 +210,7 @@ public final class ScreenSensors: Sensors {
     /// pollen 76,213/410,072,570 (+287/sec)") has a bracket and the word honey, so it was mistaken for a prompt.
     public static func withoutHudBars(_ text: String) -> String {
         var t = text
-        let patterns = [#"\(\s*\+?[\d,\.]+\s*/\s*se[cс]\s*\)?"#, #"honey\s*[\d,\.\s]{4,}"#, #"pollen\s*[\d,\.\s/]{4,}"#]
+        let patterns = [#"\([^()]{0,20}/\s*\S{0,4}\)?"#, #"\(\s*\+?[\d,\.]+\s*/\s*se[cс]\s*\)?"#, #"honey\s*[\d,\.\s]{4,}"#, #"pollen[\s×x\d,\./зО]{4,}"#]
         for p in patterns {
             if let re = try? NSRegularExpression(pattern: p, options: [.caseInsensitive]) {
                 t = re.stringByReplacingMatches(in: t, range: NSRange(t.startIndex..., in: t), withTemplate: " ")

@@ -11,7 +11,7 @@ final class RemoteServer {
     var status: () -> [String: Any] = { [:] }
     var logLines: (Int) -> [String] = { _ in [] }
     var action: (String) -> Void = { _ in }
-    var testRoute: (String, Int) -> Void = { _, _ in }
+    var testRoute: (String, Int, String) -> Void = { _, _, _ in }
 
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "hivemac.remote", qos: .utility)
@@ -70,7 +70,8 @@ final class RemoteServer {
             let q = comps?.queryItems ?? []
             let name = q.first { $0.name == "name" }?.value ?? ""
             let n = Int(q.first { $0.name == "n" }?.value ?? "") ?? 3
-            DispatchQueue.main.async { self.testRoute(name, max(1, min(10, n))) }
+            let variant = q.first { $0.name == "travel" }?.value ?? "walk"
+            DispatchQueue.main.async { self.testRoute(name, max(1, min(10, n)), variant) }
             return json(["ok": true])
         }
         if method == "GET", path == "/api/status" { return json(DispatchQueue.main.sync { status() }) }

@@ -459,6 +459,8 @@ public final class Game {
 
     /// True when the last walkPath ended early because its probe fired (the prompt it looked for was on screen).
     public private(set) var probeEnded = false
+    /// Set by the route test to try one travel variant ("walk" or "cannon") on its own, with no fallback to the other.
+    public var testVariant: String?
 
     public func walkPath(_ path: PathFile, probe: (() -> Bool)? = nil) -> Bool {
         setShiftLock(false)

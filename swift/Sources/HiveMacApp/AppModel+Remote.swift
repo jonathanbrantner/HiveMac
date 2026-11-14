@@ -20,7 +20,7 @@ extension AppModel {
         server.action = { [weak self] a in
             switch a { case "start": self?.start(); case "pause": self?.pause(); case "resume": self?.resume(); default: self?.stop() }
         }
-        server.testRoute = { [weak self] name, n in self?.startRouteTest(name, n) }
+        server.testRoute = { [weak self] name, n, variant in self?.startRouteTest(name, n, variant) }
         guard server.start() else { remoteOn = false; remoteMessage = "Port 8765 is busy. Close the other HiveMac and try again."; return }
         remote = server; remoteOn = true; set("remote.enabled", true)
         let ip = RemoteServer.localAddresses().first ?? "localhost"

@@ -60,7 +60,7 @@ final class AppModel: ObservableObject {
     @Published var detail = ""
     @Published var running = false { didSet { syncHotKey() } }
     /// Set by the route test: run this pickup route this many times from the hive, instead of the profile.
-    var pendingRouteTest: (name: String, times: Int)?
+    var pendingRouteTest: (name: String, times: Int, variant: String)?
     /// Bumped by the Collapse button; every step row folds itself shut when it changes.
     @Published var collapseTick = 0
     @Published var paused = false
@@ -276,8 +276,9 @@ final class AppModel: ObservableObject {
             if let t = routeTest {
                 // One route at a time: reset, camera, the walk, the prompt check. A pass is the right prompt at the end.
                 var passes = 0
+                g.testVariant = t.variant
                 for i in 1...t.times where !g.stopped {
-                    g.status("traveling", "ROUTE TEST \(i) of \(t.times): \(t.name)")
+                    g.status("traveling", "ROUTE TEST \(i) of \(t.times): \(t.name) (\(t.variant))")
                     let r = g.collect(t.name)
                     var ok = false, detail = ""
                     switch r {
@@ -286,9 +287,9 @@ final class AppModel: ObservableObject {
                     case .failed(let why): detail = why
                     }
                     if ok { passes += 1 }
-                    g.status(ok ? "traveling" : "warning", "ROUTE TEST RESULT \(i) of \(t.times) \(t.name): \(ok ? "PASS" : "FAIL") (\(detail))")
+                    g.status(ok ? "traveling" : "warning", "ROUTE TEST RESULT \(i) of \(t.times) \(t.name) \(t.variant): \(ok ? "PASS" : "FAIL") (\(detail))")
                 }
-                g.status("traveling", "ROUTE TEST SUMMARY \(t.name): \(passes) of \(t.times) passed")
+                g.status("traveling", "ROUTE TEST SUMMARY \(t.name) \(t.variant): \(passes) of \(t.times) passed")
                 why = "stopped"
             } else {
                 why = loop.run()
@@ -313,9 +314,9 @@ final class AppModel: ObservableObject {
     }
 
     /// Runs one pickup route `times` times in a row, from the hive, and logs PASS or FAIL for each.
-    func startRouteTest(_ name: String, _ times: Int) {
+    func startRouteTest(_ name: String, _ times: Int, _ variant: String = "walk") {
         guard !running, Game.pickupWords[name] != nil else { append("Route test: unknown pickup \"\(name)\" or a run is going."); return }
-        pendingRouteTest = (name, times)
+        pendingRouteTest = (name, times, variant)
         start()
     }
 

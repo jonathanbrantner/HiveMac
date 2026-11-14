@@ -43,6 +43,7 @@ extension Game {
     ]
 
     public func collect(_ pickup: String) -> CollectResult {
+        if let v = testVariant { return collectOnce(pickup, variant: v) }
         let first = collectOnce(pickup, variant: settings.travel)
         if case .failed(let why) = first, settings.travel != "walk", !stopped,
            pathLookup("to_pickup", pickup.replacingOccurrences(of: " ", with: "_"), "walk") != nil

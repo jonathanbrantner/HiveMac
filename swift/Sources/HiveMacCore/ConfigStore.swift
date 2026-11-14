@@ -71,6 +71,7 @@ public final class ConfigStore {
     public func gameSettings() -> GameSettings {
         var s = GameSettings()
         s.walkSpeed = double("game.walk_speed", s.walkSpeed)
+        s.bearMorph = bool("game.bear_morph", s.bearMorph)
         s.hiveSlot = int("game.hive_slot", s.hiveSlot)
         s.gumdropsKey = string("game.gumdrops_key", s.gumdropsKey)
         s.sprinklerType = string("game.sprinkler_type", s.sprinklerType)

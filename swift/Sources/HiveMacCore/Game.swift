@@ -51,6 +51,8 @@ public extension Sensors {
 
 public struct GameSettings: Equatable, Sendable {
     public var walkSpeed = 28.0
+    /// The Bear Morph adds 4 to the walk speed. Set it when the morph is always on (the macro does not read the stats panel).
+    public var bearMorph = false
     public var hiveSlot = 1
     /// The hotbar key that holds the Gumdrops (the glue dispenser uses one at the Gummy Bear lair). Empty: use the inventory.
     public var gumdropsKey = ""
@@ -91,7 +93,7 @@ public struct GameSettings: Equatable, Sendable {
     public init() {}
 
     public static func == (a: GameSettings, b: GameSettings) -> Bool {
-        a.walkSpeed == b.walkSpeed && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
+        a.walkSpeed == b.walkSpeed && a.bearMorph == b.bearMorph && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
             && a.zoomOutTaps == b.zoomOutTaps && a.resetWaitS == b.resetWaitS
             && a.mousePark.x == b.mousePark.x && a.mousePark.y == b.mousePark.y
     }
@@ -183,7 +185,7 @@ public final class Game {
         self.actuator = actuator; self.sensors = sensors; self.settings = settings; self.clock = clock
         self.stop = stop; self.pause = pause; self.status = status
         self.windowSize = windowSize; self.pathLookup = pathLookup
-        self.walker = Walker(actuator: actuator, speed: SpeedModel(baseSpeed: settings.walkSpeed, multiplier: speedMultiplier),
+        self.walker = Walker(actuator: actuator, speed: SpeedModel(baseSpeed: settings.walkSpeed + (settings.bearMorph ? 4 : 0), multiplier: speedMultiplier),
                              clock: clock, stop: stop, pause: pause)
         let outer = speedMultiplier
         self.walker.speed.multiplier = { [unowned self] in outer() * self.learnedSpeedFactor }

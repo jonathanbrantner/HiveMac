@@ -62,7 +62,7 @@ final class AppModel: ObservableObject {
     @Published var detail = ""
     @Published var running = false { didSet { syncHotKey() } }
     /// Set by the route test: run this pickup route this many times from the hive, instead of the profile.
-    var pendingRouteTest: (name: String, times: Int, variant: String)?
+    var pendingRouteTest: (name: String, times: Int, variant: String, prefix: Int?)?
     /// Bumped by the Collapse button; every step row folds itself shut when it changes.
     @Published var collapseTick = 0
     @Published var paused = false
@@ -285,6 +285,7 @@ final class AppModel: ObservableObject {
                 // One route at a time: reset, camera, the walk, the prompt check. A pass is the right prompt at the end.
                 var passes = 0
                 g.testVariant = t.variant
+                g.testPrefix = t.prefix
                 for i in 1...t.times where !g.stopped {
                     g.status("traveling", "ROUTE TEST \(i) of \(t.times): \(t.name) (\(t.variant))")
                     let r = g.collect(t.name)
@@ -322,9 +323,9 @@ final class AppModel: ObservableObject {
     }
 
     /// Runs one pickup route `times` times in a row, from the hive, and logs PASS or FAIL for each.
-    func startRouteTest(_ name: String, _ times: Int, _ variant: String = "walk") {
+    func startRouteTest(_ name: String, _ times: Int, _ variant: String = "walk", _ prefix: Int? = nil) {
         guard !running, name == "reset" || Game.pickupWords[name] != nil else { append("Route test: unknown pickup \"\(name)\" or a run is going."); return }
-        pendingRouteTest = (name, times, variant)
+        pendingRouteTest = (name, times, variant, prefix)
         start()
     }
 

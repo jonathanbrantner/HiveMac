@@ -476,11 +476,14 @@ public final class Game {
     public var focusHook: (() -> Void)?
     /// Set by the route test to try one travel variant ("walk" or "cannon") on its own, with no fallback to the other.
     public var testVariant: String?
+    /// Set by the route test: run only the first N steps of the route (to start a recording from a known point).
+    public var testPrefix: Int?
 
     public func walkPath(_ path: PathFile, probe: (() -> Bool)? = nil) -> Bool {
         setShiftLock(false)
         parkMouse()
-        let steps = iterSteps(path)
+        var steps = iterSteps(path)
+        if let n = testPrefix { steps = Array(steps.prefix(n)) }
         stepHook?(path.name, 0, steps.count, "start")
         walker.armProbe(probe)
         probeEnded = false

@@ -225,9 +225,10 @@ public final class Game {
             if stopped { return false }
             status("resetting", "attempt \(attempt)")
             parkMouse()
-            tap("esc"); wait(s.keyGapS)
-            tap("r"); wait(s.keyGapS)
-            tap("enter")
+            // Held for half a second: on a slow frame rate a short press can fall between two frames and be missed.
+            actuator.tap("esc", holdS: Walker.resetKeyHoldS); wait(s.keyGapS)
+            actuator.tap("r", holdS: Walker.resetKeyHoldS); wait(s.keyGapS)
+            actuator.tap("enter", holdS: Walker.resetKeyHoldS)
             waitForRespawn()
             let extra = (afterDeath || died) ? s.deathExtraWaitS : 0
             died = false

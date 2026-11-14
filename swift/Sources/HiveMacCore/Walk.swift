@@ -124,6 +124,8 @@ public final class Walker {
 
     /// How long a tap holds the key. Short enough not to auto-repeat, long enough for a slow frame rate to see it.
     public static let tapHoldS = 0.12
+    /// Esc, R and Enter of the reset: held longer, because a missed reset leaves the character far from the hive.
+    public static let resetKeyHoldS = 0.5
 
     public func taps(_ key: String, count: Int, gap: Double = 0.12) {
         for _ in 0..<count {

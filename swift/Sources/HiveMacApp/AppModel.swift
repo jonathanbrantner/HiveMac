@@ -24,6 +24,8 @@ final class ReportingSensors: Sensors {
     func mobBars() -> [Double]? { practice ? nil : inner.mobBars() }
     func promptText() -> String? { practice ? nil : inner.promptText() }
     func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? { inner.picture(left: left, top: top, width: width, height: height) }
+    func textIn(_ region: RelRegion) -> String? { practice ? nil : inner.textIn(region) }
+    func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { inner.point(fx: fx, fy: fy) }
     func cannonPromptVisible() -> Bool? { inner.cannonPromptVisible() }
     func deathTextVisible() -> Bool? { inner.deathTextVisible() }
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { inner.find(template, in: region, tolerance: tolerance) }

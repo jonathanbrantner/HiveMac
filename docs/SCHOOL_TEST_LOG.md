@@ -25,3 +25,16 @@ Not proven or still odd:
 - 16:1x Detect Roblox: blank backpack picture. Cause 1: Roblox had disconnected for being idle (error 278), reconnected. Cause 2: windows on top of Roblox. Fixed as above.
 - 16:19 Practice mode run: worked.
 - 16:20 to 17:14 Live Sunflower run: worked, see summary.
+
+## Pickups live test (2026-11-13, 17:17 to 17:33, Clock and dispensers, All ticked)
+Result per pickup, from hivemac.log and the snapshots in ~/Library/Application Support/HiveMac/snapshots:
+- Wealth clock: FAILED. Walk of 48 s ended on grass about 300 px short of the clock. No prompt.
+- Honey dispenser: FAILED. The route was done after 12 s, no prompt.
+- Treat dispenser: FAILED. The character ended in the Blue Flower field. The "top prompt" region read the
+  Honey and Pollen HUD text, so that region also covers the HUD on this Mac.
+- Blueberry dispenser: collected. Strawberry dispenser: collected.
+- Honeystorm: FAILED. Camera was zoomed into the pile of pets and gifts, no prompt.
+- Ant pass: FAILED. Robo pass: FAILED (walked 90 s, no prompt).
+Likely causes (not yet proven): the Natro routes are timed key holds, and the walk speed setting (28) may not match this
+account's real speed with buffs; the camera zoom is not always reset; the prompt region overlaps the HUD.
+Next: read the real walk speed in game and test one route (honey dispenser, the shortest) until it arrives, then the rest.

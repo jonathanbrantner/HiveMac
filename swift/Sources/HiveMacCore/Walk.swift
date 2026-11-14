@@ -133,8 +133,19 @@ public final class Walker {
         guard let sampler = speedSampler else { return }
         if !force, clock.now() - lastSpeedAt < 1.0 { return }
         lastSpeedAt = clock.now()
-        if let v = sampler() { liveSpeed = v }
+        guard let v = sampler() else { return }
+        // A misread digit ("9" for "29", "4" for "34") would stretch or shrink a whole walk, so a reading must be
+        // plausible next to the speed in the settings and not jump far from the last good one without repeating.
+        let base = speed.baseSpeed
+        guard v >= base * 0.75, v <= base * 1.6 else { rejectedSpeed = 0; return }
+        if let last = liveSpeed, abs(v - last) > last * 0.25 {
+            rejectedSpeed += 1
+            if rejectedSpeed < 2 { return }                  // a big change has to show up twice in a row
+        }
+        rejectedSpeed = 0
+        liveSpeed = v
     }
+    private var rejectedSpeed = 0
 
     /// Natro's nm_Walk, with the distance integrated over time: the speed is read again every second, so a morph or
     /// Haste starting or ending in the middle of a walk changes the hold time instead of throwing the route off.

@@ -12,6 +12,7 @@ final class RemoteServer {
     var logLines: (Int) -> [String] = { _ in [] }
     var action: (String) -> Void = { _ in }
     var testRoute: (String, Int, String, Int?) -> Void = { _, _, _, _ in }
+    var runSteps: (String) -> String = { _ in "unsupported" }
 
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "hivemac.remote", qos: .utility)
@@ -66,6 +67,11 @@ final class RemoteServer {
         let tokenOK = given.utf8.count == token.utf8.count && zip(given.utf8, token.utf8).reduce(0) { $0 | ($1.0 ^ $1.1) } == 0
         guard tokenOK else { return ("401 Unauthorized", "text/html", Data("<h3>Missing or wrong token. Use the link from HiveMac settings.</h3>".utf8)) }
         if path == "/" { return ("200 OK", "text/html", Data(Self.page.utf8)) }
+        if method == "POST", path == "/api/steps" {
+            let stepsJSON = comps?.queryItems?.first { $0.name == "json" }?.value ?? "[]"
+            let result = DispatchQueue.main.sync { runSteps(stepsJSON) }
+            return json(["result": result])
+        }
         if method == "POST", path == "/api/testroute" {
             let q = comps?.queryItems ?? []
             let name = q.first { $0.name == "name" }?.value ?? ""

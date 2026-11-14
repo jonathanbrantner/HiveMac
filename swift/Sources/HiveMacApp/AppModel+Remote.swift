@@ -20,6 +20,7 @@ extension AppModel {
         server.action = { [weak self] a in
             switch a { case "start": self?.start(); case "pause": self?.pause(); case "resume": self?.resume(); default: self?.stop() }
         }
+        server.runSteps = { [weak self] json in self?.debugRunSteps(json) ?? "no app" }
         server.testRoute = { [weak self] name, n, variant, prefix in self?.startRouteTest(name, n, variant, prefix) }
         guard server.start() else { remoteOn = false; remoteMessage = "Port 8765 is busy. Close the other HiveMac and try again."; return }
         remote = server; remoteOn = true; set("remote.enabled", true)
@@ -48,5 +49,22 @@ extension AppModel {
         if running && !capturingStopKey, case .success(let code) = KeyCodes.validateStopKey(stopKeyName) {
             if hotKey.keyCode != UInt32(code) { hotKey.register(keyCode: UInt32(code)) }
         } else { hotKey.unregister() }
+    }
+
+    /// Debug: run a JSON list of route steps (walk, hold, rotate, wait, tap, zoom) with the real walker, then save a
+    /// picture of the Roblox window to ~/Library/Application Support/HiveMac/debug-step.png. Not while a run is going.
+    func debugRunSteps(_ json: String) -> String {
+        guard !running else { return "a run is going" }
+        guard let data = json.data(using: .utf8), let steps = try? JSONDecoder().decode([Step].self, from: data) else { return "bad json" }
+        let speed = store.double("game.walk_speed", 28)
+        let walker = Walker(actuator: input, speed: SpeedModel(baseSpeed: speed), stop: stopSignal)
+        stopSignal.clear()
+        WindowFinder.focusRoblox()
+        Thread.sleep(forTimeInterval: 0.5)
+        _ = try? walker.run(steps, keymap: ["rot_left": ",", "rot_right": ".", "zoom_in": "i", "zoom_out": "o"])
+        input.releaseAll()
+        Thread.sleep(forTimeInterval: 0.4)
+        if let shot = snapshotRoblox() { _ = ScreenCapture.savePNG(shot, to: dirs.data.appendingPathComponent("debug-step.png")) }
+        return "ok"
     }
 }

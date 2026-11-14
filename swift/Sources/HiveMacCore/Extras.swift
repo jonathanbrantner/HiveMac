@@ -219,7 +219,6 @@ extension Game {
             if pickup == "wealth clock", let found = ladderSearch(pickup, needles: needles) { first = found }
             else if let found = starSearch(pickup, needles: needles) { first = found }
             else if let found = creepSearch(pickup, needles: needles, forward: Game.creepOverride[pickup] ?? creepKeys(path)) { first = found }
-            if first?.isEmpty == true, let found = spiralSearch(pickup, needles: needles) { first = found }
         }
         let needles = Game.pickupWords[pickup]
         func atRightSpot(_ t: String) -> Bool { needles == nil || needles!.contains { t.contains($0) } }

@@ -534,16 +534,6 @@ public final class Game {
         if let n = testPrefix { steps = Array(steps.prefix(n)) }
         stepHook?(path.name, 0, steps.count, "start")
         walker.armProbe(probe)
-        // A speed buff running at the start (the dispensers give Haste) makes the routes miss: wait for it to wear off.
-        if walker.speedSampler != nil, probe != nil || testPrefix == nil {
-            var waited = 0.0
-            while !stopped, waited < 30 {
-                walker.sampleSpeed(force: true)
-                guard let l = walker.liveSpeed, l > settings.walkSpeed * 1.12 else { break }
-                if waited == 0 { status("traveling", "a speed buff is on (\(Int(l)) against \(Int(settings.walkSpeed))), waiting for it to wear off") }
-                wait(2); waited += 2
-            }
-        }
         walker.sampleSpeed(force: true)
         if let live = walker.liveSpeed { status("traveling", "walk speed read from the stats panel: \(Int(live)) (settings: \(Int(settings.walkSpeed)))") }
         else if walker.speedSampler != nil { status("traveling", "the stats panel is not open, so the walk speed from the settings is used (\(Int(settings.walkSpeed)))") }

@@ -159,6 +159,8 @@ public final class Walker {
         defer { keys.forEach(act.keyUp) }
         var remaining = max(0, tiles)                       // tiles left to walk
         var last = clock.now()
+        var vPrev = speed.current()
+        remaining -= vPrev * 0.125 / studsPerTile            // Natro starts every walk with an eighth of a second counted
         while remaining > 0 && !stop.isSet {
             if let pause, pause.isSet {
                 keys.forEach(act.keyUp)
@@ -175,8 +177,10 @@ public final class Walker {
             if dt <= 0 { dt = slice }
             last = now
             held += dt
-            remaining -= dt * speed.current() / studsPerTile
             sampleSpeed()
+            let vNow = speed.current()
+            remaining -= (vPrev + vNow) / 2 * dt / studsPerTile      // trapezoid of the old and the new speed, like Natro
+            vPrev = vNow
             if let probe, clock.now() - lastProbeAt >= probeEveryS {
                 lastProbeAt = clock.now()
                 if probe() { probeHit = true; break }

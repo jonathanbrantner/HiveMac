@@ -252,12 +252,14 @@ public final class Game {
 
     /// True when the Roblox menu (Resume, Reset Character, Leave Game) is on screen; nil when the screen cannot be read.
     private func robloxMenuOpen() -> Bool? {
-        guard let text = sensors.textIn(RelRegion(fx: 0, fy: 0, fw: 1, fh: 1))?.lowercased() else { return nil }
+        guard let text = sensors.textIn(RelRegion(fx: 0, fy: 0, fw: 1, fh: 1))?.lowercased() else { lastMenuText = "(unreadable)"; return nil }
+        lastMenuText = String(text.prefix(90)).replacingOccurrences(of: "\n", with: " | ")
         return text.contains("reset character") || text.contains("resume") || text.contains("leave game")
     }
 
     /// Esc, R, Enter, but only while the menu really is open. A blind Enter when the menu did not open focuses the chat
     /// box, and from then on every Esc only closes the chat, so one missed Esc used to break every reset after it.
+    private var lastMenuText = ""
     private func pressReset() {
         let s = settings
         if robloxMenuOpen() == nil {                       // cannot read the screen: the plain sequence
@@ -265,12 +267,14 @@ public final class Game {
             return
         }
         var opened = robloxMenuOpen() == true
+        if !opened { status("resetting", "before Esc: screen reads: \(lastMenuText)") }
         var tries = 0
         while !opened && tries < 4 && !stopped {
             tries += 1
             actuator.tap("esc", holdS: 0.2)
             wait(0.9)
             opened = robloxMenuOpen() == true
+            status("resetting", "Esc try \(tries): menu \(opened ? "open" : "not open"), screen reads: \(lastMenuText)")
         }
         guard opened else { status("warning", "the Roblox menu did not open after Esc (\(tries) tries), not pressing R or Enter"); return }
         if tries > 1 { status("resetting", "the menu opened on Esc try \(tries)") }

@@ -322,19 +322,24 @@ public final class Game {
                     status("warning", "camera try \(attempt): the hive was not seen while turning (biggest share \(Int(best * 100)) percent)")
                     continue
                 }
-                // The heading with the least honeycomb in view (smoothed over its neighbours) is the one that faces away
-                // from the hive. Taking "the biggest share plus half a circle" went wrong when two headings looked alike.
-                var bestStep = 0, bestScore = Double.greatestFiniteMagnitude
-                for i in 0..<8 {
-                    let score = shares[i] + 0.5 * (shares[(i + 7) % 8] + shares[(i + 1) % 8])
-                    if score < bestScore { bestScore = score; bestStep = i }
+                // The hive is the heading with the most honeycomb in view, and facing away is half a circle from it.
+                // When that peak is not clear (two headings close), take the heading with the least honeycomb instead.
+                let peak = shares.firstIndex(of: best) ?? 0
+                let second = shares.enumerated().filter { $0.offset != peak }.map(\.element).max() ?? 0
+                var bestStep = (peak + 4) % 8
+                if best < second * 1.8 {
+                    var bestScore = Double.greatestFiniteMagnitude
+                    for i in 0..<8 {
+                        let score = shares[i] + 0.5 * (shares[(i + 7) % 8] + shares[(i + 1) % 8])
+                        if score < bestScore { bestScore = score; bestStep = i }
+                    }
                 }
                 walker.rotate("right", taps: bestStep, leftKey: s.rotLeft, rightKey: s.rotRight)
                 wait(0.4)
                 // Check it from the screen: the honeycomb in view now should be about the smallest it was in the scan.
                 let after = sensors.hiveViewShare() ?? 1
                 let low = shares.min() ?? 0
-                faced = after <= low + 0.06
+                faced = after <= low + 0.10
                 status("resetting", "camera try \(attempt): shares " + shares.map { String(format: "%.0f", $0 * 100) }.joined(separator: " ")
                        + " percent, turned \(bestStep), now \(Int(after * 100)) percent, " + (faced ? "facing away" : "NOT facing away, trying again"))
             }

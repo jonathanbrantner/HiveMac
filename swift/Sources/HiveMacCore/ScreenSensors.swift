@@ -154,9 +154,16 @@ public final class ScreenSensors: Sensors {
     private func hiveText() -> String? {
         let area = cfg.hiveMessageRegion ?? bounds().map { Layout.natroDefaults($0, offsetY: 36).hiveMessageRegion }
         guard let read = textReader, let img = region(area) else { return nil }
-        let text = (read(img) ?? "").lowercased()
+        let text = Self.withoutHudBars((read(img) ?? "").lowercased())
         lastHiveText = text
         return text
+    }
+
+    /// True for the three real hive messages: "Make Honey", "Stop Making Honey" and "To Make Honey, Collect Pollen
+    /// From Flower Fields". The word "honey" alone is not enough: the Honey bar and "Use the Honey Dispenser" have it too.
+    public static func isHiveMessage(_ text: String) -> Bool {
+        if text.contains("dispenser") { return false }
+        return text.contains("making honey") || text.contains("make honey") || text.contains("collect pollen") || text.contains("flower fields")
     }
 
     /// At the hive when a hive message is on screen. All three messages contain "honey": Make Honey,
@@ -167,7 +174,7 @@ public final class ScreenSensors: Sensors {
             .map { templateIn(cfg.hivePromptRegion, $0) }
         let text = hiveText()
         if text == nil && pictures.allSatisfy({ $0 == nil }) { return nil }
-        return (text?.contains("honey") ?? false) || pictures.contains(true)
+        return (text.map(Self.isHiveMessage) ?? false) || pictures.contains(true)
     }
 
     public func hiveViewVisible() -> Bool? {
@@ -225,8 +232,10 @@ public final class ScreenSensors: Sensors {
     /// "Make Honey" or the empty-bag message; nil when unknown.
     public func honeyRunning() -> Bool? {
         if let text = hiveText(), !text.isEmpty {
-            if text.contains("stop") { return true }
-            if text.contains("honey") { return false }
+            if Self.isHiveMessage(text) {
+                if text.contains("stop") { return true }
+                return false
+            }
         }
         return templateIn(cfg.hivePromptRegion, cfg.hivePromptStopTemplate)
     }

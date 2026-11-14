@@ -38,3 +38,15 @@ Result per pickup, from hivemac.log and the snapshots in ~/Library/Application S
 Likely causes (not yet proven): the Natro routes are timed key holds, and the walk speed setting (28) may not match this
 account's real speed with buffs; the camera zoom is not always reset; the prompt region overlaps the HUD.
 Next: read the real walk speed in game and test one route (honey dispenser, the shortest) until it arrives, then the rest.
+
+## Layer table (route test: POST /api/testroute?name=<pickup>&n=<times>, reset + camera + walk + prompt check)
+| Layer | Result | What fixed it |
+|---|---|---|
+| Reset (Esc, R, Enter) | works when the menu state is read first | The Roblox menu was left open by earlier presses, so blind Esc toggled it shut. pressReset now reads the menu (OCR) and only then presses R and Enter. |
+| Camera facing away from the hive | works: the scan shows one clear peak (about 65 percent honeycomb) and the macro turns half a circle from it | My smoothing change turned 90 degrees to the side; restored peak plus half a circle. The result is checked from the screen (share after the turn). |
+| Walk speed | 26 fits the honey dispenser route | 28 ended a second short, 24 overshot to the shop. Real speed varies a little run to run (Haste), so a fixed value cannot be exact. |
+| Honey dispenser route | 4 of 4 completed runs passed (run 5 was stopped by the user) | One run ended short and the creep search found the prompt after 5 steps. |
+| Wealth clock | NOT passing | Open-loop route ends beside the ladder; a sideways ladder search is built but untested in a clean run. Camera facing was the likely cause of the earlier odd endpoints. |
+| Other pickups, booster mode, quests, memory match, planters, bug run | not tested since the fixes | |
+
+Tools added: route frame traces (traces/<time>-<route>/NN-step.png, reset frames too), the route test, the creep and ladder searches.

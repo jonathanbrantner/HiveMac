@@ -59,7 +59,7 @@ extension Game {
     /// checking the prompt after each small step: forward first, then back past the start.
     /// Pickups whose machine stands to the side of where the walk ends (seen in the frames): creep that way.
     public static let creepOverride: [String: [String]] = [
-        "blueberry dispenser": ["d"], "treat dispenser": ["d"],
+        "blueberry dispenser": ["d"], "treat dispenser": ["d"], "strawberry dispenser": ["w", "d"],
     ]
 
     func creepKeys(_ path: PathFile) -> [String] {

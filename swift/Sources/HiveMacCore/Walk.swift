@@ -112,14 +112,15 @@ public final class Walker {
             let step = min(slice, remaining)
             let t0 = clock.now()
             clock.sleep(step)
+            if let probe, clock.now() - lastProbeAt >= probeEveryS {
+                lastProbeAt = clock.now()
+                if probe() { probeHit = true; held += clock.now() - t0; break }
+            }
+            // The whole iteration counts, including the prompt check: the keys stay held while it runs.
             var dt = clock.now() - t0
             if dt <= 0 { dt = step }
             held += dt
             remaining -= dt
-            if let probe, clock.now() - lastProbeAt >= probeEveryS {
-                lastProbeAt = clock.now()
-                if probe() { probeHit = true; break }
-            }
         }
         return held
     }
@@ -146,17 +147,22 @@ public final class Walker {
         keys.forEach(act.keyDown)
         defer { keys.forEach(act.keyUp) }
         var remaining = max(0, tiles)                       // tiles left to walk
+        var last = clock.now()
         while remaining > 0 && !stop.isSet {
             if let pause, pause.isSet {
                 keys.forEach(act.keyUp)
                 while pause.isSet && !stop.isSet { clock.sleep(slice) }
                 if stop.isSet { return held }
                 keys.forEach(act.keyDown)
+                last = clock.now()
             }
-            let t0 = clock.now()
             clock.sleep(slice)
-            var dt = clock.now() - t0
+            // Elapsed time since the last pass, including the time the speed reading and the prompt check took:
+            // the keys were held that whole time. (Counting only the sleep made every walk run too long.)
+            let now = clock.now()
+            var dt = now - last
             if dt <= 0 { dt = slice }
+            last = now
             held += dt
             remaining -= dt * speed.current() / studsPerTile
             sampleSpeed()

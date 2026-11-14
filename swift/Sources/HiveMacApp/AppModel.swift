@@ -229,7 +229,7 @@ final class AppModel: ObservableObject {
         let screenSensors = ScreenSensors(screen: capture, window: { [store] in Self.bounds(store) }, config: hud) { name in
             ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
         }
-        screenSensors.textReader = BarText.read
+        screenSensors.textReader = BarText.read; screenSensors.linesReader = BarText.readLines
         let sensors = ReportingSensors(screenSensors)
         sensors.practice = store.bool("app.practice_mode", false)
         sensors.onBackpack = { [weak self] p in self?.beat(); DispatchQueue.main.async { self?.backpack = p } }

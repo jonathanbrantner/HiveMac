@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 /// What the sensors read pixels from. The real one captures small screen regions.
 public protocol ScreenReading: AnyObject {
@@ -86,6 +87,8 @@ public final class ScreenSensors: Sensors {
 
     /// Reads the text in an image (the Pollen bar's numbers). Provided by the platform layer.
     public var textReader: ((RGBImage) -> String?)?
+    /// Recognised lines with their boxes (shares of the picture), for reading label and value pairs.
+    public var linesReader: ((RGBImage) -> [(text: String, box: CGRect)])?
     public private(set) var lastBarText: String?
     public private(set) var lastHiveText: String?
     private let loadImage: (String) -> RGBImage?
@@ -221,11 +224,38 @@ public final class ScreenSensors: Sensors {
 
     public func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { point(RelPoint(fx: fx, fy: fy)) }
 
-    /// "Movespeed: 33" from the stats panel on the left of the game (the player's current speed with every buff).
+    /// "Movespeed: 31.9" from the stats panel on the left of the game (the player's current speed with every buff).
+    /// The label and its number are separate lines for the text reader, so they are paired by the row they stand on.
     public func moveSpeed() -> Double? {
-        guard let read = textReader, bounds() != nil else { return nil }
-        let band = RelRegion(fx: 0, fy: 0.25, fw: 0.24, fh: 0.72)
-        guard let img = region(band), let text = read(img)?.lowercased() else { return nil }
+        guard bounds() != nil else { return nil }
+        let band = RelRegion(fx: 0, fy: 0.22, fw: 0.26, fh: 0.75)
+        guard let img = region(band) else { return nil }
+        if let lines = linesReader?(img), !lines.isEmpty {
+            var labelBox: CGRect?
+            for l in lines {
+                let low = l.text.lowercased()
+                if low.contains("movespeed") || low.contains("move speed") {
+                    if let v = Self.parseMoveSpeed(low) { return v }       // the number is on the same line
+                    labelBox = l.box; break
+                }
+            }
+            guard let label = labelBox else { return nil }
+            let tolerance = max(0.02, label.height * 0.7)
+            var candidates: [(x: CGFloat, text: String)] = []
+            for l in lines where l.box.minX > label.minX && abs(l.box.midY - label.midY) < tolerance {
+                candidates.append((l.box.minX, l.text))
+            }
+            candidates.sort { $0.x < $1.x }
+            for c in candidates {
+                let raw = c.text.trimmingCharacters(in: CharacterSet.whitespaces).replacingOccurrences(of: ",", with: ".")
+                if var v = Double(raw) {
+                    if v >= 100, !raw.contains(".") { v /= 10 }
+                    return v
+                }
+            }
+            return nil
+        }
+        guard let read = textReader, let text = read(img)?.lowercased() else { return nil }
         return Self.parseMoveSpeed(text)
     }
 

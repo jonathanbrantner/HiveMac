@@ -88,6 +88,38 @@ extension Game {
         return nil
     }
 
+    /// Goes out 6 tiles from where the route ended in each of the 8 directions and back, with the prompt probe running,
+    /// so a pickup within about 6 tiles of the endpoint is found whichever way it lies.
+    private func starSearch(_ pickup: String, needles: [String]) -> String? {
+        status("traveling", "\(pickup): no prompt at the end of the walk, searching around in all directions")
+        walker.armProbe({ [self] in
+            let t = sensors.promptText() ?? ""
+            return t.contains("use th") && needles.contains(where: { t.contains($0) })
+        })
+        defer { walker.armProbe(nil) }
+        let dirs: [[String]] = [["w"], ["w", "d"], ["d"], ["s", "d"], ["s"], ["s", "a"], ["a"], ["w", "a"]]
+        let opposite = ["w": "s", "s": "w", "a": "d", "d": "a"]
+        for keys in dirs where !stopped {
+            walker.walk(keys, tiles: 6)
+            if walker.probeHit { break }
+            wait(0.4)
+            if (sensors.promptText() ?? "").contains("use th") { break }
+            walker.armProbe(nil)                               // going back must not stop at the prompt
+            walker.walk(keys.compactMap { opposite[$0] }, tiles: 6)
+            walker.armProbe({ [self] in
+                let t = sensors.promptText() ?? ""
+                return t.contains("use th") && needles.contains(where: { t.contains($0) })
+            })
+        }
+        walker.armProbe(nil)
+        let t = sensors.promptText() ?? ""
+        if needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) {
+            status("traveling", "\(pickup): found by the star search")
+            return t
+        }
+        return nil
+    }
+
     /// Last resort: walk an outward square spiral from where the route ended (arms of 1, 1, 2, 2, 3, 3 ... tiles) with the
     /// prompt probe running, jumping at the start of each arm. Stops the moment the pickup's prompt shows.
     private func spiralSearch(_ pickup: String, needles: [String]) -> String? {
@@ -180,6 +212,7 @@ extension Game {
         if testPrefix != nil { return .failed("prefix test: stopped at the end of the walk, no search") }
         if let t = first, t.isEmpty, let needles = Game.pickupWords[pickup] {
             if pickup == "wealth clock", let found = ladderSearch(pickup, needles: needles) { first = found }
+            else if let found = starSearch(pickup, needles: needles) { first = found }
             else if let found = creepSearch(pickup, needles: needles, forward: Game.creepOverride[pickup] ?? creepKeys(path)) { first = found }
             if first?.isEmpty == true, let found = spiralSearch(pickup, needles: needles) { first = found }
         }

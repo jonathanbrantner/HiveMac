@@ -18,7 +18,7 @@ enum RouteTrace {
                 try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
                 folder = dir
                 let old = ((try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []).sorted { $0.lastPathComponent < $1.lastPathComponent }
-                for u in old.dropLast(8) { try? fm.removeItem(at: u) }
+                for u in old.dropLast(30) { try? fm.removeItem(at: u) }
             }
             guard let dir = folder, let shot = grab() else { return }
             _ = ScreenCapture.savePNG(shot, to: dir.appendingPathComponent(String(format: "%02d-%@.png", index, desc)))

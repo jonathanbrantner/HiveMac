@@ -36,7 +36,7 @@ extension Game {
     /// it was used. So E is only pressed when it is ready, and the countdown afterwards proves it worked.
     /// Words that must show in the prompt when you stand at the right spot. A countdown from some other
     /// prompt (another dispenser, a wrong turn) does not count as this pickup being collected.
-    static let pickupWords: [String: [String]] = [
+    public static let pickupWords: [String: [String]] = [
         "wealth clock": ["wealth", "clock"], "honey dispenser": ["honey disp", "honey"], "treat dispenser": ["treat"],
         "blueberry dispenser": ["blueb"], "strawberry dispenser": ["strawb"], "honeystorm": ["storm"],
         "ant pass": ["ant p", "ant"], "robo pass": ["robo"], "coconut dispenser": ["cocon"],

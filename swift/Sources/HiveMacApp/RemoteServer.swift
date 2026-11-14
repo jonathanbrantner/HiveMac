@@ -11,6 +11,7 @@ final class RemoteServer {
     var status: () -> [String: Any] = { [:] }
     var logLines: (Int) -> [String] = { _ in [] }
     var action: (String) -> Void = { _ in }
+    var testRoute: (String, Int) -> Void = { _, _ in }
 
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "hivemac.remote", qos: .utility)
@@ -65,6 +66,13 @@ final class RemoteServer {
         let tokenOK = given.utf8.count == token.utf8.count && zip(given.utf8, token.utf8).reduce(0) { $0 | ($1.0 ^ $1.1) } == 0
         guard tokenOK else { return ("401 Unauthorized", "text/html", Data("<h3>Missing or wrong token. Use the link from HiveMac settings.</h3>".utf8)) }
         if path == "/" { return ("200 OK", "text/html", Data(Self.page.utf8)) }
+        if method == "POST", path == "/api/testroute" {
+            let q = comps?.queryItems ?? []
+            let name = q.first { $0.name == "name" }?.value ?? ""
+            let n = Int(q.first { $0.name == "n" }?.value ?? "") ?? 3
+            DispatchQueue.main.async { self.testRoute(name, max(1, min(10, n))) }
+            return json(["ok": true])
+        }
         if method == "GET", path == "/api/status" { return json(DispatchQueue.main.sync { status() }) }
         if method == "GET", path == "/api/log" { return json(["lines": DispatchQueue.main.sync { logLines(60) }]) }
         if method == "POST", ["start", "pause", "resume", "stop"].contains(String(path.dropFirst(5))), path.hasPrefix("/api/") {

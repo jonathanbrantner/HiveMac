@@ -221,17 +221,20 @@ public final class Game {
         let s = settings
         releaseEverything()
         setShiftLock(false)
+        stepHook?("reset", 0, 0, "begin")
         for attempt in 1...min(2, max(1, s.resetAttempts)) {
             if stopped { return false }
             status("resetting", "attempt \(attempt)")
             parkMouse()
             pressReset()
+            stepHook?("reset", 1, 0, "a\(attempt)-after-keys")
             waitForRespawn()
             let extra = (afterDeath || died) ? s.deathExtraWaitS : 0
             died = false
             wait(s.resetWaitS + extra)
             if stopped { return false }
             sensors.resetBackpackFilter()
+            stepHook?("reset", 2, 0, "a\(attempt)-after-respawn-wait")
             var atHive = sensors.hivePromptVisible()
             let looked = clock.now()
             while atHive == false && clock.now() - looked < s.hivePromptRecheckS && !stopped {
@@ -244,6 +247,7 @@ public final class Game {
             }
             if atHive == nil { status("resetting", "no hive prompt template, assuming at hive") }
             _ = fixCamera()
+            stepHook?("reset", 3, 0, "a\(attempt)-after-camera")
             return true
         }
         status("error", "could not see the hive prompt after the reset. Check that you are not stuck somewhere, and check the Hive prompt pictures in Calibrate.")
@@ -267,7 +271,7 @@ public final class Game {
             return
         }
         var opened = robloxMenuOpen() == true
-        if !opened { status("resetting", "before Esc: screen reads: \(lastMenuText)") }
+        status("resetting", "menu check before Esc: \(opened ? "OPEN" : "closed"), screen reads: \(lastMenuText)")
         var tries = 0
         while !opened && tries < 4 && !stopped {
             tries += 1
@@ -302,17 +306,22 @@ public final class Game {
         let s = settings
         var faced = true
         if sensors.hiveViewShare() != nil {
-            var best = -1.0
-            var shares = [Double](repeating: 0, count: 8)
-            for step in 0..<8 {
-                if stopped { return false }
-                let share = sensors.hiveViewShare() ?? 0
-                shares[step] = share
-                if share > best { best = share }
-                walker.rotate("right", taps: 1, leftKey: s.rotLeft, rightKey: s.rotRight)
-                wait(0.3)
-            }
-            if best >= s.hiveShareMin {
+            faced = false
+            for attempt in 1...3 where !faced {
+                var best = -1.0
+                var shares = [Double](repeating: 0, count: 8)
+                for step in 0..<8 {
+                    if stopped { return false }
+                    let share = sensors.hiveViewShare() ?? 0
+                    shares[step] = share
+                    if share > best { best = share }
+                    walker.rotate("right", taps: 1, leftKey: s.rotLeft, rightKey: s.rotRight)
+                    wait(0.3)
+                }
+                guard best >= s.hiveShareMin else {
+                    status("warning", "camera try \(attempt): the hive was not seen while turning (biggest share \(Int(best * 100)) percent)")
+                    continue
+                }
                 // The heading with the least honeycomb in view (smoothed over its neighbours) is the one that faces away
                 // from the hive. Taking "the biggest share plus half a circle" went wrong when two headings looked alike.
                 var bestStep = 0, bestScore = Double.greatestFiniteMagnitude
@@ -320,12 +329,16 @@ public final class Game {
                     let score = shares[i] + 0.5 * (shares[(i + 7) % 8] + shares[(i + 1) % 8])
                     if score < bestScore { bestScore = score; bestStep = i }
                 }
-                status("resetting", "camera: shares " + shares.map { String(format: "%.0f", $0 * 100) }.joined(separator: " ") + " percent, facing away at turn \(bestStep)")
                 walker.rotate("right", taps: bestStep, leftKey: s.rotLeft, rightKey: s.rotRight)
-            } else {
-                faced = false
-                status("warning", "the hive was not seen while turning the camera")
+                wait(0.4)
+                // Check it from the screen: the honeycomb in view now should be about the smallest it was in the scan.
+                let after = sensors.hiveViewShare() ?? 1
+                let low = shares.min() ?? 0
+                faced = after <= low + 0.06
+                status("resetting", "camera try \(attempt): shares " + shares.map { String(format: "%.0f", $0 * 100) }.joined(separator: " ")
+                       + " percent, turned \(bestStep), now \(Int(after * 100)) percent, " + (faced ? "facing away" : "NOT facing away, trying again"))
             }
+            if !faced { status("warning", "the camera could not be turned away from the hive after 3 tries") }
         } else if let first = sensors.hiveViewVisible() {
             var found = first
             // Older check: turn until the hive picture shows, then half a circle.

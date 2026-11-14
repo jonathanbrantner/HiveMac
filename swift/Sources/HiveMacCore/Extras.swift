@@ -44,7 +44,12 @@ extension Game {
 
     public func collect(_ pickup: String) -> CollectResult {
         if let v = testVariant { return collectOnce(pickup, variant: v) }
-        let first = collectOnce(pickup, variant: settings.travel)
+        // A walk can miss by a few tiles (a buff starting mid-walk, a jump that did not take): reset and try once more.
+        var first = collectOnce(pickup, variant: settings.travel)
+        if case .failed(let why) = first, !stopped, !why.contains("stopped"), !why.contains("could not reach the hive") {
+            status("warning", "\(pickup): \(why). Resetting and trying once more.")
+            first = collectOnce(pickup, variant: settings.travel)
+        }
         if case .failed(let why) = first, settings.travel != "walk", !stopped,
            pathLookup("to_pickup", pickup.replacingOccurrences(of: " ", with: "_"), "walk") != nil
             || pathLookup("to_pickup", pickup, "walk") != nil {

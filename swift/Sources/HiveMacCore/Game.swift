@@ -418,17 +418,26 @@ public final class Game {
     }
 
     /// Walks a route from the hive: shift lock off, mouse parked, every step, the cannon where the route asks.
+    /// Called at the start of a route (index 0) and after each step, so the screen can be saved frame by frame.
+    /// Arguments: route name, step number, number of steps, a short description of the step just done.
+    public var stepHook: ((String, Int, Int, String) -> Void)?
+
     public func walkPath(_ path: PathFile) -> Bool {
         setShiftLock(false)
         parkMouse()
-        for step in iterSteps(path) {
+        let steps = iterSteps(path)
+        stepHook?(path.name, 0, steps.count, "start")
+        for (i, step) in steps.enumerated() {
             if stopped { return false }
             if step.type == "gotocannon" {
                 if !goToCannon() { return false }
                 continue
             }
             run([step])
+            let what = step.type == "walk" ? "walk-" + step.keys.joined() + "-" + String(format: "%.1f", step.tiles) : step.type
+            stepHook?(path.name, i + 1, steps.count, what)
         }
+        stepHook?(path.name, steps.count + 1, steps.count, "end")
         return !stopped
     }
 

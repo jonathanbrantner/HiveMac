@@ -278,11 +278,19 @@ public final class Game {
             actuator.click(bx, by)
             wait(0.9)
             let open = robloxMenuOpen()
-            status("resetting", "menu button clicked (try \(attempt)): menu \(open == true ? "open" : open == nil ? "unreadable" : "not open")")
+            status("resetting", "menu button clicked at \(bx),\(by) (try \(attempt)): menu \(open == true ? "open" : open == nil ? "unreadable" : "not open"), reads: \(lastMenuText)")
             if open == false { continue }
             let (rx, ry) = respawn
             actuator.click(rx, ry)
-            wait(0.9)
+            // The "Are you sure you want to respawn your character?" box takes a moment: press Enter only once it shows.
+            var sure = false
+            let t0 = clock.now()
+            while !stopped && clock.now() - t0 < 4 {
+                wait(0.5)
+                let t = (sensors.textIn(RelRegion(fx: 0, fy: 0, fw: 1, fh: 1)) ?? "").lowercased()
+                if t.contains("are you sure") || t.contains("don't respawn") || t.contains("dont respawn") { sure = true; break }
+            }
+            status("resetting", sure ? "the respawn box is showing, pressing Enter" : "the respawn box did not show, pressing Enter anyway")
             actuator.tap("enter", holdS: 0.2)
             parkMouse()
             return

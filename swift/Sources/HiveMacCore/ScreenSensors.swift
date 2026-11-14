@@ -193,7 +193,20 @@ public final class ScreenSensors: Sensors {
         // A tall band across the top middle: the prompt sits there, whatever its height.
         let band = RelRegion(fx: max(0, (Double(w.width) / 2 - 320) / Double(w.width)), fy: 0, fw: min(1, 640 / Double(w.width)), fh: min(1, 230 / Double(w.height)))
         guard let img = region(band) else { return nil }
-        return read(img)?.lowercased()
+        return read(img).map { Self.withoutHudBars($0.lowercased()) }
+    }
+
+    /// The Honey and Pollen bars sit in the same band as the prompt. Their text ("honey 9,922,734 (+206/sec)
+    /// pollen 76,213/410,072,570 (+287/sec)") has a bracket and the word honey, so it was mistaken for a prompt.
+    public static func withoutHudBars(_ text: String) -> String {
+        var t = text
+        let patterns = [#"\(\s*\+?[\d,\.]+\s*/\s*se[cс]\s*\)?"#, #"honey\s*[\d,\.\s]{4,}"#, #"pollen\s*[\d,\.\s/]{4,}"#]
+        for p in patterns {
+            if let re = try? NSRegularExpression(pattern: p, options: [.caseInsensitive]) {
+                t = re.stringByReplacingMatches(in: t, range: NSRange(t.startIndex..., in: t), withTemplate: " ")
+            }
+        }
+        return t.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
 
     public func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { point(RelPoint(fx: fx, fy: fy)) }

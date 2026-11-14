@@ -42,26 +42,7 @@
       "seconds": 0.58
     },
     {
-      "type": "hold",
-      "keys": [
-        "space"
-      ],
-      "seconds": 0.08
-    },
-    {
-      "type": "wait",
-      "seconds": 0.06
-    },
-    {
-      "type": "hold",
-      "keys": [
-        "space"
-      ],
-      "seconds": 0.08
-    },
-    {
-      "type": "wait",
-      "seconds": 0.06
+      "type": "jump2"
     },
     {
       "type": "keyup",
@@ -74,15 +55,7 @@
       "seconds": 3.05
     },
     {
-      "type": "hold",
-      "keys": [
-        "space"
-      ],
-      "seconds": 0.08
-    },
-    {
-      "type": "wait",
-      "seconds": 0.06
+      "type": "jump"
     },
     {
       "type": "wait",

@@ -62,7 +62,7 @@ public struct GameSettings: Equatable, Sendable {
     /// Natro measures its menu spots in window pixels. Scale and the top bar height can be tuned if a Mac window differs.
     public var uiScale = 1.0
     public var uiOffsetY = 36
-    public var zoomOutTaps = 6
+    public var zoomOutTaps = 5
     public var resetWaitS = 2.0             // minimum time between reset and the next walk
     public var deathExtraWaitS = 18.0       // the death screen is longer than a plain reset
     /// Resets tried before giving up. Capped at 2: a third Esc, R, Enter never fixes a check that is wrong.
@@ -554,7 +554,9 @@ public final class Game {
                 continue
             }
             run([step])
-            let what = step.type == "walk" ? "walk-" + step.keys.joined() + "-" + String(format: "%.1f", step.tiles) : step.type
+            // No pictures during a flight or between key presses: a capture takes long enough to delay the glider (Natro has none).
+            guard step.type == "walk", !path.name.contains("cannon") else { continue }
+            let what = "walk-" + step.keys.joined() + "-" + String(format: "%.1f", step.tiles)
             stepHook?(path.name, i + 1, steps.count, what)
         }
         if walker.probeHit { probeEnded = true }
@@ -577,7 +579,7 @@ public final class Game {
             if seen == nil { return true }
             let t0 = clock.now()
             actuator.keyDown("d")
-            while seen != true && clock.now() - t0 < 2.0 && !stopped {
+            while seen != true && clock.now() - t0 < 10.0 && !stopped {
                 wait(0.1)
                 seen = sensors.cannonPromptVisible()
             }

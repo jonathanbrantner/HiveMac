@@ -248,7 +248,7 @@ final class AppModel: ObservableObject {
         game = g
         g.focusHook = { DispatchQueue.main.sync { WindowFinder.focusRoblox() } }
         g.frontCheck = { DispatchQueue.main.sync { WindowFinder.robloxIsFront() } }
-        if store.bool("app.trace", true) { g.stepHook = RouteTrace.hook(root: dirs.data.appendingPathComponent("traces")) { [weak self] in self?.snapshotRoblox() } }
+        if store.bool("app.trace", false) { g.stepHook = RouteTrace.hook(root: dirs.data.appendingPathComponent("traces")) { [weak self] in self?.snapshotRoblox() } }
         let runner = GameExtraRunner(timers: mobTimers) { [weak self] t in
             DispatchQueue.main.async { self?.mobTimers = t; t.save(to: dirs.data.appendingPathComponent("mob_timers.json")) }
         }

@@ -37,26 +37,7 @@
       "seconds": 1.25
     },
     {
-      "type": "hold",
-      "keys": [
-        "space"
-      ],
-      "seconds": 0.08
-    },
-    {
-      "type": "wait",
-      "seconds": 0.06
-    },
-    {
-      "type": "hold",
-      "keys": [
-        "space"
-      ],
-      "seconds": 0.08
-    },
-    {
-      "type": "wait",
-      "seconds": 0.06
+      "type": "jump2"
     },
     {
       "type": "wait",
@@ -73,15 +54,7 @@
       "seconds": 1.2
     },
     {
-      "type": "hold",
-      "keys": [
-        "space"
-      ],
-      "seconds": 0.08
-    },
-    {
-      "type": "wait",
-      "seconds": 0.06
+      "type": "jump"
     },
     {
       "type": "rotate",

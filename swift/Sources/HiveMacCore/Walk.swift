@@ -160,7 +160,7 @@ public final class Walker {
         var remaining = max(0, tiles)                       // tiles left to walk
         var last = clock.now()
         var vPrev = speed.current()
-        remaining -= vPrev * 0.125 / studsPerTile            // Natro starts every walk with an eighth of a second counted
+        remaining -= 0.125 / studsPerTile                    // Natro's head start is 0.125 of a stud (freq // 8), not an eighth of a second
         while remaining > 0 && !stop.isSet {
             if let pause, pause.isSet {
                 keys.forEach(act.keyUp)
@@ -204,6 +204,9 @@ public final class Walker {
     public static let resetKeyHoldS = 0.5
     /// A hold that includes Space (a jump) lasts at least this long.
     public static let jumpHoldS = 0.08
+    /// Natro sends {space 2} as two quick presses to open the glider: short holds with a small gap, nothing in between.
+    public static let glideHoldS = 0.05
+    public static let glideGapS = 0.04
 
     public func taps(_ key: String, count: Int, gap: Double = 0.12) {
         for _ in 0..<count {
@@ -234,6 +237,10 @@ public final class Walker {
             case "keyup": s.keys.map(mapped).reversed().forEach { act.keyUp($0) }
             case "rotate": rotate(s.direction, taps: s.count, leftKey: keymap["rot_left"] ?? ",", rightKey: keymap["rot_right"] ?? ".")
             case "tap": taps(mapped(s.key), count: s.count)
+            case "jump": act.tap("space", holdS: Walker.jumpHoldS)
+            case "jump2":
+                act.tap("space", holdS: Walker.glideHoldS); clock.sleep(Walker.glideGapS)
+                act.tap("space", holdS: Walker.glideHoldS)
             case "wait": wait(s.seconds)
             case "zoom": taps(s.direction == "out" ? (keymap["zoom_out"] ?? "o") : (keymap["zoom_in"] ?? "i"), count: s.count)
             case "mouse": s.direction == "down" ? act.mouseDown() : act.mouseUp()

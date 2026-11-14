@@ -46,7 +46,8 @@ def send_steps(s):
         elif arg in ("down", "up"):
             steps.append({"type": "keydown" if arg == "down" else "keyup", "keys": [name]})
         elif name == "space":
-            steps += tap_space(int(arg or 1))
+            n = int(arg or 1)
+            steps.append({"type": "jump2"} if n >= 2 else {"type": "jump"})
         else:
             n = int(arg or 1)
             steps += [{"type": "tap", "key": name, "count": n}]

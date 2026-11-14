@@ -56,6 +56,8 @@ public struct GameSettings: Equatable, Sendable {
     /// Natro's haste compensation: the walk speed is worked out from the buff bar (haste, coconut haste, haste+, oil,
     /// smoothie, bear morph) while walking. `walkSpeed` is then the speed without buffs.
     public var hasteCompensation = true
+    /// Seconds of gathering with no pollen gain after which the macro gives up on the field and resets. 0 = never.
+    public var gatherStallS = 240.0
     /// What a Bear Morph adds to the walk speed. Natro's number is 4.
     public var bearBonus = 4.0
     public var hiveSlot = 1
@@ -637,6 +639,10 @@ public final class Game {
         var greyStreak = 0
         var reason = "stopped"
         var pct = sensors.backpackPercent()
+        // No pollen at all for this long means the walk did not end in the field (wrong spot, stuck on the hives):
+        // stop gathering and let the loop reset and try again instead of grinding there for the whole time.
+        var bestPct = pct, lastGainAt = clock.now()
+        let stallS = max(60.0, s.gatherStallS)
         setShiftLock(f.shiftLock)
         parkMouse()
         if s.useTool { actuator.mouseDown() }
@@ -656,6 +662,11 @@ public final class Game {
                     let deadText = sensors.deathTextVisible() == true
                     if greyStreak >= 2 || deadText { died = true; reason = "death"; break outer }
                     if pct >= f.backpackPercent { reason = "backpack"; break outer }
+                    if pct > bestPct { bestPct = pct; lastGainAt = now }
+                    else if s.gatherStallS > 0, now - lastGainAt >= stallS {
+                        status("warning", "\(f.name): no pollen for \(Int(stallS)) seconds, so this is not the field. Resetting to try again")
+                        reason = "stalled"; break outer
+                    }
                     if Double(sensors.backpackUnreadableStreak()) * s.backpackSampleS >= s.lostScreenS {
                         reason = "lost"; break outer
                     }

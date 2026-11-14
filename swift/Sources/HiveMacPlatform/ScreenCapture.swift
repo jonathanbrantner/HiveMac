@@ -13,11 +13,14 @@ private final class Box<T>: @unchecked Sendable { var value: T?; init() {} }
 private final class DisplayCache: @unchecked Sendable {
     private var displays: [SCDisplay] = []
     private var ownApps: [SCRunningApplication] = []
+    private var gameWindows: [SCWindow] = []
     private var fetchedAt = 0.0
     private let lock = NSLock()
 
-    func isStale(now: Double) -> Bool { lock.lock(); defer { lock.unlock() }; return displays.isEmpty || now - fetchedAt > 30 }
-    func store(_ d: [SCDisplay], own: [SCRunningApplication], now: Double) { lock.lock(); displays = d; ownApps = own; fetchedAt = now; lock.unlock() }
+    func isStale(now: Double) -> Bool { lock.lock(); defer { lock.unlock() }; return displays.isEmpty || now - fetchedAt > 2 }
+    func store(_ d: [SCDisplay], own: [SCRunningApplication], game: [SCWindow], now: Double) { lock.lock(); displays = d; ownApps = own; gameWindows = game; fetchedAt = now; lock.unlock() }
+    /// The Roblox window that contains the point, if any.
+    func gameWindow(containing p: CGPoint) -> SCWindow? { lock.lock(); defer { lock.unlock() }; return gameWindows.first { $0.frame.contains(p) } }
     func own() -> [SCRunningApplication] { lock.lock(); defer { lock.unlock() }; return ownApps }
     func display(containing p: CGPoint) -> SCDisplay? {
         lock.lock(); defer { lock.unlock() }
@@ -47,7 +50,8 @@ public final class ScreenCapture: ScreenReading {
         if cache.isStale(now: now),
            let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true) {
             let me = Bundle.main.bundleIdentifier
-            cache.store(content.displays, own: content.applications.filter { $0.bundleIdentifier == me }, now: now)
+            let game = content.windows.filter { $0.isOnScreen && $0.windowLayer == 0 && ($0.owningApplication?.bundleIdentifier ?? "").lowercased().contains("roblox") }
+            cache.store(content.displays, own: content.applications.filter { $0.bundleIdentifier == me }, game: game, now: now)
         }
         return cache.display(containing: p)
     }
@@ -62,6 +66,21 @@ public final class ScreenCapture: ScreenReading {
         config.height = max(1, Int((rect.height * scale).rounded()))
         config.showsCursor = false
         config.colorSpaceName = CGColorSpace.sRGB
+        // Prefer the Roblox window itself: other windows (HiveMac, a terminal) can sit on top of the game,
+        // and a window capture ignores them.
+        if let win = cache.gameWindow(containing: CGPoint(x: rect.midX, y: rect.midY)) {
+            let wc = SCStreamConfiguration()
+            wc.sourceRect = CGRect(x: rect.minX - win.frame.minX, y: rect.minY - win.frame.minY, width: rect.width, height: rect.height)
+            wc.width = max(1, Int((rect.width * scale).rounded()))
+            wc.height = max(1, Int((rect.height * scale).rounded()))
+            wc.showsCursor = false
+            wc.colorSpaceName = CGColorSpace.sRGB
+            do {
+                let img = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: win), configuration: wc)
+                lastError = nil
+                return img
+            } catch { lastError = "window capture: \(error)" }   // fall through to the screen capture below
+        }
         // HiveMac's own window often sits on top of the game, so leave it out of the picture.
         let filter = SCContentFilter(display: display, excludingApplications: cache.own(), exceptingWindows: [])
         do {

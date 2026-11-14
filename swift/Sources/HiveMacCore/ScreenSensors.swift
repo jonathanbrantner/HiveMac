@@ -230,9 +230,12 @@ public final class ScreenSensors: Sensors {
     }
 
     public static func parseMoveSpeed(_ text: String) -> Double? {
-        guard let re = try? NSRegularExpression(pattern: #"move\s*speed[:\s]*(\d{1,3})"#),
+        guard let re = try? NSRegularExpression(pattern: #"move\s*speed[:\s]*(\d{1,3}(?:[.,]\d{1,2})?)"#),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-              let r = Range(m.range(at: 1), in: text), let v = Double(text[r]) else { return nil }
+              let r = Range(m.range(at: 1), in: text) else { return nil }
+        let raw = String(text[r]).replacingOccurrences(of: ",", with: ".")
+        guard var v = Double(raw) else { return nil }
+        if v >= 100, !raw.contains(".") { v /= 10 }            // "319" read for "31.9"
         return v
     }
 

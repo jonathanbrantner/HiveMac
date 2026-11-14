@@ -138,6 +138,8 @@ public final class Walker {
     public static let tapHoldS = 0.12
     /// Esc, R and Enter of the reset: held longer, because a missed reset leaves the character far from the hive.
     public static let resetKeyHoldS = 0.5
+    /// A hold that includes Space (a jump) lasts at least this long.
+    public static let jumpHoldS = 0.25
 
     public func taps(_ key: String, count: Int, gap: Double = 0.12) {
         for _ in 0..<count {
@@ -162,7 +164,8 @@ public final class Walker {
             if stop.isSet { return false }
             switch s.type {
             case "walk": walk(s.keys.map(mapped), tiles: s.tiles)
-            case "hold": hold(s.keys.map(mapped), s.seconds)
+            // A jump (Space) held for 0.05 to 0.1 s can fall between two frames on a slow Mac and never happen: hold it longer.
+            case "hold": hold(s.keys.map(mapped), s.keys.contains("space") ? max(s.seconds, Walker.jumpHoldS) : s.seconds)
             case "keydown": s.keys.map(mapped).forEach { act.keyDown($0) }
             case "keyup": s.keys.map(mapped).reversed().forEach { act.keyUp($0) }
             case "rotate": rotate(s.direction, taps: s.count, leftKey: keymap["rot_left"] ?? ",", rightKey: keymap["rot_right"] ?? ".")

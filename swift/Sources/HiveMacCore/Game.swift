@@ -259,7 +259,10 @@ public final class Game {
     private func robloxMenuOpen() -> Bool? {
         guard let text = sensors.textIn(RelRegion(fx: 0, fy: 0, fw: 1, fh: 1))?.lowercased() else { lastMenuText = "(unreadable)"; return nil }
         lastMenuText = String(text.prefix(90)).replacingOccurrences(of: "\n", with: " | ")
+        // Old menu: Resume, Reset Character, Leave Game. The newer Roblox menu on this Mac lists Friends chat, Shop, Self View,
+        // Switch avatar, Music, Captures, Report and Respawn.
         return text.contains("reset character") || text.contains("resume") || text.contains("leave game")
+            || text.contains("respawn") || text.contains("switch avatar") || text.contains("self view") || text.contains("captures")
     }
 
     /// Esc, R, Enter, but only while the menu really is open. A blind Enter when the menu did not open focuses the chat
@@ -492,7 +495,7 @@ public final class Game {
         for _ in 0..<3 {
             if stopped { return false }
             actuator.keyDown("space"); actuator.keyDown("d")
-            wait(0.1)
+            wait(Walker.jumpHoldS)
             actuator.keyUp("space")
             walker.walk(["d"], tiles: 2)
             walker.walk(["w", "d"], tiles: 1.5)

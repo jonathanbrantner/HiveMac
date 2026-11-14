@@ -210,8 +210,9 @@ final class AppModel: ObservableObject {
             setStatus(.error, "Roblox was not found. Open it, then press Start.")
             return
         }
-        guard !profile.fields.filter(\.enabled).isEmpty else {
-            setStatus(.error, "No field is switched on. Turn one on in Fields.")
+        // A run can be only activities (pickups, memory match, bug run, planters): a field is not required.
+        guard !profile.fields.filter(\.enabled).isEmpty || (profile.mode == "none" && profile.extras.contains(where: \.enabled)) else {
+            setStatus(.error, "Nothing is switched on. Turn on a field or an activity in Fields.")
             return
         }
         var settings = store.gameSettings()

@@ -196,16 +196,19 @@ public final class FarmLoop {
     }
 
     /// Visits an extra only when something in it is due.
-    private func visit(_ step: ExtraStep) {
-        guard let runner = extras else { return }
+    @discardableResult
+    private func visit(_ step: ExtraStep) -> Bool {
+        guard let runner = extras else { return false }
         let due = runner.due(step, now: unixNow())
-        if !due.isEmpty { runner.perform(step, due: due, game: game) }
+        if due.isEmpty { return false }
+        runner.perform(step, due: due, game: game)
+        return true
     }
 
     /// Returns why the loop ended: stopped, no_fields, reset_failed, cycles_done.
     public func run() -> String {
         let g = game
-        if fields.isEmpty { g.status("error", "no enabled fields"); return "no_fields" }
+        if items.isEmpty { g.status("error", "nothing is switched on"); return "no_fields" }
         var afterDeath = false
         // Standing at the hive with pollen: convert it first. A reset would only throw time away.
         if g.sensors.hivePromptVisible() == true {
@@ -222,7 +225,10 @@ public final class FarmLoop {
             let upcoming: Item = boostedItem().map { Item.field($0) } ?? nextItem()
             switch upcoming {
             case .extra(let step):
-                if let allowed = allowedInMode(step) { visit(allowed) }
+                if let allowed = allowedInMode(step) {
+                    // A run of only activities has nothing to gather while they wait for their timers: do not spin.
+                    if !visit(allowed), fields.isEmpty { g.walker.wait(3) }
+                }
                 continue
             case .field(let field): f = field
             }

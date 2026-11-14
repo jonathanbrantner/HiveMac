@@ -53,6 +53,30 @@ extension Game {
         return first
     }
 
+    /// The wealth clock stands on a platform up a ladder, and the open-loop walk can end a little to the side of the
+    /// ladder (seen live: the character stays on the grass below). Push into the cliff, and when nothing happens
+    /// sidestep in small steps, right first and then left, until the clock prompt shows.
+    private func ladderSearch(_ pickup: String, needles: [String]) -> String? {
+        func prompt() -> String? {
+            let t = sensors.promptText() ?? ""
+            return needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) ? t : nil
+        }
+        status("traveling", "\(pickup): not on the ladder, searching sideways")
+        let rightSteps = 14, leftSteps = 28
+        for _ in 0..<rightSteps where !stopped {
+            actuator.keyDown("w"); wait(2.0); actuator.keyUp("w")
+            if let t = prompt() { status("traveling", "\(pickup): found it after the sideways search"); return t }
+            walker.walk(["d"], tiles: 0.7)
+        }
+        walker.walk(["a"], tiles: 0.7 * Double(rightSteps))
+        for _ in 0..<leftSteps where !stopped {
+            actuator.keyDown("w"); wait(2.0); actuator.keyUp("w")
+            if let t = prompt() { status("traveling", "\(pickup): found it after the sideways search"); return t }
+            walker.walk(["a"], tiles: 0.7)
+        }
+        return nil
+    }
+
     private func collectOnce(_ pickup: String, variant: String) -> CollectResult {
         if !resetToHive() { return .failed("could not reach the hive") }
         let slotName = pickup == "honey dispenser" ? "\(pickup) s\(min(6, max(1, settings.hiveSlot)))" : pickup
@@ -74,7 +98,9 @@ extension Game {
             } while clock.now() - t0 < seconds && !stopped
             return ""
         }
-        let first = look(seconds: 3)
+        var first = look(seconds: 3)
+        if let t = first, t.isEmpty, pickup == "wealth clock", let needles = Game.pickupWords[pickup],
+           let found = ladderSearch(pickup, needles: needles) { first = found }
         let needles = Game.pickupWords[pickup]
         func atRightSpot(_ t: String) -> Bool { needles == nil || needles!.contains { t.contains($0) } }
         if let t = first, needles != nil {

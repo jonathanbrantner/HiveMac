@@ -265,31 +265,32 @@ public final class Game {
             || text.contains("respawn") || text.contains("switch avatar") || text.contains("self view") || text.contains("captures")
     }
 
-    /// Esc, R, Enter, but only while the menu really is open. A blind Enter when the menu did not open focuses the chat
-    /// box, and from then on every Esc only closes the chat, so one missed Esc used to break every reset after it.
-    private var lastMenuText = ""
+    /// Resets the character. On this Roblox the Esc key does not open the menu, so the reset clicks the three-line menu
+    /// button at the top left, then "Respawn", and presses Enter on the "Are you sure" box (its Respawn button is the
+    /// one in focus). Old menus (Esc, R, Enter) are tried first when the screen cannot be read.
     private func pressReset() {
         let s = settings
-        if robloxMenuOpen() == nil {                       // cannot read the screen: the plain sequence
-            tap("esc"); wait(s.keyGapS); tap("r"); wait(s.keyGapS); tap("enter")
+        guard let ws = windowSize() else { tap("esc"); wait(s.keyGapS); tap("r"); wait(s.keyGapS); tap("enter"); return }
+        func at(_ fx: Double, _ fy: Double) -> (Int, Int) { (ws.left + Int(Double(ws.width) * fx), ws.top + Int(Double(ws.height) * fy)) }
+        let burger = at(0.065, 0.048), respawn = at(0.076, 0.64)
+        for attempt in 1...3 where !stopped {
+            let (bx, by) = burger
+            actuator.click(bx, by)
+            wait(0.9)
+            let open = robloxMenuOpen()
+            status("resetting", "menu button clicked (try \(attempt)): menu \(open == true ? "open" : open == nil ? "unreadable" : "not open")")
+            if open == false { continue }
+            let (rx, ry) = respawn
+            actuator.click(rx, ry)
+            wait(0.9)
+            actuator.tap("enter", holdS: 0.2)
+            parkMouse()
             return
         }
-        var opened = robloxMenuOpen() == true
-        status("resetting", "menu check before Esc: \(opened ? "OPEN" : "closed"), screen reads: \(lastMenuText)")
-        var tries = 0
-        while !opened && tries < 4 && !stopped {
-            tries += 1
-            actuator.tap("esc", holdS: 0.2)
-            wait(0.9)
-            opened = robloxMenuOpen() == true
-            status("resetting", "Esc try \(tries): menu \(opened ? "open" : "not open"), screen reads: \(lastMenuText)")
-        }
-        guard opened else { status("warning", "the Roblox menu did not open after Esc (\(tries) tries), not pressing R or Enter"); return }
-        if tries > 1 { status("resetting", "the menu opened on Esc try \(tries)") }
-        actuator.tap("r", holdS: 0.2)
-        wait(0.9)
-        actuator.tap("enter", holdS: 0.2)
+        status("warning", "could not open the Roblox menu with the menu button")
     }
+
+    private var lastMenuText = ""
 
     /// Natro: the health bar goes grey (dead) then comes back. Falls back to a fixed wait.
     private func waitForRespawn() {

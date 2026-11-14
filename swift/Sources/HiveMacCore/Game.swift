@@ -225,10 +225,7 @@ public final class Game {
             if stopped { return false }
             status("resetting", "attempt \(attempt)")
             parkMouse()
-            // Held for half a second: on a slow frame rate a short press can fall between two frames and be missed.
-            actuator.tap("esc", holdS: Walker.resetKeyHoldS); wait(s.keyGapS)
-            actuator.tap("r", holdS: Walker.resetKeyHoldS); wait(s.keyGapS)
-            actuator.tap("enter", holdS: Walker.resetKeyHoldS)
+            pressReset()
             waitForRespawn()
             let extra = (afterDeath || died) ? s.deathExtraWaitS : 0
             died = false
@@ -251,6 +248,35 @@ public final class Game {
         }
         status("error", "could not see the hive prompt after the reset. Check that you are not stuck somewhere, and check the Hive prompt pictures in Calibrate.")
         return false
+    }
+
+    /// True when the Roblox menu (Resume, Reset Character, Leave Game) is on screen; nil when the screen cannot be read.
+    private func robloxMenuOpen() -> Bool? {
+        guard let text = sensors.textIn(RelRegion(fx: 0, fy: 0, fw: 1, fh: 1))?.lowercased() else { return nil }
+        return text.contains("reset character") || text.contains("resume") || text.contains("leave game")
+    }
+
+    /// Esc, R, Enter, but only while the menu really is open. A blind Enter when the menu did not open focuses the chat
+    /// box, and from then on every Esc only closes the chat, so one missed Esc used to break every reset after it.
+    private func pressReset() {
+        let s = settings
+        if robloxMenuOpen() == nil {                       // cannot read the screen: the plain sequence
+            tap("esc"); wait(s.keyGapS); tap("r"); wait(s.keyGapS); tap("enter")
+            return
+        }
+        var opened = robloxMenuOpen() == true
+        var tries = 0
+        while !opened && tries < 4 && !stopped {
+            tries += 1
+            actuator.tap("esc", holdS: 0.2)
+            wait(0.9)
+            opened = robloxMenuOpen() == true
+        }
+        guard opened else { status("warning", "the Roblox menu did not open after Esc (\(tries) tries), not pressing R or Enter"); return }
+        if tries > 1 { status("resetting", "the menu opened on Esc try \(tries)") }
+        actuator.tap("r", holdS: 0.2)
+        wait(0.9)
+        actuator.tap("enter", holdS: 0.2)
     }
 
     /// Natro: the health bar goes grey (dead) then comes back. Falls back to a fixed wait.

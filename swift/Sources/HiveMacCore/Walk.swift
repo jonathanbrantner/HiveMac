@@ -199,7 +199,7 @@ public final class Walker {
     /// Esc, R and Enter of the reset: held longer, because a missed reset leaves the character far from the hive.
     public static let resetKeyHoldS = 0.5
     /// A hold that includes Space (a jump) lasts at least this long.
-    public static let jumpHoldS = 0.25
+    public static let jumpHoldS = 0.08
 
     public func taps(_ key: String, count: Int, gap: Double = 0.12) {
         for _ in 0..<count {

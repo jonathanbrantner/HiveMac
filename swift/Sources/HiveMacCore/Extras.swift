@@ -143,6 +143,7 @@ extension Game {
             return ""
         }
         var first = look(seconds: 3)
+        if testPrefix != nil { return .failed("prefix test: stopped at the end of the walk, no search") }
         if let t = first, t.isEmpty, let needles = Game.pickupWords[pickup] {
             if pickup == "wealth clock", let found = ladderSearch(pickup, needles: needles) { first = found }
             else if let found = creepSearch(pickup, needles: needles, forward: Game.creepOverride[pickup] ?? creepKeys(path)) { first = found }

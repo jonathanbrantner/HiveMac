@@ -48,11 +48,15 @@ public final class KeyInput: Actuator {
     public func moveMouse(_ x: Int, _ y: Int) {
         CGWarpMouseCursorPosition(CGPoint(x: x, y: y))
         CGAssociateMouseAndMouseCursorPosition(1)
+        // A real move event, so the game sees the pointer arrive (menu items only react after a hover).
+        CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: x, y: y), mouseButton: .left)?.post(tap: .cghidEventTap)
     }
 
     public func click(_ x: Int, _ y: Int) {
         moveMouse(x, y)
-        Thread.sleep(forTimeInterval: 0.08)
+        Thread.sleep(forTimeInterval: 0.15)
+        moveMouse(x + 1, y + 1)
+        Thread.sleep(forTimeInterval: 0.25)
         mouseEvent(.leftMouseDown)
         Thread.sleep(forTimeInterval: 0.06)
         mouseEvent(.leftMouseUp)

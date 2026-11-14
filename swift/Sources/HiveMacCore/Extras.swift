@@ -54,27 +54,30 @@ extension Game {
     }
 
     /// How far a walk goes depends on the walk speed at that moment (Haste comes and goes), so a route can end a
-    /// little short of or past its target. For these pickups the macro creeps along the last walking direction,
+    /// little short of or past its target. The macro creeps along the last long walking direction of the route,
     /// checking the prompt after each small step: forward first, then back past the start.
-    public static let creepAxes: [String: (forward: String, back: String)] = [
-        "honey dispenser": ("a", "d"),
-    ]
+    func creepKeys(_ path: PathFile) -> [String] {
+        let steps = iterSteps(path).filter { $0.type == "walk" && $0.tiles >= 3 }
+        return steps.last?.keys.filter { ["w", "a", "s", "d"].contains($0) } ?? ["w"]
+    }
 
-    private func creepSearch(_ pickup: String, needles: [String], forward: String, back: String) -> String? {
+    private func creepSearch(_ pickup: String, needles: [String], forward: [String]) -> String? {
         func prompt() -> String? {
             let t = sensors.promptText() ?? ""
             return needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) ? t : nil
         }
+        let opposite = ["w": "s", "s": "w", "a": "d", "d": "a"]
+        let back = forward.compactMap { opposite[$0] }
         let stepS = 0.18, steps = 10
-        status("traveling", "\(pickup): no prompt at the end of the walk, creeping \(forward) then \(back)")
+        status("traveling", "\(pickup): no prompt at the end of the walk, creeping \(forward.joined()) then \(back.joined())")
         for i in 0..<steps where !stopped {
-            walker.hold([forward], stepS); wait(0.35)
-            if let t = prompt() { status("traveling", "\(pickup): found after creeping \(forward) \(i + 1) steps"); return t }
+            walker.hold(forward, stepS); wait(0.35)
+            if let t = prompt() { status("traveling", "\(pickup): found after creeping \(forward.joined()) \(i + 1) steps"); return t }
         }
-        walker.hold([back], stepS * Double(steps)); wait(0.3)
+        walker.hold(back, stepS * Double(steps)); wait(0.3)
         for i in 0..<(steps * 2) where !stopped {
-            walker.hold([back], stepS); wait(0.35)
-            if let t = prompt() { status("traveling", "\(pickup): found after creeping \(back) \(i + 1) steps"); return t }
+            walker.hold(back, stepS); wait(0.35)
+            if let t = prompt() { status("traveling", "\(pickup): found after creeping \(back.joined()) \(i + 1) steps"); return t }
         }
         return nil
     }
@@ -127,7 +130,7 @@ extension Game {
         var first = look(seconds: 3)
         if let t = first, t.isEmpty, let needles = Game.pickupWords[pickup] {
             if pickup == "wealth clock", let found = ladderSearch(pickup, needles: needles) { first = found }
-            else if let axis = Game.creepAxes[pickup], let found = creepSearch(pickup, needles: needles, forward: axis.forward, back: axis.back) { first = found }
+            else if let found = creepSearch(pickup, needles: needles, forward: creepKeys(path)) { first = found }
         }
         let needles = Game.pickupWords[pickup]
         func atRightSpot(_ t: String) -> Bool { needles == nil || needles!.contains { t.contains($0) } }

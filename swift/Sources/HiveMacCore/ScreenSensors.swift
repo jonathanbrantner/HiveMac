@@ -174,7 +174,10 @@ public final class ScreenSensors: Sensors {
             .map { templateIn(cfg.hivePromptRegion, $0) }
         let text = hiveText()
         if text == nil && pictures.allSatisfy({ $0 == nil }) { return nil }
-        return (text.map(Self.isHiveMessage) ?? false) || pictures.contains(true)
+        // Words that were read beat the saved pictures: a picture of the hive message also matches the red banner of
+        // "Use the Honey Dispenser", which made the macro think it stood at the hive when it was at the dispenser.
+        if let t = text, !t.isEmpty { return Self.isHiveMessage(t) }
+        return pictures.contains(true)
     }
 
     public func hiveViewVisible() -> Bool? {

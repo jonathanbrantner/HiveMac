@@ -246,8 +246,9 @@ public final class Game {
                 continue
             }
             if atHive == nil { status("resetting", "no hive prompt template, assuming at hive") }
-            _ = fixCamera()
+            let aligned = fixCamera()
             stepHook?("reset", 3, 0, "a\(attempt)-after-camera")
+            if !aligned && attempt < min(2, max(1, s.resetAttempts)) { status("resetting", "the camera could not be aligned, trying the reset again"); continue }
             return true
         }
         status("error", "could not see the hive prompt after the reset. Check that you are not stuck somewhere, and check the Hive prompt pictures in Calibrate.")
@@ -326,6 +327,12 @@ public final class Game {
                 // When that peak is not clear (two headings close), take the heading with the least honeycomb instead.
                 let peak = shares.firstIndex(of: best) ?? 0
                 let second = shares.enumerated().filter { $0.offset != peak }.map(\.element).max() ?? 0
+                // Standing at the hive, one heading shows the honeycomb wall and the others do not. A flat scan means the
+                // character is somewhere else (the reset did not happen).
+                guard best >= 0.30 || best >= second * 1.8 else {
+                    status("warning", "camera try \(attempt): no clear hive in view (shares " + shares.map { String(format: "%.0f", $0 * 100) }.joined(separator: " ") + " percent), not at the hive")
+                    return false
+                }
                 var bestStep = (peak + 4) % 8
                 if best < second * 1.8 {
                     var bestScore = Double.greatestFiniteMagnitude

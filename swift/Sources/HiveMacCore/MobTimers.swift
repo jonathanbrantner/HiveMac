@@ -10,18 +10,32 @@ public struct MobTimers: Equatable, Sendable {
         // Timed pickups (Natro's cooldowns): same timer logic, not mobs.
         "wealth clock": 3600, "honey dispenser": 3600, "treat dispenser": 3600,
         "blueberry dispenser": 4 * 3600, "strawberry dispenser": 4 * 3600, "coconut dispenser": 4 * 3600,
-        "honeystorm": 4 * 3600, "ant pass": 2 * 3600, "robo pass": 22 * 3600,
+        "honeystorm": 4 * 3600, "ant pass": 2 * 3600, "robo pass": 22 * 3600, "glue dispenser": 22 * 3600,
         "mondo chick": 16 * 60,
         "black bear quest": 3600, "polar bear quest": 3600, "brown bear quest": 3600, "bucko bee quest": 0, "riley bee quest": 0,
         "normal memory match": 2 * 3600, "mega memory match": 4 * 3600, "extreme memory match": 8 * 3600, "blue booster": 45 * 60, "red booster": 45 * 60, "mountain booster": 45 * 60,
     ]
     /// What the Clock and dispensers step offers. The boosters are in Booster mode, not here.
     public static let pickups = ["wealth clock", "honey dispenser", "treat dispenser", "blueberry dispenser",
-                                 "strawberry dispenser", "honeystorm", "ant pass", "robo pass"]
+                                 "strawberry dispenser", "honeystorm", "ant pass", "robo pass", "glue dispenser"]
     /// The four dispensers.
     public static let dispenserPickups = ["strawberry dispenser", "treat dispenser", "blueberry dispenser", "honey dispenser"]
     /// The ones bought with tickets.
     public static let ticketPickups = ["ant pass", "robo pass"]
+
+    /// What was proven in the real game on the school MacBook (2026-11-13), shown next to each pickup in the app.
+    /// `ok` is true when the walk route arrives and the prompt is read; the note says what is known.
+    public static let proven: [String: (ok: Bool, note: String)] = [
+        "wealth clock": (true, "works"),
+        "honey dispenser": (true, "works"),
+        "treat dispenser": (true, "works (finds it with a short search)"),
+        "blueberry dispenser": (true, "works"),
+        "strawberry dispenser": (true, "works"),
+        "ant pass": (true, "works (arrives; at the limit it says you already have 10)"),
+        "robo pass": (true, "works (arrives; at the limit it says you already have the max)"),
+        "honeystorm": (false, "not working yet: the walk ends away from it"),
+        "glue dispenser": (false, "new, not tested yet"),
+    ]
 
     public private(set) var lastDone: [String: TimeInterval] = [:]
 

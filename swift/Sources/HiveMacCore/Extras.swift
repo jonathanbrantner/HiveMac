@@ -39,8 +39,12 @@ extension Game {
     public static let pickupWords: [String: [String]] = [
         "wealth clock": ["wealth", "clock"], "honey dispenser": ["honey disp"], "treat dispenser": ["treat"],
         "blueberry dispenser": ["blueb"], "strawberry dispenser": ["strawb"], "honeystorm": ["storm"],
-        "ant pass": ["ant pass", "ant p"], "robo pass": ["robo"], "coconut dispenser": ["cocon"],
+        "ant pass": ["ant pass", "ant p"], "robo pass": ["robo"], "coconut dispenser": ["cocon"], "glue dispenser": ["glue"],
     ]
+
+    /// The game shows "Use the Ant Pass" in range, or "You Already Have 10 or More Ant Passes" when the limit is reached.
+    /// Both mean the character is standing at the pickup.
+    public static func isPickupPrompt(_ t: String) -> Bool { t.contains("use th") || t.contains("already have") }
 
     public func collect(_ pickup: String) -> CollectResult {
         if let v = testVariant { return collectOnce(pickup, variant: v) }
@@ -99,7 +103,7 @@ extension Game {
         status("traveling", "\(pickup): no prompt at the end of the walk, searching around in all directions")
         walker.armProbe({ [self] in
             let t = sensors.promptText() ?? ""
-            return t.contains("use th") && needles.contains(where: { t.contains($0) })
+            return Game.isPickupPrompt(t) && needles.contains(where: { t.contains($0) })
         })
         defer { walker.armProbe(nil) }
         let dirs: [[String]] = [["w"], ["w", "d"], ["d"], ["s", "d"], ["s"], ["s", "a"], ["a"], ["w", "a"]]
@@ -113,7 +117,7 @@ extension Game {
             walker.walk(keys.compactMap { opposite[$0] }, tiles: 6)
             walker.armProbe({ [self] in
                 let t = sensors.promptText() ?? ""
-                return t.contains("use th") && needles.contains(where: { t.contains($0) })
+                return Game.isPickupPrompt(t) && needles.contains(where: { t.contains($0) })
             })
         }
         walker.armProbe(nil)
@@ -135,7 +139,7 @@ extension Game {
         status("traveling", "\(pickup): spiral search around the end of the route")
         walker.armProbe({ [self] in
             let t = sensors.promptText() ?? ""
-            return t.contains("use th") && needles.contains(where: { t.contains($0) })
+            return Game.isPickupPrompt(t) && needles.contains(where: { t.contains($0) })
         })
         defer { walker.armProbe(nil) }
         let dirs = [["d"], ["w"], ["a"], ["s"]]
@@ -197,18 +201,34 @@ extension Game {
             // The game shows "Use the <pickup>" whenever the character is in range, so stop walking as soon as it does.
             probe = { [self] in
                 let t = sensors.promptText() ?? ""
-                return t.contains("use th") && needles.contains(where: { t.contains($0) })
+                return Game.isPickupPrompt(t) && needles.contains(where: { t.contains($0) })
             }
         }
         guard walkPath(path, probe: probe) else { return .failed("stopped") }
         if probeEnded { status("traveling", "\(pickup): the prompt showed during the walk, stopped there") }
+        if pickup == "glue dispenser", testPrefix == nil {
+            // The Gummy Bear lair opens when a gumdrop is dragged out of the inventory onto the screen, then it is 6 tiles in.
+            guard openItemMenu() else { return .failed("glue dispenser: the inventory did not open") }
+            guard findInInventory("gumdrops", maxScrolls: 60) != nil, let spot = sensors.find("gumdrops", in: RelRegion(fx: 0, fy: 0.12, fw: 0.25, fh: 0.88), tolerance: 5),
+                  let w = windowSize() else {
+                _ = openItemMenu()
+                return .failed("glue dispenser: no gumdrops in the inventory")
+            }
+            let centre = (w.left + w.width / 2, w.top + w.height / 2)
+            actuator.drag(fromX: spot.x, fromY: spot.y, toX: centre.0, toY: centre.1)
+            wait(0.6)
+            if let p = windowPoint(30, 120) { actuator.click(p.x, p.y) }          // close the inventory
+            wait(0.8)
+            walker.walk(["w"], tiles: 6)
+            wait(0.8)
+        }
 
         // What does the prompt say here?
         func look(seconds: Double) -> String? {
             let t0 = clock.now()
             repeat {
                 guard let t = sensors.promptText() else { return nil }
-                if t.contains("use") || t.contains("(") { return t }
+                if t.contains("use") || t.contains("(") || t.contains("already have") { return t }
                 wait(0.4)
             } while clock.now() - t0 < seconds && !stopped
             return ""
@@ -232,12 +252,17 @@ extension Game {
             status("traveling", "collected \(pickup)")
             return .collected
         }
+        if let t = first, t.contains("already have") {            // at the pickup, but the daily limit is reached: nothing to press
+            status("traveling", "\(pickup): arrived, you already have the maximum")
+            return .onCooldown(3600)
+        }
         if let left = Hud.cooldownSeconds(fromText: first ?? "") {
             status("traveling", "\(pickup) is not ready yet")
             return .onCooldown(left)
         }
         for attempt in 0..<2 {
-            actuator.tap("e", holdS: 0.1)
+            focusHook?(); wait(0.3)                                // the key only counts while Roblox is the active app
+            actuator.tap("e", holdS: 0.15)
             wait(0.8)
             // The countdown is the proof. Look for it for a few seconds.
             var last: String?

@@ -83,6 +83,10 @@ struct ExtraRow: View {
                     let left = model.mobTimers.remaining(tkey, now: Date().timeIntervalSince1970)
                     Text(unbuilt ? "not hunted yet" : MobTimers.describe(remaining: left, timed: timed)).font(Theme.caption)
                         .foregroundStyle(timed && left == 0 ? Theme.leaf : Theme.dust)
+                    if step.kind == "pickups", let proof = MobTimers.proven[bug] {
+                        Text((proof.ok ? "works" : "not working") + (proof.note == "works" ? "" : ": " + proof.note.replacingOccurrences(of: "works ", with: "").replacingOccurrences(of: "not working yet: ", with: "")))
+                            .font(Theme.caption).foregroundStyle(proof.ok ? Theme.leaf : Theme.ember)
+                    }
                     Spacer(minLength: 0)
                 }
             }

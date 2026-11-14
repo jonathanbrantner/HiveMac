@@ -18,14 +18,16 @@ struct AutoBoostRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s1) {
             HStack(spacing: Theme.s4) {
-                Toggle("Auto field boost", isOn: $model.profile.autoBoost.enabled).toggleStyle(.checkbox).font(Theme.body)
+                Toggle("Boost my field (dice, glitter)", isOn: $model.profile.autoBoost.enabled).toggleStyle(.checkbox).font(Theme.body)
                     .disabled(model.running)
                 if model.profile.autoBoost.enabled {
-                    slotPicker("Dice", $model.profile.autoBoost.diceSlot)
-                    slotPicker("Glitter", $model.profile.autoBoost.glitterSlot)
+                    slotPicker("Dice slot", $model.profile.autoBoost.diceSlot)
+                    slotPicker("Glitter slot", $model.profile.autoBoost.glitterSlot)
                 }
                 Spacer()
             }
+            Text("When the macro arrives at a field that is not boosted yet, it rolls Field Dice and uses Glitter from your hotbar on that field until its boost shows.")
+                .font(Theme.caption).foregroundStyle(Theme.dust)
         }
     }
 }

@@ -582,7 +582,19 @@ public final class Game {
                 seen = sensors.cannonPromptVisible()
             }
             actuator.keyUp("d")
-            if seen == true { return true }
+            if seen == true {
+                // Natro checks that the cannon was not overrun: after half a second the prompt must still be there,
+                // otherwise step back left a little and look again (up to 9 times).
+                var still = false
+                for _ in 0..<9 where !stopped {
+                    wait(0.5)
+                    if sensors.cannonPromptVisible() != false { still = true; break }
+                    walker.walk(["a"], tiles: 1.5)
+                    wait(0.3)
+                    if sensors.cannonPromptVisible() != false { still = true; break }
+                }
+                if still { return true }
+            }
             status("traveling", "cannon not found, resetting")
             if !resetToHive() { return false }
             run(iterSteps(PathFile(name: "ramp", steps: [Step(type: "gotoramp")])))

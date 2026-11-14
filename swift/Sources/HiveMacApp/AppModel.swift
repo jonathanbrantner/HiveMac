@@ -278,7 +278,19 @@ final class AppModel: ObservableObject {
         pendingRouteTest = nil
         Thread.detachNewThread { [weak self] in
             let why: String
-            if let t = routeTest, t.name == "reset" {
+            if let t = routeTest, t.name.hasPrefix("field:") {
+                // Reset, then the field's own route (walk or cannon), then a picture so the arrival can be checked by eye.
+                let field = String(t.name.dropFirst(6))
+                var f = FieldConfig(name: field)
+                f.travel = t.variant
+                g.testPrefix = t.prefix
+                let ok = g.resetToHive() && g.travelTo(f)
+                let shot = self?.snapshotRoblox()
+                if let shot, let dir = self?.dirs.data { _ = ScreenCapture.savePNG(shot, to: dir.appendingPathComponent("debug-step.png")) }
+                g.status(ok ? "traveling" : "warning", "FIELD TEST \(field) \(t.variant): \(ok ? "route finished, picture saved" : "route failed")")
+                g.status("traveling", "ROUTE TEST SUMMARY \(field) \(t.variant): done")
+                why = "stopped"
+            } else if let t = routeTest, t.name == "reset" {
                 // Reset, camera and nothing else: leaves the character at the hive, facing away, ready for a recording.
                 let ok = g.resetToHive()
                 g.status(ok ? "traveling" : "warning", "RESET ONLY: \(ok ? "ready at the hive" : "failed")")
@@ -326,7 +338,7 @@ final class AppModel: ObservableObject {
 
     /// Runs one pickup route `times` times in a row, from the hive, and logs PASS or FAIL for each.
     func startRouteTest(_ name: String, _ times: Int, _ variant: String = "walk", _ prefix: Int? = nil) {
-        guard !running, name == "reset" || Game.pickupWords[name] != nil else { append("Route test: unknown pickup \"\(name)\" or a run is going."); return }
+        guard !running, name == "reset" || name.hasPrefix("field:") || Game.pickupWords[name] != nil else { append("Route test: unknown pickup \"\(name)\" or a run is going."); return }
         pendingRouteTest = (name, times, variant, prefix)
         start()
     }

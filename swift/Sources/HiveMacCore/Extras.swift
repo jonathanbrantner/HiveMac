@@ -50,7 +50,8 @@ extension Game {
         if let v = testVariant { return collectOnce(pickup, variant: v) }
         // A walk can miss by a few tiles (a buff starting mid-walk, a jump that did not take): reset and try once more.
         var first = collectOnce(pickup, variant: settings.travel)
-        if case .failed(let why) = first, !stopped, !why.contains("stopped"), !why.contains("could not reach the hive") {
+        if case .failed(let why) = first, !stopped, !why.contains("stopped"), !why.contains("could not reach the hive"),
+           !why.hasPrefix("no prompt") {            // a failed search already looked around: do not repeat it
             status("warning", "\(pickup): \(why). Resetting and trying once more.")
             first = collectOnce(pickup, variant: settings.travel)
         }
@@ -172,15 +173,15 @@ extension Game {
             return needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) ? t : nil
         }
         status("traveling", "\(pickup): not on the ladder, searching sideways")
-        let rightSteps = 14, leftSteps = 28
+        let rightSteps = 5, leftSteps = 10
         for _ in 0..<rightSteps where !stopped {
-            actuator.keyDown("w"); wait(2.0); actuator.keyUp("w")
+            actuator.keyDown("w"); wait(1.2); actuator.keyUp("w")
             if let t = prompt() { status("traveling", "\(pickup): found it after the sideways search"); return t }
             walker.walk(["d"], tiles: 0.7)
         }
         walker.walk(["a"], tiles: 0.7 * Double(rightSteps))
         for _ in 0..<leftSteps where !stopped {
-            actuator.keyDown("w"); wait(2.0); actuator.keyUp("w")
+            actuator.keyDown("w"); wait(1.2); actuator.keyUp("w")
             if let t = prompt() { status("traveling", "\(pickup): found it after the sideways search"); return t }
             walker.walk(["a"], tiles: 0.7)
         }
@@ -245,9 +246,11 @@ extension Game {
         var first = look(seconds: 3)
         if testPrefix != nil { return .failed("prefix test: stopped at the end of the walk, no search") }
         if let t = first, t.isEmpty, let needles = Game.pickupWords[pickup] {
-            if pickup == "wealth clock", let found = ladderSearch(pickup, needles: needles) { first = found }
+            // One short search only (a failed pickup used to wander for minutes: sideways, star, creep, then the retry).
+            if pickup == "wealth clock" { if let found = ladderSearch(pickup, needles: needles) { first = found } }
             else if let found = starSearch(pickup, needles: needles) { first = found }
-            else if let found = creepSearch(pickup, needles: needles, forward: Game.creepOverride[pickup] ?? creepKeys(path)) { first = found }
+            else if Game.creepOverride[pickup] != nil,
+                    let found = creepSearch(pickup, needles: needles, forward: Game.creepOverride[pickup]!) { first = found }
         }
         let needles = Game.pickupWords[pickup]
         func atRightSpot(_ t: String) -> Bool { needles == nil || needles!.contains { t.contains($0) } }

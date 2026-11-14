@@ -122,10 +122,13 @@ public final class Walker {
         }
     }
 
-    public func taps(_ key: String, count: Int, gap: Double = 0.06) {
+    /// How long a tap holds the key. Short enough not to auto-repeat, long enough for a slow frame rate to see it.
+    public static let tapHoldS = 0.12
+
+    public func taps(_ key: String, count: Int, gap: Double = 0.12) {
         for _ in 0..<count {
             if stop.isSet { return }
-            act.tap(key, holdS: 0.03)
+            act.tap(key, holdS: Self.tapHoldS)
             clock.sleep(gap)
         }
     }

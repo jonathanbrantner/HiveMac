@@ -185,7 +185,8 @@ public final class Game {
     public var stopped: Bool { stop.isSet }
 
     func wait(_ s: Double) { walker.wait(s) }
-    func tap(_ key: String) { actuator.tap(key, holdS: 0.03) }
+    /// Roblox on a slow Mac can miss a 30 ms press that falls between two frames, so a tap is held for 120 ms.
+    func tap(_ key: String) { actuator.tap(key, holdS: Walker.tapHoldS) }
 
     public func keymap() -> [String: String] {
         ["rot_left": settings.rotLeft, "rot_right": settings.rotRight,

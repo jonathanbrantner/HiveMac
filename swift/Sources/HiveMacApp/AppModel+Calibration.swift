@@ -114,6 +114,8 @@ extension AppModel {
         store.set("hud.calibrated", true)
         try? store.save()
         append("Detect Roblox: window \(w.width) by \(w.height). HUD spots set from Natro's defaults.")
+        let probe = capture.grab(WindowBounds(left: w.left, top: w.top, width: min(200, w.width), height: min(100, w.height)))
+        append("Detect Roblox: test picture \(probe.map { "\($0.width) by \($0.height)" } ?? "none")\(capture.lastError.map { ", error: \($0)" } ?? "")")
         refreshLive()
     }
 

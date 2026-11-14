@@ -32,6 +32,8 @@ public protocol Sensors: AnyObject {
     func textIn(_ region: RelRegion) -> String?
     /// A spot in the window by its share of width and height, in screen coordinates (ready to click).
     func point(fx: Double, fy: Double) -> (x: Int, y: Int)?
+    /// The "Movespeed" number of the game's stats panel, when that panel is open. nil when it cannot be read.
+    func moveSpeed() -> Double?
 }
 
 public extension Sensors {
@@ -44,6 +46,7 @@ public extension Sensors {
     func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? { nil }
     func textIn(_ region: RelRegion) -> String? { nil }
     func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { nil }
+    func moveSpeed() -> Double? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
@@ -182,6 +185,8 @@ public final class Game {
                              clock: clock, stop: stop, pause: pause)
         let outer = speedMultiplier
         self.walker.speed.multiplier = { [unowned self] in outer() * self.learnedSpeedFactor }
+        self.walker.speedSampler = { [unowned self] in self.sensors.moveSpeed() }
+        self.walker.speed.live = { [unowned self] in self.walker.liveSpeed }
     }
 
     /// The real walk speed divided by the speed in the settings, learned from walks that reached their pickup prompt
@@ -207,6 +212,7 @@ public final class Game {
     /// One arrival: `walked` seconds of real time for a route whose scaled part was planned as `planned` seconds.
     func learnSpeed(plannedScaled planned: Double, plannedFixed fixed: Double, elapsed: Double) {
         let moving = elapsed - fixed
+        guard walker.liveSpeed == nil else { return }          // the stats panel gives the speed itself: nothing to learn
         guard planned > 3, moving > 1 else { return }
         let observed = max(0.5, min(1.6, learnedSpeedFactor * planned / moving))     // faster arrival: higher speed
         let blended = learnedSpeedFactor * 0.4 + observed * 0.6
@@ -528,6 +534,9 @@ public final class Game {
         if let n = testPrefix { steps = Array(steps.prefix(n)) }
         stepHook?(path.name, 0, steps.count, "start")
         walker.armProbe(probe)
+        walker.sampleSpeed(force: true)
+        if let live = walker.liveSpeed { status("traveling", "walk speed read from the stats panel: \(Int(live)) (settings: \(Int(settings.walkSpeed)))") }
+        else if walker.speedSampler != nil { status("traveling", "the stats panel is not open, so the walk speed from the settings is used (\(Int(settings.walkSpeed)))") }
         probeEnded = false
         defer { walker.armProbe(nil) }
         let startedAt = clock.now()

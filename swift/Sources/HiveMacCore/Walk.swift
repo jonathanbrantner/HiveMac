@@ -52,12 +52,15 @@ public final class Signal: @unchecked Sendable {
 public struct SpeedModel {
     public var baseSpeed: Double
     public var multiplier: () -> Double
+    /// The walk speed read from the game's stats panel ("Movespeed: 33") a moment ago. When set it wins over the settings.
+    public var live: () -> Double? = { nil }
 
     public init(baseSpeed: Double = 28, multiplier: @escaping () -> Double = { 1.0 }) {
         self.baseSpeed = baseSpeed; self.multiplier = multiplier
     }
 
     public func current() -> Double {
+        if let l = live(), l >= 5, l <= 200 { return l }
         var m = multiplier()
         if m <= 0 { m = 1 }
         return max(1, baseSpeed) * m
@@ -121,9 +124,49 @@ public final class Walker {
         return held
     }
 
-    /// Natro's nm_Walk.
+    /// Reads the live walk speed; called about once a second while walking. Returns nil when it cannot be read.
+    public var speedSampler: (() -> Double?)?
+    public private(set) var liveSpeed: Double?
+    private var lastSpeedAt = -1e9
+    public func sampleSpeed(force: Bool = false) {
+        guard let sampler = speedSampler else { return }
+        if !force, clock.now() - lastSpeedAt < 1.0 { return }
+        lastSpeedAt = clock.now()
+        if let v = sampler() { liveSpeed = v }
+    }
+
+    /// Natro's nm_Walk, with the distance integrated over time: the speed is read again every second, so a morph or
+    /// Haste starting or ending in the middle of a walk changes the hold time instead of throwing the route off.
     @discardableResult
-    public func walk(_ keys: [String], tiles: Double) -> Double { hold(keys, speed.secondsForTiles(tiles)) }
+    public func walk(_ keys: [String], tiles: Double) -> Double {
+        sampleSpeed(force: true)
+        guard speedSampler != nil, liveSpeed != nil else { return hold(keys, speed.secondsForTiles(tiles)) }
+        var held = 0.0
+        if stop.isSet || probeHit { return held }
+        keys.forEach(act.keyDown)
+        defer { keys.forEach(act.keyUp) }
+        var remaining = max(0, tiles)                       // tiles left to walk
+        while remaining > 0 && !stop.isSet {
+            if let pause, pause.isSet {
+                keys.forEach(act.keyUp)
+                while pause.isSet && !stop.isSet { clock.sleep(slice) }
+                if stop.isSet { return held }
+                keys.forEach(act.keyDown)
+            }
+            let t0 = clock.now()
+            clock.sleep(slice)
+            var dt = clock.now() - t0
+            if dt <= 0 { dt = slice }
+            held += dt
+            remaining -= dt * speed.current() / studsPerTile
+            sampleSpeed()
+            if let probe, clock.now() - lastProbeAt >= probeEveryS {
+                lastProbeAt = clock.now()
+                if probe() { probeHit = true; break }
+            }
+        }
+        return held
+    }
 
     public func wait(_ seconds: Double) {
         let end = clock.now() + seconds

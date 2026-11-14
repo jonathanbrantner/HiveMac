@@ -221,6 +221,21 @@ public final class ScreenSensors: Sensors {
 
     public func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { point(RelPoint(fx: fx, fy: fy)) }
 
+    /// "Movespeed: 33" from the stats panel on the left of the game (the player's current speed with every buff).
+    public func moveSpeed() -> Double? {
+        guard let read = textReader, bounds() != nil else { return nil }
+        let band = RelRegion(fx: 0, fy: 0.25, fw: 0.24, fh: 0.72)
+        guard let img = region(band), let text = read(img)?.lowercased() else { return nil }
+        return Self.parseMoveSpeed(text)
+    }
+
+    public static func parseMoveSpeed(_ text: String) -> Double? {
+        guard let re = try? NSRegularExpression(pattern: #"move\s*speed[:\s]*(\d{1,3})"#),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let r = Range(m.range(at: 1), in: text), let v = Double(text[r]) else { return nil }
+        return v
+    }
+
     public func textIn(_ r: RelRegion) -> String? {
         guard let read = textReader, let img = region(r) else { return nil }
         return read(img)

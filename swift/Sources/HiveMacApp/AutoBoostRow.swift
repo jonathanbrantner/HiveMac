@@ -28,6 +28,7 @@ struct AutoBoostRow: View {
             }
             Text("When the macro arrives at a field that is not boosted yet, it rolls Field Dice and uses Glitter from your hotbar on that field until its boost shows.")
                 .font(Theme.caption).foregroundStyle(Theme.dust)
+                .lineLimit(nil).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

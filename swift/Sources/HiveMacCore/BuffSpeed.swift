@@ -93,11 +93,26 @@ public enum BuffDetector {
         return nil
     }
 
+    /// The haste bar of a real icon sits on the icon's left edge, and icons are `2*y-14` wide and flush left, so a grey row
+    /// anywhere else (a white fence, flower, text) is not a haste icon.
+    static func findHaste(_ img: RGBImage, from x0: Int) -> (x: Int, y: Int)? {
+        var x = x0
+        while x < img.width - 10, let h = find(img, haste, variation: 2, x1: x, y1: 14, y2: 29) {
+            let w = 2 * h.y - 14
+            if w >= 28, w <= 48 {
+                let r = h.x % w
+                if r <= 2 || r >= w - 2 { return h }
+            }
+            x = h.x + 1
+        }
+        return nil
+    }
+
     public static func detect(_ img: RGBImage) -> BuffState {
         var s = BuffState()
         var x = 0, hastes = 0, x1 = 0, y1 = 0
         for _ in 0..<3 {                                     // melody, haste, coconut haste
-            guard let h = find(img, haste, variation: 2, x1: x, y1: 14, y2: 29) else { break }
+            guard let h = findHaste(img, from: x) else { break }
             x = h.x; let y = h.y
             if find(img, melody, variation: 12, x1: x + 2, y1: 0, x2: x + max(16, 2 * y - 24), y2: y) == nil {   // not melody, so haste
                 hastes += 1
@@ -152,6 +167,8 @@ public final class BuffSpeedReader {
     public var stripTop = 60
     public var stripHeight = 32
     public private(set) var last = BuffState()
+    private var history: [BuffState] = []
+    private var lastReadAt = Date.distantPast
     public private(set) var lastSpeed: Double?
     public private(set) var lastReadSeconds = 0.0
     private var failures = 0
@@ -168,13 +185,33 @@ public final class BuffSpeedReader {
         return BuffDetector.downscale(img, factor: max(1, Int((Double(img.width) / Double(max(1, region.width))).rounded())))
     }
 
+    static func majority(_ h: [BuffState]) -> BuffState {
+        func votes(_ f: (BuffState) -> Bool) -> Bool { h.filter(f).count * 2 > h.count }
+        var s = BuffState()
+        s.coconutHaste = votes { $0.coconutHaste }
+        s.hastePlus = votes { $0.hastePlus }
+        s.oil = votes { $0.oil }
+        s.smoothie = votes { $0.smoothie }
+        s.bear = votes { $0.bear }
+        let hs = h.map(\.haste).sorted()
+        s.haste = hs.count >= 3 ? hs[hs.count / 2] : (hs.min() ?? 0)     // the middle value of the last pictures
+        return s
+    }
+
     /// The walk speed now, or nil when the bar could not be read (the caller then keeps the speed it had).
     public func read() -> Double? {
         let t0 = Date()
         defer { lastReadSeconds = Date().timeIntervalSince(t0) }
         guard let img = strip() else { failures += 1; return nil }
         failures = 0
-        last = BuffDetector.detect(img)
+        // A walk starts with a fresh history; a single odd picture (something white in the world) must not change the speed,
+        // so a buff counts when it shows in at least 2 of the last 3 pictures.
+        if Date().timeIntervalSince(lastReadAt) > 1.0 { history = [] }
+        lastReadAt = Date()
+        history.append(BuffDetector.detect(img))
+        while history.count < 3, let more = strip() { history.append(BuffDetector.detect(more)) }
+        if history.count > 3 { history.removeFirst(history.count - 3) }
+        last = Self.majority(history)
         lastSpeed = model.speed(last)
         return lastSpeed
     }
@@ -182,7 +219,7 @@ public final class BuffSpeedReader {
 
 extension BuffDetector {
     public static func debugHaste(_ img: RGBImage) -> String {
-        guard let h = find(img, haste, variation: 2, x1: 0, y1: 14, y2: 29) else { return "none" }
+        guard let h = findHaste(img, from: 0) else { return "none" }
         let px = (0..<10).map { img.pixel(h.x + $0, h.y) }
         return "x=\(h.x) y=\(h.y) row=\(px)"
     }
@@ -207,14 +244,17 @@ extension BuffDetector {
         var hp = blank(); draw(&hp, hastePlus, x: 50, y: 26)
         if !BuffDetector.detect(hp).hastePlus { bad.append("haste+ not found") }
         // Haste: a grey bar at row 26 (icon 38 wide), then with a second one 38 further right = coconut haste.
-        var h1 = blank(); draw(&h1, haste, x: 20, y: 26)
+        var h1 = blank(); draw(&h1, haste, x: 38, y: 26)
         let d1 = BuffDetector.detect(h1)
         if d1.haste != 1 || d1.coconutHaste { bad.append("haste: \(d1.text)") }
-        var h2 = h1; draw(&h2, haste, x: 20 + 2 * 26 - 14, y: 26)
+        var h2 = h1; draw(&h2, haste, x: 38 + 2 * 26 - 14, y: 26)
         let d2 = BuffDetector.detect(h2)
         if !d2.coconutHaste { bad.append("coconut haste: \(d2.text)") }
+        // A grey row that is not on an icon edge (a fence in the world) is not haste.
+        var off = blank(); draw(&off, haste, x: 55, y: 26)
+        if BuffDetector.detect(off).haste != 0 { bad.append("grey row off the icon grid counted as haste") }
         // Melody (dark mark next to a haste bar) is not haste.
-        var m = blank(); draw(&m, haste, x: 20, y: 26); draw(&m, melody, x: 24, y: 24)
+        var m = blank(); draw(&m, haste, x: 38, y: 26); draw(&m, melody, x: 42, y: 24)
         if BuffDetector.detect(m).haste != 0 { bad.append("melody counted as haste") }
         // At 2 pixels per point, averaged down.
         var big = RGBImage(width: 800, height: 64, fill: (90, 120, 90))

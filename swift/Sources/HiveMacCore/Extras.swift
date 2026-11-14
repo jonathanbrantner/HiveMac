@@ -57,6 +57,11 @@ extension Game {
     /// How far a walk goes depends on the walk speed at that moment (Haste comes and goes), so a route can end a
     /// little short of or past its target. The macro creeps along the last long walking direction of the route,
     /// checking the prompt after each small step: forward first, then back past the start.
+    /// Pickups whose machine stands to the side of where the walk ends (seen in the frames): creep that way.
+    public static let creepOverride: [String: [String]] = [
+        "blueberry dispenser": ["d"], "treat dispenser": ["d"],
+    ]
+
     func creepKeys(_ path: PathFile) -> [String] {
         let steps = iterSteps(path).filter { $0.type == "walk" && $0.tiles >= 3 }
         return steps.last?.keys.filter { ["w", "a", "s", "d"].contains($0) } ?? ["w"]
@@ -140,7 +145,7 @@ extension Game {
         var first = look(seconds: 3)
         if let t = first, t.isEmpty, let needles = Game.pickupWords[pickup] {
             if pickup == "wealth clock", let found = ladderSearch(pickup, needles: needles) { first = found }
-            else if let found = creepSearch(pickup, needles: needles, forward: creepKeys(path)) { first = found }
+            else if let found = creepSearch(pickup, needles: needles, forward: Game.creepOverride[pickup] ?? creepKeys(path)) { first = found }
         }
         let needles = Game.pickupWords[pickup]
         func atRightSpot(_ t: String) -> Bool { needles == nil || needles!.contains { t.contains($0) } }

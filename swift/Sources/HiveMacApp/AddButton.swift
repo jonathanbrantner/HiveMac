@@ -20,13 +20,13 @@ struct AddButton: View {
             .buttonStyle(QuietButtonStyle())
             .popover(isPresented: $open, arrowEdge: .top) {
                 VStack(alignment: .leading, spacing: Theme.s3) {
-                    ForEach(Self.groups, id: \.title) { g in
-                        VStack(alignment: .leading, spacing: Theme.s1) {
-                            HStack(spacing: 6) {
-                                Circle().fill(g.color).frame(width: 9, height: 9)
-                                Text(g.title).font(Theme.caption).foregroundStyle(Theme.resin)
-                            }
-                            LazyVGrid(columns: columns, alignment: .leading, spacing: Theme.s2) {
+                    HStack(alignment: .top, spacing: Theme.s4) {
+                        ForEach(Self.groups, id: \.title) { g in
+                            VStack(alignment: .leading, spacing: Theme.s2) {
+                                HStack(spacing: 6) {
+                                    Circle().fill(g.color).frame(width: 9, height: 9)
+                                    Text(g.title).font(Theme.caption).foregroundStyle(Theme.resin)
+                                }
                                 ForEach(g.fields, id: \.self) { name in
                                     Button(name.capitalized) {
                                         var f = FieldConfig(name: name)
@@ -34,7 +34,7 @@ struct AddButton: View {
                                         model.profile.fields.append(f)
                                     }
                                     .buttonStyle(QuietButtonStyle(tint: g.color))
-                                    .frame(width: 104)
+                                    .frame(width: 112)
                                 }
                             }
                         }

@@ -62,3 +62,10 @@ variants, memory match, bug runs, planters, Booster mode, Quests, balloon blessi
 Gotchas found: the stop key "-" is global during a run (typing a hyphen stops it); Esc does not open the Roblox menu on this client;
 Roblox must be the active app for clicks and keys; stray runs were killed by relaunching the app.
 Next: find the first step where each failing route leaves Natro's path (frames), starting with blueberry (needs a jump onto the ledge).
+
+## 2026-11-14 morning
+- Hive slot changes when Roblox rejoins (slot 1 yesterday, slot 6 after the lock and rejoin). A wrong slot sends every route to the wrong place. Set it again after any rejoin.
+- Field cannon routes still land in the hub area (route matches Natro, cause not found). Travel is set to walk, which works: Pine Tree reached and gathered, full cycle with convert, balloon, wealth clock.
+- A failed pickup used to wander for minutes (sideways, star, creep search, then a repeat). Now one short search, no repeat.
+- Bear morph adds 4 speed, the stats panel is not open so walks use the settings speed (29). Not fixed yet.
+- The Mac must be kept awake (caffeinate) or it locks and the run dies.

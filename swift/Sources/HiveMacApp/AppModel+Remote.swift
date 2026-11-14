@@ -20,6 +20,19 @@ extension AppModel {
         server.action = { [weak self] a in
             switch a { case "start": self?.start(); case "pause": self?.pause(); case "resume": self?.resume(); default: self?.stop() }
         }
+        server.buffProbe = { [weak self] top, save in
+            guard let self else { return [:] }
+            let reader = BuffSpeedReader(screen: self.capture, window: { [store = self.store] in Self.bounds(store) },
+                                         model: BuffSpeedModel(movespeed: self.store.double("game.walk_speed", 28), bearBonus: self.store.double("game.bear_morph_bonus", 4)))
+            reader.stripTop = top
+            if top == -1 { return ["selftest": BuffDetector.selfTest()] }
+            guard let strip = reader.strip() else { return ["error": "could not read the screen or the window"] }
+            let state = BuffDetector.detect(strip)
+            if save { _ = ScreenCapture.savePNG(strip, to: self.dirs.data.appendingPathComponent("buff-strip.png")) }
+            let t0 = Date(); for _ in 0..<20 { _ = BuffDetector.detect(strip) }
+            return ["buffs": state.text, "speed": reader.model.speed(state), "base": reader.model.baseSpeed, "stripWidth": strip.width, "stripHeight": strip.height,
+                    "hasteAt": BuffDetector.debugHaste(strip) as Any, "detectMs": Date().timeIntervalSince(t0) * 50, "grabMs": reader.lastReadSeconds * 1000]
+        }
         server.runSteps = { [weak self] json in self?.debugRunSteps(json) ?? "no app" }
         server.testRoute = { [weak self] name, n, variant, prefix in self?.startRouteTest(name, n, variant, prefix) }
         guard server.start() else { remoteOn = false; remoteMessage = "Port 8765 is busy. Close the other HiveMac and try again."; return }

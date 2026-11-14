@@ -246,6 +246,8 @@ final class AppModel: ObservableObject {
                          dirs.findPath(kind: kind, field: field, variant: variant, builtIn: builtIn).flatMap { try? PathFile.load($0) }
                      })
         game = g
+        g.attachBuffReader(BuffSpeedReader(screen: capture, window: { [store] in Self.bounds(store) },
+                                           model: BuffSpeedModel(movespeed: settings.walkSpeed, bearBonus: settings.bearBonus)))
         g.focusHook = { DispatchQueue.main.sync { WindowFinder.focusRoblox() } }
         g.frontCheck = { DispatchQueue.main.sync { WindowFinder.robloxIsFront() } }
         if store.bool("app.trace", false) { g.stepHook = RouteTrace.hook(root: dirs.data.appendingPathComponent("traces")) { [weak self] in self?.snapshotRoblox() } }

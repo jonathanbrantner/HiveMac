@@ -54,15 +54,18 @@ public struct SpeedModel {
     public var multiplier: () -> Double
     /// The walk speed read from the game's stats panel ("Movespeed: 33") a moment ago. When set it wins over the settings.
     public var live: () -> Double? = { nil }
+    /// True when `live` is worked out from the buff bar (buffs only, no walking efficiency in it): the multiplier, which
+    /// holds the learned arrival factor of this Mac, still applies on top of it.
+    public var liveIsBuffModel = false
 
     public init(baseSpeed: Double = 28, multiplier: @escaping () -> Double = { 1.0 }) {
         self.baseSpeed = baseSpeed; self.multiplier = multiplier
     }
 
     public func current() -> Double {
-        if let l = live(), l >= 5, l <= 200 { return l }
         var m = multiplier()
         if m <= 0 { m = 1 }
+        if let l = live(), l >= 5, l <= 200 { return liveIsBuffModel ? l * m : l }
         return max(1, baseSpeed) * m
     }
 
@@ -125,15 +128,20 @@ public final class Walker {
         return held
     }
 
-    /// Reads the live walk speed; called about once a second while walking. Returns nil when it cannot be read.
+    /// Reads the live walk speed; called every `speedSampleEveryS` while walking. Returns nil when it cannot be read.
     public var speedSampler: (() -> Double?)?
+    public var speedSampleEveryS = 1.0
+    /// A reading that is computed from the buff bar (Natro's formula) is trusted as it is. Off: a reading has to look
+    /// plausible next to the speed in the settings (for a speed read as text, where a digit can be wrong).
+    public var speedSamplerTrusted = false
     public private(set) var liveSpeed: Double?
     private var lastSpeedAt = -1e9
     public func sampleSpeed(force: Bool = false) {
         guard let sampler = speedSampler else { return }
-        if !force, clock.now() - lastSpeedAt < 1.0 { return }
+        if !force, clock.now() - lastSpeedAt < speedSampleEveryS { return }
         lastSpeedAt = clock.now()
         guard let v = sampler() else { return }
+        if speedSamplerTrusted { liveSpeed = v; return }
         // A misread digit ("9" for "29", "4" for "34") would stretch or shrink a whole walk, so a reading must be
         // plausible next to the speed in the settings and not jump far from the last good one without repeating.
         let base = speed.baseSpeed

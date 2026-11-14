@@ -53,6 +53,11 @@ public struct GameSettings: Equatable, Sendable {
     public var walkSpeed = 28.0
     /// The Bear Morph adds 4 to the walk speed. Set it when the morph is always on (the macro does not read the stats panel).
     public var bearMorph = false
+    /// Natro's haste compensation: the walk speed is worked out from the buff bar (haste, coconut haste, haste+, oil,
+    /// smoothie, bear morph) while walking. `walkSpeed` is then the speed without buffs.
+    public var hasteCompensation = true
+    /// What a Bear Morph adds to the walk speed. Natro's number is 4.
+    public var bearBonus = 4.0
     public var hiveSlot = 1
     /// The hotbar key that holds the Gumdrops (the glue dispenser uses one at the Gummy Bear lair). Empty: use the inventory.
     public var gumdropsKey = ""
@@ -93,7 +98,7 @@ public struct GameSettings: Equatable, Sendable {
     public init() {}
 
     public static func == (a: GameSettings, b: GameSettings) -> Bool {
-        a.walkSpeed == b.walkSpeed && a.bearMorph == b.bearMorph && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
+        a.walkSpeed == b.walkSpeed && a.bearMorph == b.bearMorph && a.hasteCompensation == b.hasteCompensation && a.bearBonus == b.bearBonus && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
             && a.zoomOutTaps == b.zoomOutTaps && a.resetWaitS == b.resetWaitS
             && a.mousePark.x == b.mousePark.x && a.mousePark.y == b.mousePark.y
     }
@@ -193,6 +198,19 @@ public final class Game {
         self.walker.speed.live = { [unowned self] in self.walker.liveSpeed }
     }
 
+    /// Reads the buff bar for the walk speed while walking (Natro's haste compensation). nil: the settings speed is used.
+    public private(set) var buffReader: BuffSpeedReader?
+    public func attachBuffReader(_ reader: BuffSpeedReader) {
+        guard settings.hasteCompensation else { return }
+        reader.model = BuffSpeedModel(movespeed: settings.walkSpeed, bearBonus: settings.bearBonus)
+        buffReader = reader
+        walker.speed.baseSpeed = settings.walkSpeed             // the bear morph is read from the bar now
+        walker.speedSamplerTrusted = true
+        walker.speed.liveIsBuffModel = true
+        walker.speedSampleEveryS = 0.15
+        walker.speedSampler = { [unowned self] in self.buffReader?.read() }
+    }
+
     /// The real walk speed divided by the speed in the settings, learned from walks that reached their pickup prompt
     /// (it includes Haste, Bear Morph and every other speed buff at once). 1.0 until the first arrival.
     public private(set) var learnedSpeedFactor = 1.0
@@ -216,7 +234,7 @@ public final class Game {
     /// One arrival: `walked` seconds of real time for a route whose scaled part was planned as `planned` seconds.
     func learnSpeed(plannedScaled planned: Double, plannedFixed fixed: Double, elapsed: Double) {
         let moving = elapsed - fixed
-        guard walker.liveSpeed == nil else { return }          // the stats panel gives the speed itself: nothing to learn
+        guard walker.liveSpeed == nil || walker.speed.liveIsBuffModel else { return }   // a speed read as text is already the real one: nothing to learn
         guard planned > 3, moving > 1 else { return }
         let observed = max(0.5, min(1.6, learnedSpeedFactor * planned / moving))     // faster arrival: higher speed
         let blended = learnedSpeedFactor * 0.4 + observed * 0.6
@@ -539,8 +557,8 @@ public final class Game {
         stepHook?(path.name, 0, steps.count, "start")
         walker.armProbe(probe)
         walker.sampleSpeed(force: true)
-        if let live = walker.liveSpeed { status("traveling", "walk speed read from the stats panel: \(Int(live)) (settings: \(Int(settings.walkSpeed)))") }
-        else if walker.speedSampler != nil { status("traveling", "the stats panel is not open, so the walk speed from the settings is used (\(Int(settings.walkSpeed)))") }
+        if let live = walker.liveSpeed, let r = buffReader { status("traveling", "walk speed \(String(format: "%.1f", live)) from the buff bar (\(r.last.text)); settings: \(Int(settings.walkSpeed)) without buffs") }
+        else if walker.speedSampler != nil { status("traveling", "the buff bar could not be read, so the walk speed from the settings is used (\(Int(settings.walkSpeed)))") }
         probeEnded = false
         defer { walker.armProbe(nil) }
         let startedAt = clock.now()

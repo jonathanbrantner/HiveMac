@@ -72,6 +72,8 @@ public final class ConfigStore {
         var s = GameSettings()
         s.walkSpeed = double("game.walk_speed", s.walkSpeed)
         s.bearMorph = bool("game.bear_morph", s.bearMorph)
+        s.hasteCompensation = bool("game.haste_compensation", s.hasteCompensation)
+        s.bearBonus = double("game.bear_morph_bonus", s.bearBonus)
         s.hiveSlot = int("game.hive_slot", s.hiveSlot)
         s.gumdropsKey = string("game.gumdrops_key", s.gumdropsKey)
         s.sprinklerType = string("game.sprinkler_type", s.sprinklerType)

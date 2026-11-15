@@ -74,7 +74,7 @@ struct SettingsView: View {
                 SectionTitle("Walking")
                 SettingRow(label: "Walk speed, no buffs") { TextField("", value: num("game.walk_speed", 28), format: .number).fieldStyle(width: 64) }
                 SettingRow(label: "Follow speed buffs") { Toggle("Read haste, bear morph, oil from the buff bar (like Natro)", isOn: flag("game.haste_compensation", true)).toggleStyle(.checkbox) }
-                SettingRow(label: "Walk efficiency") { TextField("", value: num("game.walk_efficiency", 0.9), format: .number).fieldStyle(width: 64) }
+                SettingRow(label: "Walk efficiency") { TextField("", value: num("game.walk_efficiency", 1.0), format: .number).fieldStyle(width: 64) }
                 SettingRow(label: "Bear morph adds") { TextField("", value: num("game.bear_morph_bonus", 4), format: .number).fieldStyle(width: 64) }
                 SettingRow(label: "Default travel") {
                     Choice(options: [("walk", "Walk"), ("cannon", "Cannon")], selection: str("game.travel", "walk"), width: 120)

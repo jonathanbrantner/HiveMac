@@ -58,8 +58,8 @@ public struct GameSettings: Equatable, Sendable {
     public var hasteCompensation = true
     /// Seconds of gathering with no pollen gain after which the macro gives up on the field and resets. 0 = never.
     public var gatherStallS = 240.0
-    /// Real walking speed on this Mac divided by the speed in the game (about 0.85 to 0.93 measured). The walks start from it.
-    public var walkEfficiency = 0.9
+    /// Real walking speed on this Mac divided by the speed in the game (1.0 = trust the game speed; 0.9 made the Pine Tree walk overshoot into Strawberry). The walks start from it.
+    public var walkEfficiency = 1.0
     /// What a Bear Morph adds to the walk speed. Natro's number is 4.
     public var bearBonus = 4.0
     public var hiveSlot = 1

@@ -12,8 +12,8 @@ struct SettingsView: View {
     private func int(_ path: String, _ fallback: Int) -> Binding<Int> {
         Binding(get: { _ = model.settingsVersion; return model.store.int(path, fallback) }, set: { model.set(path, $0) })
     }
-    private func flag(_ path: String) -> Binding<Bool> {
-        Binding(get: { _ = model.settingsVersion; return model.store.bool(path, false) }, set: { model.set(path, $0) })
+    private func flag(_ path: String, _ fallback: Bool = false) -> Binding<Bool> {
+        Binding(get: { _ = model.settingsVersion; return model.store.bool(path, fallback) }, set: { model.set(path, $0) })
     }
     private func str(_ path: String, _ fallback: String) -> Binding<String> {
         Binding(get: { _ = model.settingsVersion; return model.store.string(path, fallback) }, set: { model.set(path, $0) })
@@ -24,7 +24,7 @@ struct SettingsView: View {
 
     static let hotbarItems: [(String, String)] = [
         ("", "Empty"), ("sprinkler", "Sprinkler"), ("micro-converter", "Micro-Converter"), ("glitter", "Glitter"),
-        ("enzymes", "Enzymes"), ("oil", "Oil"), ("glue", "Glue"), ("stinger", "Stinger"), ("other", "Something else")]
+        ("enzymes", "Enzymes"), ("oil", "Oil"), ("glue", "Glue"), ("gumdrops", "Gumdrops"), ("stinger", "Stinger"), ("other", "Something else")]
 
     /// What is in hotbar slot `n`. A sprinkler slot is also the key the macro presses to place it.
     private func hotbar(_ n: Int) -> Binding<String> {
@@ -39,6 +39,8 @@ struct SettingsView: View {
             model.set("game.hotbar.\(n)", item)
             if item == "sprinkler" { model.set("game.sprinkler_slot_key", "\(n)") }
             if item == "micro-converter" { model.set("game.micro_converter_key", "\(n)") }
+            if item == "gumdrops" { model.set("game.gumdrops_key", "\(n)") }
+            else if model.store.string("game.gumdrops_key", "") == "\(n)" { model.set("game.gumdrops_key", "") }
         })
     }
 
@@ -71,6 +73,8 @@ struct SettingsView: View {
 
                 SectionTitle("Walking")
                 SettingRow(label: "Walk speed, no buffs") { TextField("", value: num("game.walk_speed", 28), format: .number).fieldStyle(width: 64) }
+                SettingRow(label: "Follow speed buffs") { Toggle("Read haste, bear morph, oil from the buff bar (like Natro)", isOn: flag("game.haste_compensation", true)).toggleStyle(.checkbox) }
+                SettingRow(label: "Bear morph adds") { TextField("", value: num("game.bear_morph_bonus", 4), format: .number).fieldStyle(width: 64) }
                 SettingRow(label: "Default travel") {
                     Choice(options: [("walk", "Walk"), ("cannon", "Cannon")], selection: str("game.travel", "walk"), width: 120)
                 }

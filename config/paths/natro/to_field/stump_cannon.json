@@ -1,65 +1,97 @@
 {
- "name": "stump_cannon",
- "source": "NatroMacro paths/gtf-stump.ahk (cannon branch)",
- "walk_speed": 28.0,
- "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
- "steps": [
-  {
-   "type": "gotoramp"
-  },
-  {
-   "type": "gotocannon"
-  },
-  {
-   "type": "wait",
-   "seconds": 0.1
-  },
-  {
-   "type": "tap",
-   "key": "e"
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "a"
-   ],
-   "seconds": 1.85
-  },
-  {
-   "type": "tap",
-   "key": "space",
-   "count": 2
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "a"
-   ],
-   "seconds": 2.75
-  },
-  {
-   "type": "rotate",
-   "direction": "left",
-   "count": 2
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "w",
-    "a"
-   ],
-   "seconds": 0.9
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "w"
-   ],
-   "seconds": 1.65
-  },
-  {
-   "type": "wait",
-   "seconds": 1.0
-  }
- ]
+  "name": "stump_cannon",
+  "source": "NatroMacro paths/gtf-stump.ahk (cannon branch)",
+  "walk_speed": 28.0,
+  "notes": "Converted from Natro Macro (GPL-3.0) by scripts/convert_natro_cannon.py. Movement keys stay held through the flight like Natro.",
+  "steps": [
+    {
+      "type": "gotoramp"
+    },
+    {
+      "type": "gotocannon"
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "e"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 0.1
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "e"
+      ]
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "a"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 1.85
+    },
+    {
+      "type": "jump2"
+    },
+    {
+      "type": "wait",
+      "seconds": 2.75
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "a"
+      ]
+    },
+    {
+      "type": "rotate",
+      "direction": "left",
+      "count": 2
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "w"
+      ]
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "a"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 0.9
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "a"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 1.65
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "w"
+      ]
+    },
+    {
+      "type": "jump"
+    },
+    {
+      "type": "wait",
+      "seconds": 1.0
+    }
+  ]
 }

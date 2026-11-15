@@ -1,0 +1,236 @@
+{
+  "name": "glue_dispenser",
+  "source": "NatroMacro paths/gtc-gluedis.ahk (walk branch)",
+  "walk_speed": 28.0,
+  "notes": "Converted from Natro Macro (GPL-3.0). Ends at the Gummy Bear lair door: a gumdrop is dragged out of the inventory, then 6 tiles forward and E.",
+  "steps": [
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 3
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "a"
+      ],
+      "tiles": 52
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 3
+    },
+    {
+      "type": "hold",
+      "keys": [
+        "w",
+        "space"
+      ],
+      "seconds": 0.3
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w",
+        "d"
+      ],
+      "tiles": 5
+    },
+    {
+      "type": "hold",
+      "keys": [
+        "w",
+        "space"
+      ],
+      "seconds": 0.3
+    },
+    {
+      "type": "wait",
+      "seconds": 0.5
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 2
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "d"
+      ],
+      "tiles": 15
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w",
+        "d"
+      ],
+      "tiles": 6
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 7
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "s",
+        "a"
+      ],
+      "tiles": 5
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 23
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "a"
+      ],
+      "tiles": 12
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "a",
+        "w"
+      ],
+      "tiles": 8
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 10
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "d"
+      ],
+      "tiles": 5
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w",
+        "d"
+      ],
+      "tiles": 25
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "a"
+      ],
+      "tiles": 50
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "d"
+      ],
+      "tiles": 2
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 40
+    },
+    {
+      "type": "rotate",
+      "direction": "right",
+      "count": 2
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 55
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "a"
+      ],
+      "tiles": 10
+    },
+    {
+      "type": "rotate",
+      "direction": "right",
+      "count": 2
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w",
+        "d"
+      ],
+      "tiles": 5.79
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 50
+    },
+    {
+      "type": "hold",
+      "keys": [
+        "space"
+      ],
+      "seconds": 0.3
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w"
+      ],
+      "tiles": 6
+    },
+    {
+      "type": "hold",
+      "keys": [
+        "space"
+      ],
+      "seconds": 0.1
+    },
+    {
+      "type": "walk",
+      "keys": [
+        "w",
+        "d"
+      ],
+      "tiles": 4
+    },
+    {
+      "type": "rotate",
+      "direction": "left",
+      "count": 4
+    },
+    {
+      "type": "wait",
+      "seconds": 1.5
+    }
+  ]
+}

@@ -1,63 +1,85 @@
 {
- "name": "pumpkin_cannon",
- "source": "NatroMacro paths/gtf-pumpkin.ahk (cannon branch)",
- "walk_speed": 28.0,
- "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
- "steps": [
-  {
-   "type": "gotoramp"
-  },
-  {
-   "type": "gotocannon"
-  },
-  {
-   "type": "wait",
-   "seconds": 0.1
-  },
-  {
-   "type": "tap",
-   "key": "e"
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "d",
-    "s"
-   ],
-   "seconds": 0.95
-  },
-  {
-   "type": "tap",
-   "key": "space",
-   "count": 2
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "d",
-    "s"
-   ],
-   "seconds": 2.7
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "s"
-   ],
-   "seconds": 0.5
-  },
-  {
-   "type": "wait",
-   "seconds": 0.6
-  },
-  {
-   "type": "rotate",
-   "direction": "left",
-   "count": 4
-  },
-  {
-   "type": "wait",
-   "seconds": 1.5
-  }
- ]
+  "name": "pumpkin_cannon",
+  "source": "NatroMacro paths/gtf-pumpkin.ahk (cannon branch)",
+  "walk_speed": 28.0,
+  "notes": "Converted from Natro Macro (GPL-3.0) by scripts/convert_natro_cannon.py. Movement keys stay held through the flight like Natro.",
+  "steps": [
+    {
+      "type": "gotoramp"
+    },
+    {
+      "type": "gotocannon"
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "e"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 0.1
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "e"
+      ]
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "d"
+      ]
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "s"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 0.95
+    },
+    {
+      "type": "jump2"
+    },
+    {
+      "type": "wait",
+      "seconds": 2.7
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "d"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 0.5
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "s"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 0.6
+    },
+    {
+      "type": "jump"
+    },
+    {
+      "type": "rotate",
+      "direction": "left",
+      "count": 4
+    },
+    {
+      "type": "wait",
+      "seconds": 1.5
+    }
+  ]
 }

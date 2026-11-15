@@ -24,6 +24,9 @@ final class ReportingSensors: Sensors {
     func mobBars() -> [Double]? { practice ? nil : inner.mobBars() }
     func promptText() -> String? { practice ? nil : inner.promptText() }
     func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? { inner.picture(left: left, top: top, width: width, height: height) }
+    func textIn(_ region: RelRegion) -> String? { practice ? nil : inner.textIn(region) }
+    func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { inner.point(fx: fx, fy: fy) }
+    func moveSpeed() -> Double? { practice ? nil : inner.moveSpeed() }
     func cannonPromptVisible() -> Bool? { inner.cannonPromptVisible() }
     func deathTextVisible() -> Bool? { inner.deathTextVisible() }
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { inner.find(template, in: region, tolerance: tolerance) }
@@ -59,12 +62,16 @@ final class AppModel: ObservableObject {
     @Published var state: RunState = .idle
     @Published var detail = ""
     @Published var running = false { didSet { syncHotKey() } }
+    /// Set by the route test: run this pickup route this many times from the hive, instead of the profile.
+    var pendingRouteTest: (name: String, times: Int, variant: String, prefix: Int?)?
     /// Bumped by the Collapse button; every step row folds itself shut when it changes.
     @Published var collapseTick = 0
     @Published var paused = false
     @Published var runtimeSeconds = 0
     @Published var stats = LoopStats()
     @Published var backpack: Int?
+    /// What the backpack bar text read as the last time, for the status page and for finding misreads.
+    var barTextSeen: String?
     @Published var currentField = ""
     @Published var log: [String] = []
     @Published var permissions = Permissions.current()
@@ -122,7 +129,7 @@ final class AppModel: ObservableObject {
         if store.bool("remote.enabled", false) && ProcessInfo.processInfo.environment["HIVEMAC_DEMO"] == nil { DispatchQueue.main.async { self.setRemote(true) } }
         logFile = AppModel.openLog(dirs.logs.appendingPathComponent("hivemac.log"))
         stopKeyName = store.string("app.emergency_stop_key", "f9")
-        hotKey.onPress = { [weak self] in self?.stop() }
+        hotKey.onPress = { [weak self] in self?.stop("stop key pressed") }
         if case .failure = KeyCodes.validateStopKey(stopKeyName) { setStopKey("f9") }
         append("HiveMac started. Data folder: \(dirs.data.path)")
         if !isDemo && !permissions.allGranted { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Permissions.request() } }
@@ -210,8 +217,9 @@ final class AppModel: ObservableObject {
             setStatus(.error, "Roblox was not found. Open it, then press Start.")
             return
         }
-        guard !profile.fields.filter(\.enabled).isEmpty else {
-            setStatus(.error, "No field is switched on. Turn one on in Fields.")
+        // A run can be only activities (pickups, memory match, bug run, planters): a field is not required.
+        guard pendingRouteTest != nil || !profile.fields.filter(\.enabled).isEmpty || (profile.mode == "none" && profile.extras.contains(where: \.enabled)) else {
+            setStatus(.error, "Nothing is switched on. Turn on a field or an activity in Fields.")
             return
         }
         var settings = store.gameSettings()
@@ -223,10 +231,10 @@ final class AppModel: ObservableObject {
         let screenSensors = ScreenSensors(screen: capture, window: { [store] in Self.bounds(store) }, config: hud) { name in
             ScreenCapture.loadPNG(templates.appendingPathComponent("\(name).png")) ?? ScreenCapture.loadPNG(images.appendingPathComponent("\(name).png"))
         }
-        screenSensors.textReader = BarText.read
+        screenSensors.textReader = BarText.read; screenSensors.linesReader = BarText.readLines
         let sensors = ReportingSensors(screenSensors)
         sensors.practice = store.bool("app.practice_mode", false)
-        sensors.onBackpack = { [weak self] p in self?.beat(); DispatchQueue.main.async { self?.backpack = p } }
+        sensors.onBackpack = { [weak self] p in let t = screenSensors.lastBarText; self?.beat(); DispatchQueue.main.async { self?.backpack = p; self?.barTextSeen = t } }
 
         let builtIn = builtInPaths, dirs = self.dirs
         let practice = store.bool("app.practice_mode", false)
@@ -240,6 +248,11 @@ final class AppModel: ObservableObject {
                          dirs.findPath(kind: kind, field: field, variant: variant, builtIn: builtIn).flatMap { try? PathFile.load($0) }
                      })
         game = g
+        g.attachBuffReader(BuffSpeedReader(screen: capture, window: { [store] in Self.bounds(store) },
+                                           model: BuffSpeedModel(movespeed: settings.walkSpeed, bearBonus: settings.bearBonus)))
+        g.focusHook = { DispatchQueue.main.sync { WindowFinder.focusRoblox() } }
+        g.frontCheck = { DispatchQueue.main.sync { WindowFinder.robloxIsFront() } }
+        if store.bool("app.trace", false) { g.stepHook = RouteTrace.hook(root: dirs.data.appendingPathComponent("traces")) { [weak self] in self?.snapshotRoblox() } }
         let runner = GameExtraRunner(timers: mobTimers) { [weak self] t in
             DispatchQueue.main.async { self?.mobTimers = t; t.save(to: dirs.data.appendingPathComponent("mob_timers.json")) }
         }
@@ -265,8 +278,49 @@ final class AppModel: ObservableObject {
             }
         }
         WindowFinder.focusRoblox()
+        let routeTest = pendingRouteTest
+        pendingRouteTest = nil
         Thread.detachNewThread { [weak self] in
-            let why = loop.run()
+            let why: String
+            if let t = routeTest, t.name.hasPrefix("field:") {
+                // Reset, then the field's own route (walk or cannon), then a picture so the arrival can be checked by eye.
+                let field = String(t.name.dropFirst(6))
+                var f = FieldConfig(name: field)
+                f.travel = t.variant
+                g.testPrefix = t.prefix
+                let ok = g.resetToHive() && g.travelTo(f)
+                let shot = self?.snapshotRoblox()
+                if let shot, let dir = self?.dirs.data { _ = ScreenCapture.savePNG(shot, to: dir.appendingPathComponent("debug-step.png")) }
+                g.status(ok ? "traveling" : "warning", "FIELD TEST \(field) \(t.variant): \(ok ? "route finished, picture saved" : "route failed")")
+                g.status("traveling", "ROUTE TEST SUMMARY \(field) \(t.variant): done")
+                why = "stopped"
+            } else if let t = routeTest, t.name == "reset" {
+                // Reset, camera and nothing else: leaves the character at the hive, facing away, ready for a recording.
+                let ok = g.resetToHive()
+                g.status(ok ? "traveling" : "warning", "RESET ONLY: \(ok ? "ready at the hive" : "failed")")
+                why = "stopped"
+            } else if let t = routeTest {
+                // One route at a time: reset, camera, the walk, the prompt check. A pass is the right prompt at the end.
+                var passes = 0
+                g.testVariant = t.variant
+                g.testPrefix = t.prefix
+                for i in 1...t.times where !g.stopped {
+                    g.status("traveling", "ROUTE TEST \(i) of \(t.times): \(t.name) (\(t.variant))")
+                    let r = g.collect(t.name)
+                    var ok = false, detail = ""
+                    switch r {
+                    case .collected: ok = true; detail = "collected"
+                    case .onCooldown(let left): ok = true; detail = "arrived, prompt shows a countdown of \(Int(left)) s"
+                    case .failed(let why): detail = why
+                    }
+                    if ok { passes += 1 }
+                    g.status(ok ? "traveling" : "warning", "ROUTE TEST RESULT \(i) of \(t.times) \(t.name) \(t.variant): \(ok ? "PASS" : "FAIL") (\(detail))")
+                }
+                g.status("traveling", "ROUTE TEST SUMMARY \(t.name) \(t.variant): \(passes) of \(t.times) passed")
+                why = "stopped"
+            } else {
+                why = loop.run()
+            }
             g.releaseEverything()
             DispatchQueue.main.async { self?.finished(why: why) }
         }
@@ -286,6 +340,13 @@ final class AppModel: ObservableObject {
         setStatus(why == "reset_failed" ? .error : .idle, text)
     }
 
+    /// Runs one pickup route `times` times in a row, from the hive, and logs PASS or FAIL for each.
+    func startRouteTest(_ name: String, _ times: Int, _ variant: String = "walk", _ prefix: Int? = nil) {
+        guard !running, name == "reset" || name.hasPrefix("field:") || Game.pickupWords[name] != nil else { append("Route test: unknown pickup \"\(name)\" or a run is going."); return }
+        pendingRouteTest = (name, times, variant, prefix)
+        start()
+    }
+
     func pause() {
         guard running, !paused else { return }
         pauseSignal.set(); paused = true
@@ -298,10 +359,10 @@ final class AppModel: ObservableObject {
         setStatus(.resetting, "Resuming")
     }
 
-    func stop() {
+    func stop(_ source: String = "") {
         stopSignal.set(); pauseSignal.clear()
         input.releaseAll()
-        if running { append("Stop requested") }
+        if running { append(source.isEmpty ? "Stop requested" : "Stop requested (\(source))") }
     }
 
     func setStatus(_ s: RunState, _ d: String) {

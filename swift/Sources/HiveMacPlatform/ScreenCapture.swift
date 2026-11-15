@@ -12,11 +12,16 @@ private final class Box<T>: @unchecked Sendable { var value: T?; init() {} }
 /// Remembers the display list for a while. Plain synchronous locking, called from async code.
 private final class DisplayCache: @unchecked Sendable {
     private var displays: [SCDisplay] = []
+    private var ownApps: [SCRunningApplication] = []
+    private var gameWindows: [SCWindow] = []
     private var fetchedAt = 0.0
     private let lock = NSLock()
 
-    func isStale(now: Double) -> Bool { lock.lock(); defer { lock.unlock() }; return displays.isEmpty || now - fetchedAt > 30 }
-    func store(_ d: [SCDisplay], now: Double) { lock.lock(); displays = d; fetchedAt = now; lock.unlock() }
+    func isStale(now: Double) -> Bool { lock.lock(); defer { lock.unlock() }; return displays.isEmpty || now - fetchedAt > 2 }
+    func store(_ d: [SCDisplay], own: [SCRunningApplication], game: [SCWindow], now: Double) { lock.lock(); displays = d; ownApps = own; gameWindows = game; fetchedAt = now; lock.unlock() }
+    /// The Roblox window that contains the point, if any.
+    func gameWindow(containing p: CGPoint) -> SCWindow? { lock.lock(); defer { lock.unlock() }; return gameWindows.first { $0.frame.contains(p) } }
+    func own() -> [SCRunningApplication] { lock.lock(); defer { lock.unlock() }; return ownApps }
     func display(containing p: CGPoint) -> SCDisplay? {
         lock.lock(); defer { lock.unlock() }
         return displays.first { $0.frame.contains(p) } ?? displays.first
@@ -26,6 +31,8 @@ private final class DisplayCache: @unchecked Sendable {
 public final class ScreenCapture: ScreenReading {
     private let cache = DisplayCache()
     public private(set) var lastCaptureSeconds = 0.0
+    /// The reason the last picture could not be taken, for the log. nil when it worked.
+    public private(set) var lastError: String?
 
     public init() {}
 
@@ -42,13 +49,15 @@ public final class ScreenCapture: ScreenReading {
         let now = ProcessInfo.processInfo.systemUptime
         if cache.isStale(now: now),
            let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true) {
-            cache.store(content.displays, now: now)
+            let me = Bundle.main.bundleIdentifier
+            let game = content.windows.filter { $0.isOnScreen && $0.windowLayer == 0 && ($0.owningApplication?.bundleIdentifier ?? "").lowercased().contains("roblox") }
+            cache.store(content.displays, own: content.applications.filter { $0.bundleIdentifier == me }, game: game, now: now)
         }
         return cache.display(containing: p)
     }
 
     private func capture(_ rect: CGRect) async -> CGImage? {
-        guard let display = await display(containing: CGPoint(x: rect.midX, y: rect.midY)) else { return nil }
+        guard let display = await display(containing: CGPoint(x: rect.midX, y: rect.midY)) else { lastError = "no display found for \(rect)"; return nil }
         let scale = max(1, CGFloat(display.width) / display.frame.width)       // pixels per point
         let config = SCStreamConfiguration()
         config.sourceRect = CGRect(x: rect.minX - display.frame.minX, y: rect.minY - display.frame.minY,
@@ -57,8 +66,31 @@ public final class ScreenCapture: ScreenReading {
         config.height = max(1, Int((rect.height * scale).rounded()))
         config.showsCursor = false
         config.colorSpaceName = CGColorSpace.sRGB
-        let filter = SCContentFilter(display: display, excludingWindows: [])
-        return try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+        // Prefer the Roblox window itself: other windows (HiveMac, a terminal) can sit on top of the game,
+        // and a window capture ignores them.
+        if let win = cache.gameWindow(containing: CGPoint(x: rect.midX, y: rect.midY)) {
+            let wc = SCStreamConfiguration()
+            wc.sourceRect = CGRect(x: rect.minX - win.frame.minX, y: rect.minY - win.frame.minY, width: rect.width, height: rect.height)
+            wc.width = max(1, Int((rect.width * scale).rounded()))
+            wc.height = max(1, Int((rect.height * scale).rounded()))
+            wc.showsCursor = false
+            wc.colorSpaceName = CGColorSpace.sRGB
+            do {
+                let img = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: win), configuration: wc)
+                lastError = nil
+                return img
+            } catch { lastError = "window capture: \(error)" }   // fall through to the screen capture below
+        }
+        // HiveMac's own window often sits on top of the game, so leave it out of the picture.
+        let filter = SCContentFilter(display: display, excludingApplications: cache.own(), exceptingWindows: [])
+        do {
+            let img = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            lastError = nil
+            return img
+        } catch {
+            lastError = "\(error)"
+            return nil
+        }
     }
 
     public static func rgb(from image: CGImage) -> RGBImage? {

@@ -36,14 +36,25 @@ extension Game {
     /// it was used. So E is only pressed when it is ready, and the countdown afterwards proves it worked.
     /// Words that must show in the prompt when you stand at the right spot. A countdown from some other
     /// prompt (another dispenser, a wrong turn) does not count as this pickup being collected.
-    static let pickupWords: [String: [String]] = [
-        "wealth clock": ["wealth", "clock"], "honey dispenser": ["honey disp", "honey"], "treat dispenser": ["treat"],
+    public static let pickupWords: [String: [String]] = [
+        "wealth clock": ["wealth", "clock"], "honey dispenser": ["honey disp"], "treat dispenser": ["treat"],
         "blueberry dispenser": ["blueb"], "strawberry dispenser": ["strawb"], "honeystorm": ["storm"],
-        "ant pass": ["ant p", "ant"], "robo pass": ["robo"], "coconut dispenser": ["cocon"],
+        "ant pass": ["ant pass", "ant p"], "robo pass": ["robo"], "coconut dispenser": ["cocon"], "glue dispenser": ["glue"],
     ]
 
+    /// The game shows "Use the Ant Pass" in range, or "You Already Have 10 or More Ant Passes" when the limit is reached.
+    /// Both mean the character is standing at the pickup.
+    public static func isPickupPrompt(_ t: String) -> Bool { t.contains("use th") || t.contains("already have") }
+
     public func collect(_ pickup: String) -> CollectResult {
-        let first = collectOnce(pickup, variant: settings.travel)
+        if let v = testVariant { return collectOnce(pickup, variant: v) }
+        // A walk can miss by a few tiles (a buff starting mid-walk, a jump that did not take): reset and try once more.
+        var first = collectOnce(pickup, variant: settings.travel)
+        if case .failed(let why) = first, !stopped, !why.contains("stopped"), !why.contains("could not reach the hive"),
+           !why.hasPrefix("no prompt") {            // a failed search already looked around: do not repeat it
+            status("warning", "\(pickup): \(why). Resetting and trying once more.")
+            first = collectOnce(pickup, variant: settings.travel)
+        }
         if case .failed(let why) = first, settings.travel != "walk", !stopped,
            pathLookup("to_pickup", pickup.replacingOccurrences(of: " ", with: "_"), "walk") != nil
             || pathLookup("to_pickup", pickup, "walk") != nil {
@@ -51,6 +62,130 @@ extension Game {
             return collectOnce(pickup, variant: "walk")
         }
         return first
+    }
+
+    /// How far a walk goes depends on the walk speed at that moment (Haste comes and goes), so a route can end a
+    /// little short of or past its target. The macro creeps along the last long walking direction of the route,
+    /// checking the prompt after each small step: forward first, then back past the start.
+    /// Pickups whose machine stands to the side of where the walk ends (seen in the frames): creep that way.
+    public static let creepOverride: [String: [String]] = [
+        "blueberry dispenser": ["d"], "treat dispenser": ["d"], "strawberry dispenser": ["w", "d"],
+    ]
+
+    func creepKeys(_ path: PathFile) -> [String] {
+        let steps = iterSteps(path).filter { $0.type == "walk" && $0.tiles >= 3 }
+        return steps.last?.keys.filter { ["w", "a", "s", "d"].contains($0) } ?? ["w"]
+    }
+
+    private func creepSearch(_ pickup: String, needles: [String], forward: [String]) -> String? {
+        func prompt() -> String? {
+            let t = sensors.promptText() ?? ""
+            return needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) ? t : nil
+        }
+        let opposite = ["w": "s", "s": "w", "a": "d", "d": "a"]
+        let back = forward.compactMap { opposite[$0] }
+        let stepS = 0.18, steps = 10
+        status("traveling", "\(pickup): no prompt at the end of the walk, creeping \(forward.joined()) then \(back.joined())")
+        for i in 0..<steps where !stopped {
+            walker.hold(forward, stepS); wait(0.35)
+            if let t = prompt() { status("traveling", "\(pickup): found after creeping \(forward.joined()) \(i + 1) steps"); return t }
+        }
+        walker.hold(back, stepS * Double(steps)); wait(0.3)
+        for i in 0..<(steps * 2) where !stopped {
+            walker.hold(back, stepS); wait(0.35)
+            if let t = prompt() { status("traveling", "\(pickup): found after creeping \(back.joined()) \(i + 1) steps"); return t }
+        }
+        return nil
+    }
+
+    /// Goes out 6 tiles from where the route ended in each of the 8 directions and back, with the prompt probe running,
+    /// so a pickup within about 6 tiles of the endpoint is found whichever way it lies.
+    private func starSearch(_ pickup: String, needles: [String]) -> String? {
+        status("traveling", "\(pickup): no prompt at the end of the walk, searching around in all directions")
+        walker.armProbe({ [self] in
+            let t = sensors.promptText() ?? ""
+            return Game.isPickupPrompt(t) && needles.contains(where: { t.contains($0) })
+        })
+        defer { walker.armProbe(nil) }
+        let dirs: [[String]] = [["w"], ["w", "d"], ["d"], ["s", "d"], ["s"], ["s", "a"], ["a"], ["w", "a"]]
+        let opposite = ["w": "s", "s": "w", "a": "d", "d": "a"]
+        for keys in dirs where !stopped {
+            walker.walk(keys, tiles: 6)
+            if walker.probeHit { break }
+            wait(0.4)
+            if (sensors.promptText() ?? "").contains("use th") { break }
+            walker.armProbe(nil)                               // going back must not stop at the prompt
+            walker.walk(keys.compactMap { opposite[$0] }, tiles: 6)
+            walker.armProbe({ [self] in
+                let t = sensors.promptText() ?? ""
+                return Game.isPickupPrompt(t) && needles.contains(where: { t.contains($0) })
+            })
+        }
+        walker.armProbe(nil)
+        let t = sensors.promptText() ?? ""
+        if needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) {
+            status("traveling", "\(pickup): found by the star search")
+            return t
+        }
+        return nil
+    }
+
+    /// Last resort: walk an outward square spiral from where the route ended (arms of 1, 1, 2, 2, 3, 3 ... tiles) with the
+    /// prompt probe running, jumping at the start of each arm. Stops the moment the pickup's prompt shows.
+    private func spiralSearch(_ pickup: String, needles: [String]) -> String? {
+        func prompt() -> String? {
+            let t = sensors.promptText() ?? ""
+            return needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) ? t : nil
+        }
+        status("traveling", "\(pickup): spiral search around the end of the route")
+        walker.armProbe({ [self] in
+            let t = sensors.promptText() ?? ""
+            return Game.isPickupPrompt(t) && needles.contains(where: { t.contains($0) })
+        })
+        defer { walker.armProbe(nil) }
+        let dirs = [["d"], ["w"], ["a"], ["s"]]
+        var arm = 0
+        for ring in 1...7 {
+            for _ in 0..<2 {
+                if stopped || walker.probeHit { break }
+                let keys = dirs[arm % 4]; arm += 1
+                actuator.tap("space", holdS: Walker.jumpHoldS)
+                walker.walk(keys, tiles: Double(ring) * 1.5)
+                wait(0.3)
+                if walker.probeHit { break }
+                if let t = prompt() { walker.armProbe(nil); status("traveling", "\(pickup): found by the spiral search"); return t }
+            }
+            if walker.probeHit { break }
+        }
+        if walker.probeHit || prompt() != nil {
+            status("traveling", "\(pickup): found by the spiral search")
+            return prompt() ?? "use the \(pickup)"
+        }
+        return nil
+    }
+
+    /// The wealth clock stands on a platform up a ladder, and the open-loop walk can end a little to the side of the
+    /// ladder (seen live: the character stays on the grass below). Push into the cliff, and when nothing happens
+    /// sidestep in small steps, right first and then left, until the clock prompt shows.
+    private func ladderSearch(_ pickup: String, needles: [String]) -> String? {
+        func prompt() -> String? {
+            let t = sensors.promptText() ?? ""
+            return needles.contains(where: { t.contains($0) }) && (t.contains("use") || t.contains("(")) ? t : nil
+        }
+        status("traveling", "\(pickup): not on the ladder, searching sideways")
+        let rightSteps = 11, leftSteps = 6
+        for _ in 0..<rightSteps where !stopped {
+            actuator.keyDown("w"); wait(1.2); actuator.keyUp("w")
+            if let t = prompt() { status("traveling", "\(pickup): found it after the sideways search"); return t }
+            walker.walk(["d"], tiles: 0.7)
+        }
+        walker.walk(["a"], tiles: 0.7 * Double(rightSteps))
+        for _ in 0..<leftSteps where !stopped {
+            actuator.keyDown("w"); wait(1.2); actuator.keyUp("w")
+            if let t = prompt() { status("traveling", "\(pickup): found it after the sideways search"); return t }
+            walker.walk(["a"], tiles: 0.7)
+        }
+        return nil
     }
 
     private func collectOnce(_ pickup: String, variant: String) -> CollectResult {
@@ -62,19 +197,61 @@ extension Game {
         if pf == nil { pf = pathLookup("to_pickup", key, "walk") }
         guard let path = pf else { return .failed("no route for \(pickup)") }
         status("traveling", pickup)
-        guard walkPath(path) else { return .failed("stopped") }
+        var probe: (() -> Bool)?
+        if let needles = Game.pickupWords[pickup] {
+            // The game shows "Use the <pickup>" whenever the character is in range, so stop walking as soon as it does.
+            probe = { [self] in
+                let t = sensors.promptText() ?? ""
+                return Game.isPickupPrompt(t) && needles.contains(where: { t.contains($0) })
+            }
+        }
+        guard walkPath(path, probe: probe) else { return .failed("stopped") }
+        if probeEnded { status("traveling", "\(pickup): the prompt showed during the walk, stopped there") }
+        if pickup == "glue dispenser", testPrefix == nil {
+            // The Gummy Bear lair opens when a gumdrop is dragged out of the inventory onto the screen, then it is 6 tiles in.
+            if !settings.gumdropsKey.isEmpty {
+                // Gumdrops sit on the hotbar: use one right here, then walk in.
+                focusHook?(); wait(0.3)
+                actuator.tap(settings.gumdropsKey, holdS: 0.15)
+                wait(1.0)
+                walker.walk(["w"], tiles: 6)
+                wait(0.8)
+            } else {
+            guard openItemMenu() else { return .failed("glue dispenser: the inventory did not open") }
+            guard findInInventory("gumdrops", maxScrolls: 60) != nil, let spot = sensors.find("gumdrops", in: RelRegion(fx: 0, fy: 0.12, fw: 0.25, fh: 0.88), tolerance: 5),
+                  let w = windowSize() else {
+                _ = openItemMenu()
+                return .failed("glue dispenser: no gumdrops in the inventory")
+            }
+            let centre = (w.left + w.width / 2, w.top + w.height / 2)
+            actuator.drag(fromX: spot.x, fromY: spot.y, toX: centre.0, toY: centre.1)
+            wait(0.6)
+            if let p = windowPoint(30, 120) { actuator.click(p.x, p.y) }          // close the inventory
+            wait(0.8)
+            walker.walk(["w"], tiles: 6)
+            wait(0.8)
+            }
+        }
 
         // What does the prompt say here?
         func look(seconds: Double) -> String? {
             let t0 = clock.now()
             repeat {
                 guard let t = sensors.promptText() else { return nil }
-                if t.contains("use") || t.contains("(") { return t }
+                if t.contains("use") || t.contains("(") || t.contains("already have") { return t }
                 wait(0.4)
             } while clock.now() - t0 < seconds && !stopped
             return ""
         }
-        let first = look(seconds: 3)
+        var first = look(seconds: 3)
+        if testPrefix != nil { return .failed("prefix test: stopped at the end of the walk, no search") }
+        if let t = first, t.isEmpty, let needles = Game.pickupWords[pickup] {
+            // One short search only (a failed pickup used to wander for minutes: sideways, star, creep, then the retry).
+            if pickup == "wealth clock" { if let found = ladderSearch(pickup, needles: needles) { first = found } }
+            else if let found = starSearch(pickup, needles: needles) { first = found }
+            else if Game.creepOverride[pickup] != nil,
+                    let found = creepSearch(pickup, needles: needles, forward: Game.creepOverride[pickup]!) { first = found }
+        }
         let needles = Game.pickupWords[pickup]
         func atRightSpot(_ t: String) -> Bool { needles == nil || needles!.contains { t.contains($0) } }
         if let t = first, needles != nil {
@@ -87,12 +264,17 @@ extension Game {
             status("traveling", "collected \(pickup)")
             return .collected
         }
+        if let t = first, t.contains("already have") {            // at the pickup, but the daily limit is reached: nothing to press
+            status("traveling", "\(pickup): arrived, you already have the maximum")
+            return .onCooldown(3600)
+        }
         if let left = Hud.cooldownSeconds(fromText: first ?? "") {
             status("traveling", "\(pickup) is not ready yet")
             return .onCooldown(left)
         }
         for attempt in 0..<2 {
-            actuator.tap("e", holdS: 0.1)
+            focusHook?(); wait(0.3)                                // the key only counts while Roblox is the active app
+            actuator.tap("e", holdS: 0.15)
             wait(0.8)
             // The countdown is the proof. Look for it for a few seconds.
             var last: String?

@@ -29,7 +29,16 @@ public enum WindowFinder {
     /// Brings Roblox to the front (works for a full screen Space too).
     @discardableResult
     public static func focusRoblox() -> Bool {
-        guard let app = NSWorkspace.shared.runningApplications.first(where: { ($0.localizedName ?? "").lowercased().contains("roblox") }) else { return false }
-        return app.activate()
+        // Roblox runs two processes: the game (com.roblox.RobloxPlayer) and a menu-bar helper that cannot take the focus.
+        let apps = NSWorkspace.shared.runningApplications
+        guard let app = apps.first(where: { $0.bundleIdentifier == "com.roblox.RobloxPlayer" })
+                ?? apps.first(where: { $0.activationPolicy == .regular && ($0.localizedName ?? "").lowercased().contains("roblox") }) else { return false }
+        return app.activate(options: [.activateAllWindows])
+    }
+
+    /// True while Roblox is the active application.
+    public static func robloxIsFront() -> Bool {
+        let front = NSWorkspace.shared.frontmostApplication
+        return front?.bundleIdentifier == "com.roblox.RobloxPlayer" || (front?.localizedName ?? "").lowercased() == "roblox"
     }
 }

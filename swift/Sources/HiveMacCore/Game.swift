@@ -32,6 +32,8 @@ public protocol Sensors: AnyObject {
     func textIn(_ region: RelRegion) -> String?
     /// A spot in the window by its share of width and height, in screen coordinates (ready to click).
     func point(fx: Double, fy: Double) -> (x: Int, y: Int)?
+    /// The "Movespeed" number of the game's stats panel, when that panel is open. nil when it cannot be read.
+    func moveSpeed() -> Double?
 }
 
 public extension Sensors {
@@ -44,11 +46,21 @@ public extension Sensors {
     func picture(left: Int, top: Int, width: Int, height: Int) -> RGBImage? { nil }
     func textIn(_ region: RelRegion) -> String? { nil }
     func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { nil }
+    func moveSpeed() -> Double? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
     public var walkSpeed = 28.0
+    /// The Bear Morph adds 4 to the walk speed. Set it when the morph is always on (the macro does not read the stats panel).
+    public var bearMorph = false
+    /// Natro's haste compensation: the walk speed is worked out from the buff bar (haste, coconut haste, haste+, oil,
+    /// smoothie, bear morph) while walking. `walkSpeed` is then the speed without buffs.
+    public var hasteCompensation = true
+    /// What a Bear Morph adds to the walk speed. Natro's number is 4.
+    public var bearBonus = 4.0
     public var hiveSlot = 1
+    /// The hotbar key that holds the Gumdrops (the glue dispenser uses one at the Gummy Bear lair). Empty: use the inventory.
+    public var gumdropsKey = ""
     public var sprinklerType = "none"
     public var sprinklerSlotKey = "1"
     public var travel = "walk"              // default path variant: walk or cannon
@@ -57,7 +69,7 @@ public struct GameSettings: Equatable, Sendable {
     /// Natro measures its menu spots in window pixels. Scale and the top bar height can be tuned if a Mac window differs.
     public var uiScale = 1.0
     public var uiOffsetY = 36
-    public var zoomOutTaps = 6
+    public var zoomOutTaps = 5
     public var resetWaitS = 2.0             // minimum time between reset and the next walk
     public var deathExtraWaitS = 18.0       // the death screen is longer than a plain reset
     /// Resets tried before giving up. Capped at 2: a third Esc, R, Enter never fixes a check that is wrong.
@@ -86,7 +98,7 @@ public struct GameSettings: Equatable, Sendable {
     public init() {}
 
     public static func == (a: GameSettings, b: GameSettings) -> Bool {
-        a.walkSpeed == b.walkSpeed && a.hiveSlot == b.hiveSlot && a.travel == b.travel
+        a.walkSpeed == b.walkSpeed && a.bearMorph == b.bearMorph && a.hasteCompensation == b.hasteCompensation && a.bearBonus == b.bearBonus && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
             && a.zoomOutTaps == b.zoomOutTaps && a.resetWaitS == b.resetWaitS
             && a.mousePark.x == b.mousePark.x && a.mousePark.y == b.mousePark.y
     }
@@ -178,14 +190,30 @@ public final class Game {
         self.actuator = actuator; self.sensors = sensors; self.settings = settings; self.clock = clock
         self.stop = stop; self.pause = pause; self.status = status
         self.windowSize = windowSize; self.pathLookup = pathLookup
-        self.walker = Walker(actuator: actuator, speed: SpeedModel(baseSpeed: settings.walkSpeed, multiplier: speedMultiplier),
+        self.walker = Walker(actuator: actuator, speed: SpeedModel(baseSpeed: settings.walkSpeed + (settings.bearMorph ? 4 : 0), multiplier: speedMultiplier),
                              clock: clock, stop: stop, pause: pause)
+        // Like Natro, the speed is the setting times the buffs read from the buff bar: nothing is learned from arrivals.
+        self.walker.speed.live = { [unowned self] in self.walker.liveSpeed }
+    }
+
+    /// Reads the buff bar for the walk speed while walking (Natro's haste compensation). nil: the settings speed is used.
+    public private(set) var buffReader: BuffSpeedReader?
+    public func attachBuffReader(_ reader: BuffSpeedReader) {
+        guard settings.hasteCompensation else { return }
+        reader.model = BuffSpeedModel(movespeed: settings.walkSpeed, bearBonus: settings.bearBonus)
+        buffReader = reader
+        walker.speed.baseSpeed = settings.walkSpeed             // the bear morph is read from the bar now
+        walker.speedSamplerTrusted = true
+        walker.speed.liveIsBuffModel = true
+        walker.speedSampleEveryS = 0.15
+        walker.speedSampler = { [unowned self] in self.buffReader?.read() }
     }
 
     public var stopped: Bool { stop.isSet }
 
     func wait(_ s: Double) { walker.wait(s) }
-    func tap(_ key: String) { actuator.tap(key, holdS: 0.03) }
+    /// Roblox on a slow Mac can miss a 30 ms press that falls between two frames, so a tap is held for 120 ms.
+    func tap(_ key: String) { actuator.tap(key, holdS: Walker.tapHoldS) }
 
     public func keymap() -> [String: String] {
         ["rot_left": settings.rotLeft, "rot_right": settings.rotRight,
@@ -220,19 +248,20 @@ public final class Game {
         let s = settings
         releaseEverything()
         setShiftLock(false)
+        stepHook?("reset", 0, 0, "begin")
         for attempt in 1...min(2, max(1, s.resetAttempts)) {
             if stopped { return false }
             status("resetting", "attempt \(attempt)")
             parkMouse()
-            tap("esc"); wait(s.keyGapS)
-            tap("r"); wait(s.keyGapS)
-            tap("enter")
+            pressReset()
+            stepHook?("reset", 1, 0, "a\(attempt)-after-keys")
             waitForRespawn()
             let extra = (afterDeath || died) ? s.deathExtraWaitS : 0
             died = false
             wait(s.resetWaitS + extra)
             if stopped { return false }
             sensors.resetBackpackFilter()
+            stepHook?("reset", 2, 0, "a\(attempt)-after-respawn-wait")
             var atHive = sensors.hivePromptVisible()
             let looked = clock.now()
             while atHive == false && clock.now() - looked < s.hivePromptRecheckS && !stopped {
@@ -244,12 +273,66 @@ public final class Game {
                 continue
             }
             if atHive == nil { status("resetting", "no hive prompt template, assuming at hive") }
-            _ = fixCamera()
+            let aligned = fixCamera()
+            stepHook?("reset", 3, 0, "a\(attempt)-after-camera")
+            if !aligned && attempt < min(2, max(1, s.resetAttempts)) { status("resetting", "the camera could not be aligned, trying the reset again"); continue }
             return true
         }
         status("error", "could not see the hive prompt after the reset. Check that you are not stuck somewhere, and check the Hive prompt pictures in Calibrate.")
         return false
     }
+
+    /// True when the Roblox menu (Resume, Reset Character, Leave Game) is on screen; nil when the screen cannot be read.
+    private func robloxMenuOpen() -> Bool? {
+        guard let text = sensors.textIn(RelRegion(fx: 0, fy: 0, fw: 1, fh: 1))?.lowercased() else { lastMenuText = "(unreadable)"; return nil }
+        lastMenuText = String(text.prefix(90)).replacingOccurrences(of: "\n", with: " | ")
+        // Old menu: Resume, Reset Character, Leave Game. The newer Roblox menu on this Mac lists Friends chat, Shop, Self View,
+        // Switch avatar, Music, Captures, Report and Respawn.
+        return text.contains("reset character") || text.contains("resume") || text.contains("leave game")
+            || text.contains("respawn") || text.contains("switch avatar") || text.contains("self view") || text.contains("captures")
+    }
+
+    /// Resets the character. On this Roblox the Esc key does not open the menu, so the reset clicks the three-line menu
+    /// button at the top left, then "Respawn", and presses Enter on the "Are you sure" box (its Respawn button is the
+    /// one in focus). Old menus (Esc, R, Enter) are tried first when the screen cannot be read.
+    private func pressReset() {
+        let s = settings
+        focusHook?(); wait(0.6)
+        if let front = frontCheck {
+            for _ in 0..<5 where !front() && !stopped { focusHook?(); wait(0.6) }
+            if !front(), let w = windowSize() {            // a click on the title bar also activates the window
+                actuator.click(w.left + w.width / 2, w.top - 14); wait(0.7)
+            }
+        }
+        guard let ws = windowSize() else { tap("esc"); wait(s.keyGapS); tap("r"); wait(s.keyGapS); tap("enter"); return }
+        func at(_ fx: Double, _ fy: Double) -> (Int, Int) { (ws.left + Int(Double(ws.width) * fx), ws.top + Int(Double(ws.height) * fy)) }
+        let burger = at(0.065, 0.048), respawn = at(0.076, 0.64)
+        for attempt in 1...3 where !stopped {
+            let (bx, by) = burger
+            actuator.click(bx, by)
+            wait(0.9)
+            let open = robloxMenuOpen()
+            status("resetting", "menu button clicked at \(bx),\(by) (try \(attempt)): menu \(open == true ? "open" : open == nil ? "unreadable" : "not open"), reads: \(lastMenuText)")
+            if open == false { continue }
+            let (rx, ry) = respawn
+            actuator.click(rx, ry)
+            // The "Are you sure you want to respawn your character?" box takes a moment: press Enter only once it shows.
+            var sure = false
+            let t0 = clock.now()
+            while !stopped && clock.now() - t0 < 4 {
+                wait(0.5)
+                let t = (sensors.textIn(RelRegion(fx: 0, fy: 0, fw: 1, fh: 1)) ?? "").lowercased()
+                if t.contains("are you sure") || t.contains("don't respawn") || t.contains("dont respawn") { sure = true; break }
+            }
+            status("resetting", sure ? "the respawn box is showing, pressing Enter" : "the respawn box did not show, pressing Enter anyway")
+            actuator.tap("enter", holdS: 0.2)
+            parkMouse()
+            return
+        }
+        status("warning", "could not open the Roblox menu with the menu button")
+    }
+
+    private var lastMenuText = ""
 
     /// Natro: the health bar goes grey (dead) then comes back. Falls back to a fixed wait.
     private func waitForRespawn() {
@@ -270,20 +353,50 @@ public final class Game {
         let s = settings
         var faced = true
         if sensors.hiveViewShare() != nil {
-            var best = -1.0, bestStep = 0
-            for step in 0..<8 {
-                if stopped { return false }
-                let share = sensors.hiveViewShare() ?? 0
-                if share > best { best = share; bestStep = step }
-                walker.rotate("right", taps: 1, leftKey: s.rotLeft, rightKey: s.rotRight)
-                wait(0.3)
+            faced = false
+            for attempt in 1...3 where !faced {
+                var best = -1.0
+                var shares = [Double](repeating: 0, count: 8)
+                for step in 0..<8 {
+                    if stopped { return false }
+                    let share = sensors.hiveViewShare() ?? 0
+                    shares[step] = share
+                    if share > best { best = share }
+                    walker.rotate("right", taps: 1, leftKey: s.rotLeft, rightKey: s.rotRight)
+                    wait(0.3)
+                }
+                guard best >= s.hiveShareMin else {
+                    status("warning", "camera try \(attempt): the hive was not seen while turning (biggest share \(Int(best * 100)) percent)")
+                    continue
+                }
+                // The hive is the heading with the most honeycomb in view, and facing away is half a circle from it.
+                // When that peak is not clear (two headings close), take the heading with the least honeycomb instead.
+                let peak = shares.firstIndex(of: best) ?? 0
+                let second = shares.enumerated().filter { $0.offset != peak }.map(\.element).max() ?? 0
+                // Standing at the hive, one heading shows the honeycomb wall and the others do not. A flat scan means the
+                // character is somewhere else (the reset did not happen).
+                guard best >= 0.30 || best >= second * 1.8 else {
+                    status("warning", "camera try \(attempt): no clear hive in view (shares " + shares.map { String(format: "%.0f", $0 * 100) }.joined(separator: " ") + " percent), not at the hive")
+                    return false
+                }
+                var bestStep = (peak + 4) % 8
+                if best < second * 1.8 {
+                    var bestScore = Double.greatestFiniteMagnitude
+                    for i in 0..<8 {
+                        let score = shares[i] + 0.5 * (shares[(i + 7) % 8] + shares[(i + 1) % 8])
+                        if score < bestScore { bestScore = score; bestStep = i }
+                    }
+                }
+                walker.rotate("right", taps: bestStep, leftKey: s.rotLeft, rightKey: s.rotRight)
+                wait(0.4)
+                // Check it from the screen: the honeycomb in view now should be about the smallest it was in the scan.
+                let after = sensors.hiveViewShare() ?? 1
+                let low = shares.min() ?? 0
+                faced = after <= low + 0.10
+                status("resetting", "camera try \(attempt): shares " + shares.map { String(format: "%.0f", $0 * 100) }.joined(separator: " ")
+                       + " percent, turned \(bestStep), now \(Int(after * 100)) percent, " + (faced ? "facing away" : "NOT facing away, trying again"))
             }
-            if best >= s.hiveShareMin {
-                walker.rotate("right", taps: (bestStep + 4) % 8, leftKey: s.rotLeft, rightKey: s.rotRight)
-            } else {
-                faced = false
-                status("warning", "the hive was not seen while turning the camera")
-            }
+            if !faced { status("warning", "the camera could not be turned away from the hive after 3 tries") }
         } else if let first = sensors.hiveViewVisible() {
             var found = first
             // Older check: turn until the hive picture shows, then half a circle.
@@ -341,7 +454,10 @@ public final class Game {
     public func convertBalloon() {
         let t0 = clock.now()
         var unreadable = 0
+        var lastBeat = t0
         while !stopped && clock.now() - t0 < 600 {
+            // A big balloon takes minutes. Say so now and then, or the watchdog takes the quiet wait for a hang.
+            if clock.now() - lastBeat >= 20 { lastBeat = clock.now(); status("converting", "balloon, still converting (\(Int(clock.now() - t0)) s)") }
             switch sensors.hiveMessage() {
             case "empty"?:
                 if clock.now() - t0 > 1 { status("converting", "balloon done") }
@@ -379,48 +495,135 @@ public final class Game {
                                          distance: f.sprinklerDistance, speed: speed.current()), [:])
         run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
                                      slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
+        if !confirmSprinkler(f) { return false }
         if f.rotatesCamera {
             walker.rotate(f.camera, taps: f.turns, leftKey: s.rotLeft, rightKey: s.rotRight)
         }
         return !stopped
     }
 
+    /// The game answers a sprinkler placed outside a field with a red message at the bottom right ("You must be standing in
+    /// a field to build a Sprinkler"). That is a sure sign the trip did not end in the field: step left a little and place
+    /// again, up to 6 times, then give up so the loop resets and tries the trip again. true when placed (or unreadable).
+    func confirmSprinkler(_ f: FieldConfig) -> Bool {
+        let s = settings
+        if s.sprinklerType.lowercased() == "none" { return true }
+        let toast = RelRegion(fx: 0.60, fy: 0.80, fw: 0.40, fh: 0.20)
+        func refused() -> Bool? {
+            guard let t = sensors.textIn(toast)?.lowercased() else { return nil }
+            return t.contains("standing in a field") || (t.contains("sprinkler") && t.contains("field"))
+        }
+        for attempt in 1...6 {
+            wait(0.8)
+            guard let r = refused() else { return true }           // unreadable: carry on as before
+            if !r { if attempt > 1 { status("traveling", "\(f.name): sprinkler placed after \(attempt - 1) step(s) left") }; return true }
+            if stopped { return false }
+            status("traveling", "\(f.name): the sprinkler was refused (not standing in the field), stepping left (\(attempt))")
+            var waited = 0.0
+            while waited < 8, !stopped, refused() == true { wait(0.5); waited += 0.5 }   // let the old message fade first
+            run([.walk(["a"], tiles: 1.5)], [:])
+            run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
+                                         slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
+        }
+        status("warning", "\(f.name): the sprinkler still would not place after 6 steps, so the trip did not reach the field")
+        return false
+    }
+
     /// Walks a route from the hive: shift lock off, mouse parked, every step, the cannon where the route asks.
-    public func walkPath(_ path: PathFile) -> Bool {
+    /// Called at the start of a route (index 0) and after each step, so the screen can be saved frame by frame.
+    /// Arguments: route name, step number, number of steps, a short description of the step just done.
+    public var stepHook: ((String, Int, Int, String) -> Void)?
+
+    /// True when the last walkPath ended early because its probe fired (the prompt it looked for was on screen).
+    public private(set) var probeEnded = false
+    /// Brings the game window to the front. Clicks and keys only reach Roblox while it is the active app.
+    public var focusHook: (() -> Void)?
+    /// True while the game window is the active app (nil when it cannot be told).
+    public var frontCheck: (() -> Bool)?
+    /// Set by the route test to try one travel variant ("walk" or "cannon") on its own, with no fallback to the other.
+    public var testVariant: String?
+    /// Set by the route test: run only the first N steps of the route (to start a recording from a known point).
+    public var testPrefix: Int?
+
+    public func walkPath(_ path: PathFile, probe: (() -> Bool)? = nil) -> Bool {
         setShiftLock(false)
         parkMouse()
-        for step in iterSteps(path) {
+        var steps = iterSteps(path)
+        if let n = testPrefix { steps = Array(steps.prefix(n)) }
+        stepHook?(path.name, 0, steps.count, "start")
+        walker.armProbe(probe)
+        walker.sampleSpeed(force: true)
+        if let live = walker.liveSpeed, let r = buffReader { status("traveling", "walk speed \(String(format: "%.1f", live)) from the buff bar (\(r.last.text)); settings: \(Int(settings.walkSpeed)) without buffs") }
+        else if walker.speedSampler != nil { status("traveling", "the buff bar could not be read, so the walk speed from the settings is used (\(Int(settings.walkSpeed)))") }
+        probeEnded = false
+        defer { walker.armProbe(nil) }
+        var flightScale = 1.0, flying = false
+        for (i, step) in steps.enumerated() {
             if stopped { return false }
+            if walker.probeHit { probeEnded = true; stepHook?(path.name, i + 1, steps.count, "prompt-seen-end"); return true }
             if step.type == "gotocannon" {
                 if !goToCannon() { return false }
+                // The flight is timed in real seconds (Natro), so Haste or a morph would carry the character farther and
+                // land it on a platform. Shorten the flight timings by the speed gain over the speed in the settings.
+                walker.sampleSpeed(force: true)
+                if let live = walker.liveSpeed, settings.walkSpeed > 0, walker.speed.liveIsBuffModel {
+                    flightScale = max(0.4, min(1.0, settings.walkSpeed / live))
+                    if flightScale < 0.99 { status("traveling", String(format: "cannon flight shortened to %.0f%% for the speed buffs (speed %.1f, settings %.0f)", flightScale * 100, live, settings.walkSpeed)) }
+                }
                 continue
             }
+            if path.name.contains("cannon") {
+                if step.type == "keydown", step.keys.contains("d") { flying = true }
+                if step.type == "keyup", step.keys.contains("d") { flying = false }
+                if step.type == "wait", flying, flightScale < 1 {
+                    var scaled = step; scaled.seconds *= flightScale
+                    run([scaled]); continue
+                }
+            }
             run([step])
+            // No pictures during a flight or between key presses: a capture takes long enough to delay the glider (Natro has none).
+            guard step.type == "walk", !path.name.contains("cannon") else { continue }
+            let what = "walk-" + step.keys.joined() + "-" + String(format: "%.1f", step.tiles)
+            stepHook?(path.name, i + 1, steps.count, what)
         }
+        if walker.probeHit { probeEnded = true }
+        stepHook?(path.name, steps.count + 1, steps.count, probeEnded ? "prompt-seen-end" : "end")
         return !stopped
     }
 
     /// Natro nm_gotoCannon, simplified: jump right onto the pad, then creep right until the
     /// cannon prompt shows (when a check exists).
     public func goToCannon() -> Bool {
-        for _ in 0..<3 {
+        for _ in 0..<10 {                                      // Natro tries up to 10 times
             if stopped { return false }
             actuator.keyDown("space"); actuator.keyDown("d")
-            wait(0.1)
+            wait(Walker.jumpHoldS)
             actuator.keyUp("space")
             walker.walk(["d"], tiles: 2)
             walker.walk(["w", "d"], tiles: 1.5)
-            actuator.keyUp("d")
-            var seen = sensors.cannonPromptVisible()
-            if seen == nil { return true }
-            let t0 = clock.now()
+            // Natro keeps Right held while it looks for the prompt, so there is no pause on the pad.
             actuator.keyDown("d")
-            while seen != true && clock.now() - t0 < 2.0 && !stopped {
+            var seen = sensors.cannonPromptVisible()
+            if seen == nil { actuator.keyUp("d"); return true }
+            let t0 = clock.now()
+            while seen != true && clock.now() - t0 < 20.0 && !stopped {   // Natro looks for 20 seconds
                 wait(0.1)
                 seen = sensors.cannonPromptVisible()
             }
             actuator.keyUp("d")
-            if seen == true { return true }
+            if seen == true {
+                // Natro checks that the cannon was not overrun: after half a second the prompt must still be there,
+                // otherwise step back left a little and look again (up to 9 times).
+                var still = false
+                for _ in 0..<9 where !stopped {
+                    wait(0.5)
+                    if sensors.cannonPromptVisible() != false { still = true; break }
+                    walker.walk(["a"], tiles: 1.5)
+                    wait(0.3)
+                    if sensors.cannonPromptVisible() != false { still = true; break }
+                }
+                if still { return true }
+            }
             status("traveling", "cannon not found, resetting")
             if !resetToHive() { return false }
             run(iterSteps(PathFile(name: "ramp", steps: [Step(type: "gotoramp")])))
@@ -487,15 +690,22 @@ public final class Game {
             if stopped { return false }
             run([step])
         }
-        let t0 = clock.now()
         var seen = sensors.hivePromptVisible()
         if seen == nil { return true }
-        actuator.keyDown("a")
-        while seen != true && clock.now() - t0 < 15 && !stopped {
-            wait(0.1)
-            seen = sensors.hivePromptVisible()
+        // Look for the hive prompt in short steps, a check after each: a continuous walk plus a slow check stepped right
+        // over the spot where the prompt shows, and the macro then reset instead of stopping at its hive. Left first
+        // (the route ends right of the hive), then back to the right.
+        func scan(_ key: String, seconds: Double) {
+            let t0 = clock.now()
+            while seen != true && clock.now() - t0 < seconds && !stopped {
+                actuator.keyDown(key); wait(0.2); actuator.keyUp(key)
+                wait(0.2)
+                seen = sensors.hivePromptVisible()
+            }
         }
-        actuator.keyUp("a")
+        if seen != true { status("traveling", "hive prompt not seen yet, stepping along the hives to find it") }
+        scan("a", seconds: 14)
+        if seen != true { scan("d", seconds: 28) }
         return seen == true
     }
 }

@@ -25,10 +25,10 @@ final class StepsTests: XCTestCase {
         XCTAssertEqual(Paths.bindPatternKeys(invertLR: true)["afc_lr"], "a")
     }
 
-    func testHoldScalingOnlyTouchesMovementHolds() {
+    func testHoldsAreNotRescaledLikeNatro() {
         let steps: [Step] = [.hold(["w"], seconds: 2.8), .hold(["space"], seconds: 0.2), .walk(["w"], tiles: 3)]
         let scaled = Paths.scaleHolds(steps, recordedSpeed: 28, actualSpeed: 14)
-        XCTAssertEqual(scaled[0].seconds, 5.6, accuracy: 1e-9)
+        XCTAssertEqual(scaled[0].seconds, 2.8, accuracy: 1e-9)
         XCTAssertEqual(scaled[1].seconds, 0.2)
         XCTAssertEqual(scaled[2].tiles, 3)
         XCTAssertEqual(Paths.keyDuration(1, referenceSpeed: 28, actualSpeed: 0), 1)

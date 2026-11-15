@@ -30,9 +30,7 @@
    "seconds": 1.4
   },
   {
-   "type": "tap",
-   "key": "space",
-   "count": 2
+   "type": "jump2"
   },
   {
    "type": "wait",

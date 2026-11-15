@@ -111,14 +111,10 @@ public enum Paths {
         actualSpeed <= 0 ? secondsAtReference : secondsAtReference * referenceSpeed / actualSpeed
     }
 
-    /// Rescales `hold` steps that move the character; `walk` steps are in tiles and scale when run.
-    public static func scaleHolds(_ steps: [Step], recordedSpeed: Double, actualSpeed: Double) -> [Step] {
-        let movement: Set<String> = ["w", "a", "s", "d"]
-        return steps.map { s in
-            guard s.type == "hold", !Set(s.keys).isDisjoint(with: movement) else { return s }
-            return .hold(s.keys, seconds: keyDuration(s.seconds, referenceSpeed: recordedSpeed, actualSpeed: actualSpeed))
-        }
-    }
+    /// Natro never rescales its `hold` steps (a key down, a pause in real time, a key up): they are parkour jumps and short
+    /// pushes whose timing does not depend on the walk speed. Only `walk` steps (in tiles) follow the speed, and that is
+    /// done when they run. So this returns the steps unchanged. (It used to multiply every movement hold by 28 / speed.)
+    public static func scaleHolds(_ steps: [Step], recordedSpeed: Double, actualSpeed: Double) -> [Step] { steps }
 
     /// Rough duration for logging and timeouts.
     public static func totalSeconds(_ steps: [Step], speed: Double) -> Double {

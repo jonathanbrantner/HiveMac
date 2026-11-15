@@ -1,49 +1,65 @@
 {
- "name": "rose_cannon",
- "source": "NatroMacro paths/gtf-rose.ahk (cannon branch)",
- "walk_speed": 28.0,
- "notes": "Converted from Natro Macro (GPL-3.0). Hold steps are at walk speed 28.",
- "steps": [
-  {
-   "type": "gotoramp"
-  },
-  {
-   "type": "gotocannon"
-  },
-  {
-   "type": "rotate",
-   "direction": "right",
-   "count": 2
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "w"
-   ],
-   "seconds": 0.1
-  },
-  {
-   "type": "tap",
-   "key": "e"
-  },
-  {
-   "type": "hold",
-   "keys": [
-    "w"
-   ],
-   "seconds": 0.58
-  },
-  {
-   "type": "wait",
-   "seconds": 3.05
-  },
-  {
-   "type": "tap",
-   "key": "space"
-  },
-  {
-   "type": "wait",
-   "seconds": 2.0
-  }
- ]
+  "name": "rose_cannon",
+  "source": "NatroMacro paths/gtf-rose.ahk (cannon branch)",
+  "walk_speed": 28.0,
+  "notes": "Converted from Natro Macro (GPL-3.0) by scripts/convert_natro_cannon.py. Movement keys stay held through the flight like Natro.",
+  "steps": [
+    {
+      "type": "gotoramp"
+    },
+    {
+      "type": "gotocannon"
+    },
+    {
+      "type": "rotate",
+      "direction": "right",
+      "count": 2
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "e"
+      ]
+    },
+    {
+      "type": "keydown",
+      "keys": [
+        "w"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 0.1
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "e"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 0.58
+    },
+    {
+      "type": "jump2"
+    },
+    {
+      "type": "keyup",
+      "keys": [
+        "w"
+      ]
+    },
+    {
+      "type": "wait",
+      "seconds": 3.05
+    },
+    {
+      "type": "jump"
+    },
+    {
+      "type": "wait",
+      "seconds": 2.0
+    }
+  ]
 }

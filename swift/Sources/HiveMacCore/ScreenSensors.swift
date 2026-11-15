@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 /// What the sensors read pixels from. The real one captures small screen regions.
 public protocol ScreenReading: AnyObject {
@@ -86,6 +87,8 @@ public final class ScreenSensors: Sensors {
 
     /// Reads the text in an image (the Pollen bar's numbers). Provided by the platform layer.
     public var textReader: ((RGBImage) -> String?)?
+    /// Recognised lines with their boxes (shares of the picture), for reading label and value pairs.
+    public var linesReader: ((RGBImage) -> [(text: String, box: CGRect)])?
     public private(set) var lastBarText: String?
     public private(set) var lastHiveText: String?
     private let loadImage: (String) -> RGBImage?
@@ -154,9 +157,16 @@ public final class ScreenSensors: Sensors {
     private func hiveText() -> String? {
         let area = cfg.hiveMessageRegion ?? bounds().map { Layout.natroDefaults($0, offsetY: 36).hiveMessageRegion }
         guard let read = textReader, let img = region(area) else { return nil }
-        let text = (read(img) ?? "").lowercased()
+        let text = Self.withoutHudBars((read(img) ?? "").lowercased())
         lastHiveText = text
         return text
+    }
+
+    /// True for the three real hive messages: "Make Honey", "Stop Making Honey" and "To Make Honey, Collect Pollen
+    /// From Flower Fields". The word "honey" alone is not enough: the Honey bar and "Use the Honey Dispenser" have it too.
+    public static func isHiveMessage(_ text: String) -> Bool {
+        if text.contains("dispenser") { return false }
+        return text.contains("making honey") || text.contains("make honey") || text.contains("collect pollen") || text.contains("flower fields")
     }
 
     /// At the hive when a hive message is on screen. All three messages contain "honey": Make Honey,
@@ -167,7 +177,10 @@ public final class ScreenSensors: Sensors {
             .map { templateIn(cfg.hivePromptRegion, $0) }
         let text = hiveText()
         if text == nil && pictures.allSatisfy({ $0 == nil }) { return nil }
-        return (text?.contains("honey") ?? false) || pictures.contains(true)
+        // Words that were read beat the saved pictures: a picture of the hive message also matches the red banner of
+        // "Use the Honey Dispenser", which made the macro think it stood at the hive when it was at the dispenser.
+        if let t = text, !t.isEmpty { return Self.isHiveMessage(t) }
+        return pictures.contains(true)
     }
 
     public func hiveViewVisible() -> Bool? {
@@ -193,10 +206,68 @@ public final class ScreenSensors: Sensors {
         // A tall band across the top middle: the prompt sits there, whatever its height.
         let band = RelRegion(fx: max(0, (Double(w.width) / 2 - 320) / Double(w.width)), fy: 0, fw: min(1, 640 / Double(w.width)), fh: min(1, 230 / Double(w.height)))
         guard let img = region(band) else { return nil }
-        return read(img)?.lowercased()
+        return read(img).map { Self.withoutHudBars($0.lowercased()) }
+    }
+
+    /// The Honey and Pollen bars sit in the same band as the prompt. Their text ("honey 9,922,734 (+206/sec)
+    /// pollen 76,213/410,072,570 (+287/sec)") has a bracket and the word honey, so it was mistaken for a prompt.
+    public static func withoutHudBars(_ text: String) -> String {
+        var t = text
+        let patterns = [#"\([^()]{0,20}/\s*\S{0,4}\)?"#, #"\(\s*\+?[\d,\.]+\s*/\s*se[cс]\s*\)?"#, #"honey\s*[\d,\.\s]{4,}"#, #"pollen[\s×x\d,\./зО]{4,}"#]
+        for p in patterns {
+            if let re = try? NSRegularExpression(pattern: p, options: [.caseInsensitive]) {
+                t = re.stringByReplacingMatches(in: t, range: NSRange(t.startIndex..., in: t), withTemplate: " ")
+            }
+        }
+        return t.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
 
     public func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { point(RelPoint(fx: fx, fy: fy)) }
+
+    /// "Movespeed: 31.9" from the stats panel on the left of the game (the player's current speed with every buff).
+    /// The label and its number are separate lines for the text reader, so they are paired by the row they stand on.
+    public func moveSpeed() -> Double? {
+        guard bounds() != nil else { return nil }
+        let band = RelRegion(fx: 0, fy: 0.22, fw: 0.26, fh: 0.75)
+        guard let img = region(band) else { return nil }
+        if let lines = linesReader?(img), !lines.isEmpty {
+            var labelBox: CGRect?
+            for l in lines {
+                let low = l.text.lowercased()
+                if low.contains("movespeed") || low.contains("move speed") {
+                    if let v = Self.parseMoveSpeed(low) { return v }       // the number is on the same line
+                    labelBox = l.box; break
+                }
+            }
+            guard let label = labelBox else { return nil }
+            let tolerance = max(0.02, label.height * 0.7)
+            var candidates: [(x: CGFloat, text: String)] = []
+            for l in lines where l.box.minX > label.minX && abs(l.box.midY - label.midY) < tolerance {
+                candidates.append((l.box.minX, l.text))
+            }
+            candidates.sort { $0.x < $1.x }
+            for c in candidates {
+                let raw = c.text.trimmingCharacters(in: CharacterSet.whitespaces).replacingOccurrences(of: ",", with: ".")
+                if var v = Double(raw) {
+                    if v >= 100, !raw.contains(".") { v /= 10 }
+                    return v
+                }
+            }
+            return nil
+        }
+        guard let read = textReader, let text = read(img)?.lowercased() else { return nil }
+        return Self.parseMoveSpeed(text)
+    }
+
+    public static func parseMoveSpeed(_ text: String) -> Double? {
+        guard let re = try? NSRegularExpression(pattern: #"move\s*speed[:\s]*(\d{1,3}(?:[.,]\d{1,2})?)"#),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let r = Range(m.range(at: 1), in: text) else { return nil }
+        let raw = String(text[r]).replacingOccurrences(of: ",", with: ".")
+        guard var v = Double(raw) else { return nil }
+        if v >= 100, !raw.contains(".") { v /= 10 }            // "319" read for "31.9"
+        return v
+    }
 
     public func textIn(_ r: RelRegion) -> String? {
         guard let read = textReader, let img = region(r) else { return nil }
@@ -208,12 +279,25 @@ public final class ScreenSensors: Sensors {
         return Hud.mobHealthBars(img)
     }
 
+    /// What the hive message says right now: "stop" while honey is being made ("Stop Making Honey"), "make" when pollen is
+    /// waiting ("Make Honey"), "empty" when the bag is empty ("To Make Honey, Collect Pollen From Flower Fields"), nil when
+    /// it cannot be read. (This was missing, so the wait for the balloon pollen always gave up after five unreadable reads.)
+    public func hiveMessage() -> String? {
+        guard let text = hiveText(), !text.isEmpty else { return nil }
+        if text.contains("stop") && text.contains("making") { return "stop" }
+        if text.contains("collect pollen") || text.contains("flower fields") { return "empty" }
+        if text.contains("make honey") || text.contains("making honey") { return text.contains("stop") ? "stop" : "make" }
+        return nil
+    }
+
     /// True while the message says "Stop Making Honey" (E would turn converting off); false when it says
     /// "Make Honey" or the empty-bag message; nil when unknown.
     public func honeyRunning() -> Bool? {
         if let text = hiveText(), !text.isEmpty {
-            if text.contains("stop") { return true }
-            if text.contains("honey") { return false }
+            if Self.isHiveMessage(text) {
+                if text.contains("stop") { return true }
+                return false
+            }
         }
         return templateIn(cfg.hivePromptRegion, cfg.hivePromptStopTemplate)
     }

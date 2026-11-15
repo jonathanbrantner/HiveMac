@@ -72,3 +72,12 @@ Next: find the first step where each failing route leaves Natro's path (frames),
 - 12:35 Pine Tree CANNON now arrives in the field. Cause: a screenshot was taken between the cannon steps (trace default on) and delayed the glider. Fixed: no pictures during cannon routes, trace default off, quick double jump step (jump2), 5 zoom taps, 10 s cannon prompt wait.
 - Bamboo and Blue Flower cannon tested once each: did NOT arrive (Bamboo ended at the hive, Blue Flower ended on a blue pad outside a field). Other 9 field cannon routes untested. Travel setting stays walk.
 - Wealth clock walk passes after widening the ladder search to the right.
+
+## 2026-11-14 evening (buff bar, cannon, long run)
+- Buff bar reader (Natro style): a real Haste icon (running figure) is detected on the live game, speed 31.9 with haste x1. Detection takes about 1 ms. Bear +4 still unverified.
+- The balloon wait in convert could be longer than the watchdog (about 8 min balloon): it now posts a status every 20 s, so the watchdog no longer stops it.
+- Gather stall guard (4 min without backpack percent gain) reset a correct field: Diamond Drain and Conversion Link keep the bag at 0%. Default is now off (game.gather_stall_s = 0).
+- Walk efficiency 0.9 made the Pine Tree walk overshoot into Strawberry: default back to 1.0 (setting game.walk_efficiency kept).
+- Cannon flight timings (Natro uses fixed real seconds) now shrink by settings speed / live speed when buffs show, so Haste does not carry the landing past the field. Pine Tree cannon landed in the field 2 of 3 times in the route test, then cycled 4 full gather and convert rounds from 5:33 to 6:40 PM with one cannon retry and a wealth clock walk fallback.
+- Walk learned speed on the wealth clock walk: real speed about 27 against 29 in the settings.
+- Open: why a cannon run sometimes misses (pad position or glide), wrong field detection without the stall guard, Bamboo, Blue Flower and the other 9 cannon fields, Pine Tree walk drifting into the cactus and gate.

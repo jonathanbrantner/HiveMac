@@ -61,7 +61,9 @@ final class AppModel: ObservableObject {
     // MARK: Published state
     @Published var state: RunState = .idle
     @Published var detail = ""
-    @Published var running = false { didSet { syncHotKey() } }
+    @Published var running = false { didSet { syncHotKey(); if running { sleepBlocker.start() } else { sleepBlocker.stop() } } }
+    /// Holds the Mac and the display awake for as long as a run is going.
+    private let sleepBlocker = SleepBlocker()
     /// Set by the route test: run this pickup route this many times from the hive, instead of the profile.
     var pendingRouteTest: (name: String, times: Int, variant: String, prefix: Int?)?
     /// Bumped by the Collapse button; every step row folds itself shut when it changes.

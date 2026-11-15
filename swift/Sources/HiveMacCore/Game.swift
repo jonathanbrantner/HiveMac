@@ -664,9 +664,23 @@ public final class Game {
         var pct = sensors.backpackPercent()
         setShiftLock(f.shiftLock)
         parkMouse()
-        if s.useTool { actuator.mouseDown(); status("gathering", "tool: the mouse button is held down (it is pressed again every second)") }
+        // Roblox on macOS counts one posted button press as a single click, so the tool is swung by clicking again and again
+        // (a press and release about every quarter second) on a helper thread while the pattern walks.
+        let clicking = Signal(), clickerDone = DispatchSemaphore(value: 0)
+        if s.useTool {
+            clicking.set()
+            status("gathering", "tool: clicking about 4 times a second for the whole gather")
+            let act = actuator, clk = clock, stopSig = stop
+            Thread.detachNewThread {
+                while clicking.isSet && !stopSig.isSet {
+                    act.mouseDown(); clk.sleep(0.05)
+                    act.mouseUp(); clk.sleep(0.2)
+                }
+                clickerDone.signal()
+            }
+        }
         defer {
-            if s.useTool { actuator.mouseUp() }
+            if s.useTool { clicking.clear(); _ = clickerDone.wait(timeout: .now() + 1); actuator.mouseUp() }
             setShiftLock(false)
         }
         if steps.isEmpty { return GatherResult(reason: "stopped", seconds: 0, backpack: pct) }
@@ -676,9 +690,6 @@ public final class Game {
                 let now = clock.now()
                 if now - lastSample >= s.backpackSampleS {
                     lastSample = now
-                    // Press the button again every second: a single press that Roblox drops (a focus change, a menu, a dead
-                    // key event) would otherwise leave the tool idle for the whole gather.
-                    if s.useTool { actuator.mouseDown() }
                     pct = sensors.backpackPercent()
                     greyStreak = sensors.healthGrey() ? greyStreak + 1 : 0
                     let deadText = sensors.deathTextVisible() == true

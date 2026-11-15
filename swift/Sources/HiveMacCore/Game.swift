@@ -717,15 +717,22 @@ public final class Game {
             if stopped { return false }
             run([step])
         }
-        let t0 = clock.now()
         var seen = sensors.hivePromptVisible()
         if seen == nil { return true }
-        actuator.keyDown("a")
-        while seen != true && clock.now() - t0 < 15 && !stopped {
-            wait(0.1)
-            seen = sensors.hivePromptVisible()
+        // Look for the hive prompt in short steps, a check after each: a continuous walk plus a slow check stepped right
+        // over the spot where the prompt shows, and the macro then reset instead of stopping at its hive. Left first
+        // (the route ends right of the hive), then back to the right.
+        func scan(_ key: String, seconds: Double) {
+            let t0 = clock.now()
+            while seen != true && clock.now() - t0 < seconds && !stopped {
+                actuator.keyDown(key); wait(0.2); actuator.keyUp(key)
+                wait(0.2)
+                seen = sensors.hivePromptVisible()
+            }
         }
-        actuator.keyUp("a")
+        if seen != true { status("traveling", "hive prompt not seen yet, stepping along the hives to find it") }
+        scan("a", seconds: 14)
+        if seen != true { scan("d", seconds: 28) }
         return seen == true
     }
 }

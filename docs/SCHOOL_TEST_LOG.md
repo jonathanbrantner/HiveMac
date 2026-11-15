@@ -81,3 +81,9 @@ Next: find the first step where each failing route leaves Natro's path (frames),
 - Cannon flight timings (Natro uses fixed real seconds) now shrink by settings speed / live speed when buffs show, so Haste does not carry the landing past the field. Pine Tree cannon landed in the field 2 of 3 times in the route test, then cycled 4 full gather and convert rounds from 5:33 to 6:40 PM with one cannon retry and a wealth clock walk fallback.
 - Walk learned speed on the wealth clock walk: real speed about 27 against 29 in the settings.
 - Open: why a cannon run sometimes misses (pad position or glide), wrong field detection without the stall guard, Bamboo, Blue Flower and the other 9 cannon fields, Pine Tree walk drifting into the cactus and gate.
+
+## 2026-11-14 late night (code only, Roblox was closed, NOT tested in the game)
+- Copied Natro: speed is the settings speed times the buffs only (the learned arrival factor is removed); the cannon scan holds Right while it looks for the prompt, 20 s, up to 10 tries; all 21 cannon routes that still used two slow taps for the double jump now use the quick jump2 (wealth clock, planter, quest and pickup cannons). The field cannons already had it. The slow double jump is the likely reason the wealth clock cannon never arrived.
+- Removed: gather stall guard, walk efficiency setting, learned speed code.
+- Added: sprinkler refusal check (the game's red "You must be standing in a field" message makes it step left and place again, then fail the trip), stop requests log their source, return to hive looks for the prompt in short steps, the run start line shows the hive slot.
+- To test next: five cannon trips in a row (landing count), wealth clock cannon, the sprinkler check, the return to hive, then a 30 minute run. Still open: Pine Tree walk drift into the cactus and gate, unexplained mid route stops (read the new labels), Bamboo, Blue Flower and the other 9 cannon fields.

@@ -212,7 +212,7 @@ public final class FarmLoop {
         var afterDeath = false
         // Standing at the hive with pollen: convert it first. A reset would only throw time away.
         if g.sensors.hivePromptVisible() == true {
-            g.status("converting", "at the hive, converting before the first field")
+            g.status("converting", "at the hive, converting before the first field (hive slot \(g.settings.hiveSlot): Roblox gives a new hive after every rejoin, set it again if the walk to the ramp ends in the wrong place)")
             if g.convert() { stats.converts += 1 }
         }
         while !g.stopped {

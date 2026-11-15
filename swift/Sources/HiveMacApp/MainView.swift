@@ -137,7 +137,7 @@ struct ControlsView: View {
                 .keyboardShortcut(.return, modifiers: .command)
             Button(model.paused ? "Resume" : "Pause") { model.paused ? model.resume() : model.pause() }
                 .buttonStyle(QuietButtonStyle()).disabled(!model.running)
-            Button("Stop") { model.stop() }
+            Button("Stop") { model.stop("stop button") }
                 .buttonStyle(QuietButtonStyle(tint: Theme.ember)).disabled(!model.running)
             Spacer()
             Text("Stop key").font(Theme.caption).foregroundStyle(Theme.dust)

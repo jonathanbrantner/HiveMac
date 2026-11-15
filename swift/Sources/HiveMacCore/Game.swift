@@ -536,10 +536,38 @@ public final class Game {
                                          distance: f.sprinklerDistance, speed: speed.current()), [:])
         run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
                                      slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
+        if !confirmSprinkler(f) { return false }
         if f.rotatesCamera {
             walker.rotate(f.camera, taps: f.turns, leftKey: s.rotLeft, rightKey: s.rotRight)
         }
         return !stopped
+    }
+
+    /// The game answers a sprinkler placed outside a field with a red message at the bottom right ("You must be standing in
+    /// a field to build a Sprinkler"). That is a sure sign the trip did not end in the field: step left a little and place
+    /// again, up to 6 times, then give up so the loop resets and tries the trip again. true when placed (or unreadable).
+    func confirmSprinkler(_ f: FieldConfig) -> Bool {
+        let s = settings
+        if s.sprinklerType.lowercased() == "none" { return true }
+        let toast = RelRegion(fx: 0.60, fy: 0.80, fw: 0.40, fh: 0.20)
+        func refused() -> Bool? {
+            guard let t = sensors.textIn(toast)?.lowercased() else { return nil }
+            return t.contains("standing in a field") || (t.contains("sprinkler") && t.contains("field"))
+        }
+        for attempt in 1...6 {
+            wait(0.8)
+            guard let r = refused() else { return true }           // unreadable: carry on as before
+            if !r { if attempt > 1 { status("traveling", "\(f.name): sprinkler placed after \(attempt - 1) step(s) left") }; return true }
+            if stopped { return false }
+            status("traveling", "\(f.name): the sprinkler was refused (not standing in the field), stepping left (\(attempt))")
+            var waited = 0.0
+            while waited < 8, !stopped, refused() == true { wait(0.5); waited += 0.5 }   // let the old message fade first
+            run([.walk(["a"], tiles: 1.5)], [:])
+            run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
+                                         slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
+        }
+        status("warning", "\(f.name): the sprinkler still would not place after 6 steps, so the trip did not reach the field")
+        return false
     }
 
     /// Walks a route from the hive: shift lock off, mouse parked, every step, the cannon where the route asks.

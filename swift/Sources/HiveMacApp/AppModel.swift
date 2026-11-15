@@ -129,7 +129,7 @@ final class AppModel: ObservableObject {
         if store.bool("remote.enabled", false) && ProcessInfo.processInfo.environment["HIVEMAC_DEMO"] == nil { DispatchQueue.main.async { self.setRemote(true) } }
         logFile = AppModel.openLog(dirs.logs.appendingPathComponent("hivemac.log"))
         stopKeyName = store.string("app.emergency_stop_key", "f9")
-        hotKey.onPress = { [weak self] in self?.stop() }
+        hotKey.onPress = { [weak self] in self?.stop("stop key pressed") }
         if case .failure = KeyCodes.validateStopKey(stopKeyName) { setStopKey("f9") }
         append("HiveMac started. Data folder: \(dirs.data.path)")
         if !isDemo && !permissions.allGranted { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Permissions.request() } }
@@ -359,10 +359,10 @@ final class AppModel: ObservableObject {
         setStatus(.resetting, "Resuming")
     }
 
-    func stop() {
+    func stop(_ source: String = "") {
         stopSignal.set(); pauseSignal.clear()
         input.releaseAll()
-        if running { append("Stop requested") }
+        if running { append(source.isEmpty ? "Stop requested" : "Stop requested (\(source))") }
     }
 
     func setStatus(_ s: RunState, _ d: String) {

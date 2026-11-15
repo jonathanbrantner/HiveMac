@@ -18,7 +18,7 @@ extension AppModel {
         }
         server.logLines = { [weak self] n in Array((self?.log ?? []).suffix(n)) }
         server.action = { [weak self] a in
-            switch a { case "start": self?.start(); case "pause": self?.pause(); case "resume": self?.resume(); default: self?.stop() }
+            switch a { case "start": self?.start(); case "pause": self?.pause(); case "resume": self?.resume(); default: self?.stop("remote API") }
         }
         server.buffProbe = { [weak self] top, save in
             guard let self else { return [:] }

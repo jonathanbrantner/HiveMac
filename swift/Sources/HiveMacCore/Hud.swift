@@ -70,7 +70,12 @@ public enum Hud {
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let a = Range(m.range(at: 1), in: text), let b = Range(m.range(at: 2), in: text) else { return nil }
         func number(_ s: Substring) -> Double? { Double(s.filter(\.isNumber)) }
-        guard let cur = number(text[a]), let cap = number(text[b]), cap > 0, cur <= cap * 1.05 else { return nil }
+        guard let cap = number(text[b]), cap > 0 else { return nil }
+        // The text can hold another number just before the pollen (the honey total, "10,014,249,030,142 0/291,192,891"):
+        // try the whole run of digits first, then only the last word before the slash.
+        var candidates = [number(text[a])]
+        if let last = text[a].split(separator: " ").last { candidates.append(number(last)) }
+        guard let cur = candidates.compactMap({ $0 }).first(where: { $0 <= cap * 1.05 }) else { return nil }
         return min(100, Int((cur / cap * 100).rounded(.down)))
     }
 

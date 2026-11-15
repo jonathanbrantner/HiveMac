@@ -65,7 +65,8 @@ public enum Hud {
     /// "23,763/140,827,431 (+3,683/sec)" -> 0 to 100, the exact share of the bag that is full.
     /// nil when the text has no "current/maximum" pair.
     public static func pollenPercent(fromText text: String) -> Int? {
-        let pattern = #"([0-9][0-9, ]*)\s*/\s*([0-9][0-9, ]*)"#
+        // The reader prints thousands separators as commas, periods or spaces ("291.192.891"), all of them count as digits.
+        let pattern = #"([0-9][0-9,. ]*)\s*/\s*([0-9][0-9,. ]*)"#
         guard let re = try? NSRegularExpression(pattern: pattern),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let a = Range(m.range(at: 1), in: text), let b = Range(m.range(at: 2), in: text) else { return nil }

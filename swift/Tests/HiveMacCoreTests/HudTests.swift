@@ -71,6 +71,8 @@ final class BarPercentTests: XCTestCase {
 final class PollenTextTests: XCTestCase {
     func testDividesCurrentByMaximum() {
         XCTAssertEqual(Hud.pollenPercent(fromText: "0/209,081,730"), 0)
+        XCTAssertEqual(Hud.pollenPercent(fromText: "10/291.192.891"), 0)
+        XCTAssertEqual(Hud.pollenPercent(fromText: "145.596.445/291.192.891"), 50)
         XCTAssertEqual(Hud.pollenPercent(fromText: "Honey 10,014,249,030,142 Pollen 0/291,192,891"), 0)
         XCTAssertEqual(Hud.pollenPercent(fromText: "10,014,249,030,142 145,596,445/291,192,891"), 50)
         XCTAssertEqual(Hud.pollenPercent(fromText: "78,752,940/744,422,396 (+2,954,258/sec)"), 10)

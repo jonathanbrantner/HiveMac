@@ -13,7 +13,7 @@ extension AppModel {
         let server = RemoteServer(token: token)
         server.status = { [weak self] in
             guard let self else { return [:] }
-            return ["state": self.state.label, "detail": self.detail, "field": self.currentField, "backpack": self.backpack as Any? ?? NSNull(),
+            return ["state": self.state.label, "detail": self.detail, "field": self.currentField, "backpack": self.backpack as Any? ?? NSNull(), "barText": self.barTextSeen ?? "",
                     "cycles": self.stats.cycles, "converts": self.stats.converts, "deaths": self.stats.deaths, "paused": self.paused, "running": self.running]
         }
         server.logLines = { [weak self] n in Array((self?.log ?? []).suffix(n)) }

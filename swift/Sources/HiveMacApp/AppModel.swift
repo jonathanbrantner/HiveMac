@@ -70,6 +70,8 @@ final class AppModel: ObservableObject {
     @Published var runtimeSeconds = 0
     @Published var stats = LoopStats()
     @Published var backpack: Int?
+    /// What the backpack bar text read as the last time, for the status page and for finding misreads.
+    var barTextSeen: String?
     @Published var currentField = ""
     @Published var log: [String] = []
     @Published var permissions = Permissions.current()
@@ -232,7 +234,7 @@ final class AppModel: ObservableObject {
         screenSensors.textReader = BarText.read; screenSensors.linesReader = BarText.readLines
         let sensors = ReportingSensors(screenSensors)
         sensors.practice = store.bool("app.practice_mode", false)
-        sensors.onBackpack = { [weak self] p in self?.beat(); DispatchQueue.main.async { self?.backpack = p } }
+        sensors.onBackpack = { [weak self] p in let t = screenSensors.lastBarText; self?.beat(); DispatchQueue.main.async { self?.backpack = p; self?.barTextSeen = t } }
 
         let builtIn = builtInPaths, dirs = self.dirs
         let practice = store.bool("app.practice_mode", false)

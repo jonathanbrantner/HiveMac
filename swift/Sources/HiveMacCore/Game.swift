@@ -491,7 +491,10 @@ public final class Game {
     public func convertBalloon() {
         let t0 = clock.now()
         var unreadable = 0
+        var lastBeat = t0
         while !stopped && clock.now() - t0 < 600 {
+            // A big balloon takes minutes. Say so now and then, or the watchdog takes the quiet wait for a hang.
+            if clock.now() - lastBeat >= 20 { lastBeat = clock.now(); status("converting", "balloon, still converting (\(Int(clock.now() - t0)) s)") }
             switch sensors.hiveMessage() {
             case "empty"?:
                 if clock.now() - t0 > 1 { status("converting", "balloon done") }

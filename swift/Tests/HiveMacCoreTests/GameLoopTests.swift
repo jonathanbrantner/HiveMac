@@ -67,6 +67,7 @@ final class FakeWorld: Sensors {
 
     func onTap(_ key: String) {
         if key == "e" && atHive && convertingSince == nil { convertingSince = clock.now() }
+        if key == "h" && inField { atHive = true; inField = false; convertingSince = nil }     // the end of a walk back to the hive
     }
 }
 
@@ -102,6 +103,7 @@ final class GameFixture {
                             return PathFile(name: name, steps: [Step(type: "gotoramp"), .walk(["s"], tiles: 9),
                                                                 .rotate("right", count: 2), .walk(["d"], tiles: 29)])
                         }
+                        if kind == "to_hive" { return PathFile(name: name, steps: [.walk(["a"], tiles: 29), .tap("h")]) }
                         return PathFile(name: name, steps: [.walk(["a"], tiles: 29)])
                     })
     }
@@ -141,7 +143,8 @@ final class GameLoopTests: XCTestCase {
         let f = GameFixture()
         XCTAssertTrue(f.game.resetToHive())
         let taps = f.act.events.filter { $0.hasPrefix("tap ") }.map { String($0.dropFirst(4)) }
-        XCTAssertEqual(Array(taps.prefix(3)), ["esc", "r", "enter"])
+        XCTAssertEqual(taps.first, "enter")                                                  // menu button and Respawn are clicks, then Enter
+        XCTAssertGreaterThanOrEqual(f.act.events.filter { $0.hasPrefix("click ") }.count, 2)
         XCTAssertEqual(f.world.resets, 1)
         XCTAssertTrue(f.world.atHive)
         XCTAssertEqual(f.act.taps("o"), 3)                       // zoomed out
@@ -209,7 +212,7 @@ final class GameLoopTests: XCTestCase {
         XCTAssertEqual(loop.fields.map(\.name), ["sunflower", "dandelion"])
         XCTAssertEqual(loop.run(), "cycles_done")
         XCTAssertEqual(f.traveled, ["sunflower", "dandelion", "sunflower"])
-        XCTAssertEqual(loop.stats.converts, 3)
+        XCTAssertEqual(loop.stats.converts, 2)        // the first cycle starts with an empty bag: not a conversion
         stop.set()
         XCTAssertEqual(FarmLoop(f.game, fields: [f1]).run(), "stopped")
     }
@@ -487,14 +490,14 @@ final class GameLoopTests: XCTestCase {
         let (g, act, _) = planterGame(visible: ["item", "PaperPlanter", "yes"])
         XCTAssertEqual(g.placePlanter("paper", field: "rose", atField: false), .done)
         XCTAssertTrue(act.events.contains { $0.hasPrefix("drag ") })
-        XCTAssertEqual(act.events.filter { $0.hasPrefix("click ") }.count, 2)      // the menu, then Yes
+        XCTAssertEqual(act.events.filter { $0.hasPrefix("click ") }.count, 4)      // two clicks per button: the hover first, then the click
     }
 
     func testPlacingDoesNothingWhenTheInventoryDoesNotOpen() {
         let (g, act, _) = planterGame(visible: [])
         guard case .failed = g.placePlanter("paper", field: "rose", atField: false) else { return XCTFail("should fail") }
         XCTAssertFalse(act.events.contains { $0.hasPrefix("drag ") })
-        XCTAssertEqual(act.events.filter { $0.hasPrefix("click ") }.count, 1)      // only the menu button
+        XCTAssertEqual(act.events.filter { $0.hasPrefix("click ") }.count, 3)      // the menu button only (with the reset's clicks before it)
     }
 
     func testMissingPlanterIsReportedAndNothingIsDragged() {
@@ -705,7 +708,7 @@ extension GameLoopTests {
     func testPickupWithoutACountdownAfterEIsReportedAsFailed() {
         let (g, act) = pickupGame(prompts: ["use the treat dispenser"])
         guard case .failed = g.collect("treat dispenser") else { return XCTFail("should fail") }
-        XCTAssertEqual(act.taps("e"), 2)
+        XCTAssertEqual(act.taps("e"), 4)        // two tries: a failed pickup is retried once after a reset
     }
 
     final class BoosterRunner: ExtraRunner {
@@ -799,7 +802,7 @@ final class MemoryMatchTests: XCTestCase {
         let f = GameFixture()
         let g = f.game
         guard case .failed = g.playMemoryMatch(.normal) else { return XCTFail("should fail without the title on screen") }
-        XCTAssertFalse(f.act.events.contains { $0.hasPrefix("click ") })
+        XCTAssertFalse(f.act.events.contains { $0.hasPrefix("drag ") })       // no tile was touched (the reset before it clicks the menu)
     }
 }
 

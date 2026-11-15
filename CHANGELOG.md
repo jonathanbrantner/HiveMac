@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-Nothing yet.
+- Cannon routes now follow Natro more closely: speed is settings times buffs only, the cannon scan holds Right for 20 s with 10 tries, and every cannon route has a quick second jump.
+- Buff bar reading: haste, bear morph (optional setting) and oil are read while walking, so walk timing follows speed buffs.
+- Reset clicks the menu button, Respawn and presses Enter (Esc does not open the menu on the newer Roblox).
+- Return to hive looks for the hive prompt in short steps, left then right; backpack text accepts periods as thousands separators; a refused sprinkler placement steps left and retries; the run start line shows the hive slot.
+- Fixed: a field cycle that walked back and converted then converted again after the reset. The second press is skipped and empty-bag presses no longer count as converts in the stats.
+- Tests brought up to date with the new reset, pickup retry, planter clicks and cannon routes (155 pass).
 
 ## 0.3.0 (beta, 2026-11-07)
 

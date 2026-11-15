@@ -178,6 +178,8 @@ public final class Game {
 
     public private(set) var shiftLocked = false
     public var died = false
+    /// True when the last convert() found pollen in the bag (an empty bag does not count as a conversion in the stats).
+    public private(set) var convertHadPollen = false
     /// Seconds since 1970; replaced in tests.
     public var unixNow: () -> TimeInterval = { Date().timeIntervalSince1970 }
 
@@ -420,6 +422,7 @@ public final class Game {
     public func convert() -> Bool {
         let s = settings
         if stopped { return false }
+        convertHadPollen = false
         status("converting", "")
         let t0 = clock.now()
         var lastPress = -1e9
@@ -427,6 +430,7 @@ public final class Game {
         var lastPct: Int?
         while !stopped && clock.now() - t0 < s.convertTimeoutS {
             let pct = sensors.backpackPercent()
+            if lastPct == nil && pct > 0 { convertHadPollen = true }
             if lastPct == nil || (clock.now() - lastPress > s.convertPressRetryS && pct >= lastPct! && pct > 0) {
                 // E toggles honey making: when the prompt already says "Stop Making Honey", pressing it would stop it.
                 if sensors.honeyRunning() != true { tap("e") }

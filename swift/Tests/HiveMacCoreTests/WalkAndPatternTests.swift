@@ -148,6 +148,6 @@ final class CannonRouteTests: XCTestCase {
             .deletingLastPathComponent().appendingPathComponent("config/paths/natro/to_pickup/treat_dispenser_cannon.json")
         let pf = try PathFile.load(url)
         let types = pf.steps.map(\.type)
-        XCTAssertEqual(Array(types[2...8]), ["wait", "tap", "keydown", "wait", "tap", "wait", "keyup"])
+        XCTAssertEqual(Array(types[2...8]), ["wait", "tap", "keydown", "wait", "jump2", "wait", "keyup"])
     }
 }

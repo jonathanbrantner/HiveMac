@@ -87,3 +87,6 @@ Next: find the first step where each failing route leaves Natro's path (frames),
 - Removed: gather stall guard, walk efficiency setting, learned speed code.
 - Added: sprinkler refusal check (the game's red "You must be standing in a field" message makes it step left and place again, then fail the trip), stop requests log their source, return to hive looks for the prompt in short steps, the run start line shows the hive slot.
 - To test next: five cannon trips in a row (landing count), wealth clock cannon, the sprinkler check, the return to hive, then a 30 minute run. Still open: Pine Tree walk drift into the cactus and gate, unexplained mid route stops (read the new labels), Bamboo, Blue Flower and the other 9 cannon fields.
+
+## Code-only change 2026-11-14 (not tried in the real game yet)
+- Double convert per cycle (27 converts for 16 cycles) has a code cause: the walk back converted, then the reset and a second convert pressed E on an empty bag. The second one is skipped now, and the stats count only converts that found pollen. Check on the school MacBook that a cycle now shows one convert.

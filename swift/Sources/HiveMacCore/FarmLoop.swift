@@ -170,7 +170,7 @@ public final class FarmLoop {
         guard due else { return false }
         g.status("converting", "back to the hive for the balloon blessing")
         guard g.resetToHive() else { return false }
-        if g.convert() { stats.converts += 1 }
+        if g.convert() { if g.convertHadPollen { stats.converts += 1 } }
         g.convertBalloon()
         lastBlessing = unixNow()
         return true
@@ -210,10 +210,11 @@ public final class FarmLoop {
         let g = game
         if items.isEmpty { g.status("error", "nothing is switched on"); return "no_fields" }
         var afterDeath = false
+        var emptiedAtHive = false      // the walk back already converted: the reset that follows finds an empty bag
         // Standing at the hive with pollen: convert it first. A reset would only throw time away.
         if g.sensors.hivePromptVisible() == true {
             g.status("converting", "at the hive, converting before the first field (hive slot \(g.settings.hiveSlot): Roblox gives a new hive after every rejoin, set it again if the walk to the ramp ends in the wrong place)")
-            if g.convert() { stats.converts += 1 }
+            if g.convert() { if g.convertHadPollen { stats.converts += 1 } }
         }
         while !g.stopped {
             if let m = maxCycles, stats.cycles >= m { return "cycles_done" }
@@ -246,7 +247,8 @@ public final class FarmLoop {
             }
             stats.failedResets = 0
             afterDeath = false
-            if g.convert() { stats.converts += 1; lastBlessing = unixNow() }
+            if !emptiedAtHive, g.convert() { if g.convertHadPollen { stats.converts += 1 }; lastBlessing = unixNow() }
+            emptiedAtHive = false
             if g.stopped { break }
             if !g.travelTo(f) { continue }
             if autoBoost.enabled, unixNow() - (lastAutoBoost[f.name] ?? 0) >= autoBoost.refreshMinutes * 60 {
@@ -261,7 +263,7 @@ public final class FarmLoop {
             if result.reason == "death" { stats.deaths += 1; afterDeath = true }
             onStats(stats)
             if (result.reason == "backpack" || result.reason == "time") && f.returnMethod == "walk" {
-                if g.walkBack(f), g.convert() { stats.converts += 1 }
+                if g.walkBack(f), g.convert() { if g.convertHadPollen { stats.converts += 1 }; emptiedAtHive = true }
                 // the loop still resets before the next field: that keeps the camera and position known
             }
         }

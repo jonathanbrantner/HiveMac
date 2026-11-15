@@ -575,7 +575,7 @@ public final class Game {
         else if walker.speedSampler != nil { status("traveling", "the buff bar could not be read, so the walk speed from the settings is used (\(Int(settings.walkSpeed)))") }
         probeEnded = false
         defer { walker.armProbe(nil) }
-        var flightScale = 1.0, flying = false
+        var flightScale = 1.0, flying = false, held = 0
         for (i, step) in steps.enumerated() {
             if stopped { return false }
             if walker.probeHit { probeEnded = true; stepHook?(path.name, i + 1, steps.count, "prompt-seen-end"); return true }
@@ -591,8 +591,11 @@ public final class Game {
                 continue
             }
             if path.name.contains("cannon") {
-                if step.type == "keydown", step.keys.contains("d") { flying = true }
-                if step.type == "keyup", step.keys.contains("d") { flying = false }
+                // In the air while any movement key is held (the field routes hold d and s, the clock route holds w and a).
+                let move: Set<String> = ["w", "a", "s", "d"]
+                if step.type == "keydown" { held += step.keys.filter { move.contains($0) }.count }
+                if step.type == "keyup" { held = max(0, held - step.keys.filter { move.contains($0) }.count) }
+                flying = held > 0
                 if step.type == "wait", flying, flightScale < 1 {
                     var scaled = step; scaled.seconds *= flightScale
                     run([scaled]); continue

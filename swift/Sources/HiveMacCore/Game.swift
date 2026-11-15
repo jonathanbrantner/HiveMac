@@ -521,8 +521,8 @@ public final class Game {
     }
 
     /// The game answers a sprinkler placed outside a field with a red message at the bottom right ("You must be standing in
-    /// a field to build a Sprinkler"). That is a sure sign the trip did not end in the field: step left a little and place
-    /// again, up to 6 times, then give up so the loop resets and tries the trip again. true when placed (or unreadable).
+    /// a field to build a Sprinkler"). That is a sure sign the trip did not end in the field: step toward the middle and place
+    /// again (twice), then give up so the loop resets and tries the trip again, like Natro. true when placed (or unreadable).
     func confirmSprinkler(_ f: FieldConfig) -> Bool {
         let s = settings
         if s.sprinklerType.lowercased() == "none" { return true }
@@ -531,7 +531,7 @@ public final class Game {
             guard let t = sensors.textIn(toast)?.lowercased() else { return nil }
             return t.contains("standing in a field") || (t.contains("sprinkler") && t.contains("field"))
         }
-        for attempt in 1...6 {
+        for attempt in 1...3 {                                  // the first look plus 2 short steps, then the trip is redone
             wait(0.8)
             guard let r = refused() else { return true }           // unreadable: carry on as before
             if !r { if attempt > 1 { status("traveling", "\(f.name): sprinkler placed after \(attempt - 1) step(s) toward the middle") }; return true }
@@ -551,7 +551,7 @@ public final class Game {
             run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
                                          slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
         }
-        status("warning", "\(f.name): the sprinkler still would not place after 6 steps, so the trip did not reach the field")
+        status("warning", "\(f.name): the sprinkler still would not place after 2 steps toward the middle, so the trip is redone from a reset")
         return false
     }
 

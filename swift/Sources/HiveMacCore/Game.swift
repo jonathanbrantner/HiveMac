@@ -56,8 +56,9 @@ public struct GameSettings: Equatable, Sendable {
     /// Natro's haste compensation: the walk speed is worked out from the buff bar (haste, coconut haste, haste+, oil,
     /// smoothie, bear morph) while walking. `walkSpeed` is then the speed without buffs.
     public var hasteCompensation = true
-    /// Seconds of gathering with no pollen gain after which the macro gives up on the field and resets. 0 = never.
-    public var gatherStallS = 240.0
+    /// Seconds of gathering with no backpack percent gain after which the macro resets. 0 = never (the default: Diamond Drain and
+    /// Conversion Link keep the bag at 0% in a correct field, so the percent cannot tell a wrong field from a right one).
+    public var gatherStallS = 0.0
     /// Real walking speed on this Mac divided by the speed in the game (1.0 = trust the game speed; 0.9 made the Pine Tree walk overshoot into Strawberry). The walks start from it.
     public var walkEfficiency = 1.0
     /// What a Bear Morph adds to the walk speed. Natro's number is 4.

@@ -664,7 +664,7 @@ public final class Game {
         var pct = sensors.backpackPercent()
         setShiftLock(f.shiftLock)
         parkMouse()
-        if s.useTool { actuator.mouseDown() }
+        if s.useTool { actuator.mouseDown(); status("gathering", "tool: the mouse button is held down (it is pressed again every second)") }
         defer {
             if s.useTool { actuator.mouseUp() }
             setShiftLock(false)
@@ -676,6 +676,9 @@ public final class Game {
                 let now = clock.now()
                 if now - lastSample >= s.backpackSampleS {
                     lastSample = now
+                    // Press the button again every second: a single press that Roblox drops (a focus change, a menu, a dead
+                    // key event) would otherwise leave the tool idle for the whole gather.
+                    if s.useTool { actuator.mouseDown() }
                     pct = sensors.backpackPercent()
                     greyStreak = sensors.healthGrey() ? greyStreak + 1 : 0
                     let deadText = sensors.deathTextVisible() == true

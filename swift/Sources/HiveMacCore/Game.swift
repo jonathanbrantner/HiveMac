@@ -58,6 +58,8 @@ public struct GameSettings: Equatable, Sendable {
     public var hasteCompensation = true
     /// Seconds of gathering with no pollen gain after which the macro gives up on the field and resets. 0 = never.
     public var gatherStallS = 240.0
+    /// Real walking speed on this Mac divided by the speed in the game (about 0.85 to 0.93 measured). The walks start from it.
+    public var walkEfficiency = 0.9
     /// What a Bear Morph adds to the walk speed. Natro's number is 4.
     public var bearBonus = 4.0
     public var hiveSlot = 1
@@ -100,7 +102,7 @@ public struct GameSettings: Equatable, Sendable {
     public init() {}
 
     public static func == (a: GameSettings, b: GameSettings) -> Bool {
-        a.walkSpeed == b.walkSpeed && a.bearMorph == b.bearMorph && a.hasteCompensation == b.hasteCompensation && a.bearBonus == b.bearBonus && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
+        a.walkSpeed == b.walkSpeed && a.walkEfficiency == b.walkEfficiency && a.bearMorph == b.bearMorph && a.hasteCompensation == b.hasteCompensation && a.bearBonus == b.bearBonus && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
             && a.zoomOutTaps == b.zoomOutTaps && a.resetWaitS == b.resetWaitS
             && a.mousePark.x == b.mousePark.x && a.mousePark.y == b.mousePark.y
     }
@@ -194,6 +196,7 @@ public final class Game {
         self.windowSize = windowSize; self.pathLookup = pathLookup
         self.walker = Walker(actuator: actuator, speed: SpeedModel(baseSpeed: settings.walkSpeed + (settings.bearMorph ? 4 : 0), multiplier: speedMultiplier),
                              clock: clock, stop: stop, pause: pause)
+        self.learnedSpeedFactor = max(0.5, min(1.6, settings.walkEfficiency))
         let outer = speedMultiplier
         self.walker.speed.multiplier = { [unowned self] in outer() * self.learnedSpeedFactor }
         // The speed comes from the settings (and the learned arrival factor), not from the game stats panel.

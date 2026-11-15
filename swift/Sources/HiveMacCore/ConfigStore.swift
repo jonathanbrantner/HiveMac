@@ -74,6 +74,7 @@ public final class ConfigStore {
         s.bearMorph = bool("game.bear_morph", s.bearMorph)
         s.hasteCompensation = bool("game.haste_compensation", s.hasteCompensation)
         s.bearBonus = double("game.bear_morph_bonus", s.bearBonus)
+        s.walkEfficiency = double("game.walk_efficiency", s.walkEfficiency)
         s.gatherStallS = double("game.gather_stall_s", s.gatherStallS)
         s.hiveSlot = int("game.hive_slot", s.hiveSlot)
         s.gumdropsKey = string("game.gumdrops_key", s.gumdropsKey)

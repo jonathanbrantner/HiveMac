@@ -90,3 +90,6 @@ Next: find the first step where each failing route leaves Natro's path (frames),
 
 ## Code-only change 2026-11-14 (not tried in the real game yet)
 - Double convert per cycle (27 converts for 16 cycles) has a code cause: the walk back converted, then the reset and a second convert pressed E on an empty bag. The second one is skipped now, and the stats count only converts that found pollen. Check on the school MacBook that a cycle now shows one convert.
+
+## Window size fix 2026-11-14 (code only, check live)
+- On a 2560 x 1298 window the saved HUD shares from a 1429 x 885 window cut the hive banner ("hive prompt not seen"), read the backpack bar wrong (40 % with an empty bag) and clicked the chat icon instead of the menu button. Spots are now worked out from the window at every read, Start refits them, Respawn is found by its text. After the next build: Save snapshot at the hive must show "Hive prompt seen: true" and backpack 0 %; test once on each Mac and after resizing the window.

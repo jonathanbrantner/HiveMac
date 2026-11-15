@@ -46,7 +46,11 @@ public enum Booster: String, CaseIterable, Sendable {
 
 extension Game {
     /// Where the buff bar icons are: a wide strip under the Roblox top bar.
-    var buffStrip: RelRegion { RelRegion(fx: 0, fy: Double(settings.uiOffsetY) / 900, fw: 1, fh: 120 / 900) }
+    /// Its size is in pixels (Roblox's top bar does not grow with the window), so it is worked out from the real window height.
+    var buffStrip: RelRegion {
+        let h = Double(max(1, windowSize()?.height ?? 900)), k = settings.uiScale
+        return RelRegion(fx: 0, fy: Double(settings.uiOffsetY) * k / h, fw: 1, fh: min(1, 120 * k / h))
+    }
 
     /// The field of `booster` whose boost icon is in the buff bar now. nil when none is.
     public func boostedField(by booster: Booster) -> String? {

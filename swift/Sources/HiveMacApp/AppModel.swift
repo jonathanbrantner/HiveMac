@@ -217,6 +217,9 @@ final class AppModel: ObservableObject {
             setStatus(.error, "Roblox was not found. Open it, then press Start.")
             return
         }
+        // Fit the screen spots to the Roblox window as it is right now (the same as pressing Detect Roblox), so a window
+        // that was resized since the last run never starts with readings from the old size.
+        detectRoblox()
         // A run can be only activities (pickups, memory match, bug run, planters): a field is not required.
         guard pendingRouteTest != nil || !profile.fields.filter(\.enabled).isEmpty || (profile.mode == "none" && profile.extras.contains(where: \.enabled)) else {
             setStatus(.error, "Nothing is switched on. Turn on a field or an activity in Fields.")

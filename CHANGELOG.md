@@ -7,6 +7,7 @@
 - Reset clicks the menu button, Respawn and presses Enter (Esc does not open the menu on the newer Roblox).
 - Return to hive looks for the hive prompt in short steps, left then right; backpack text accepts periods as thousands separators; a refused sprinkler placement steps left and retries; the run start line shows the hive slot.
 - Fixed: a field cycle that walked back and converted then converted again after the reset. The second press is skipped and empty-bag presses no longer count as converts in the stats.
+- Fixed: screen spots follow the Roblox window size. The backpack bar, hive message, health pixel and hive prompt area are worked out from the window at every read (they were saved as shares of the window size at Detect time, so a bigger window cut the hive banner, read the backpack as 40 % with an empty bag and sent the reset click to the chat icon). The menu button click uses a fixed pixel spot, "Respawn" is found by its words, the buff strip uses the real window height, and every Start refits the spots like Detect Roblox. Only a bar or prompt area picked by hand in Calibrate stays as saved.
 - Tests brought up to date with the new reset, pickup retry, planter clicks and cannon routes (155 pass).
 
 ## 0.3.0 (beta, 2026-11-07)

@@ -142,3 +142,51 @@ final class CannonPromptTests: XCTestCase {
         XCTAssertEqual(sensors(reading: "").cannonPromptVisible(), false)
     }
 }
+
+/// The Roblox HUD is a fixed pixel size, so the spots must follow the window and not stay at the shares they had when set.
+final class WindowFollowingTests: XCTestCase {
+    private func grabs(in window: WindowBounds, stale: Bool, customBar: Bool = false) -> [WindowBounds] {
+        let screen = FakeScreen()
+        screen.image = RGBImage(width: 8, height: 8, pixels: [UInt8](repeating: 0, count: 8 * 8 * 3))
+        var cfg = HudConfig()
+        cfg.followWindow = true
+        cfg.backpackBarCustom = customBar
+        // Shares saved while the window was 1429 x 885 (the numbers of a real settings.json).
+        if stale {
+            cfg.backpackBar = RelRegion(fx: 0.5353, fy: 0.0282, fw: 0.1617, fh: 0.0384)
+            cfg.hiveMessageRegion = RelRegion(fx: 0.3181, fy: 0.0689, fw: 0.3639, fh: 0.1469)
+        }
+        let s = ScreenSensors(screen: screen, window: { window }, config: cfg)
+        s.textReader = { _ in "" }
+        _ = s.backpackRaw()
+        _ = s.hivePromptVisible()
+        return screen.grabs
+    }
+
+    func testSpotsFollowTheWindowEvenWithSavedSharesFromAnotherSize() {
+        let big = WindowBounds(left: 0, top: 0, width: 2560, height: 1298)
+        let g = grabs(in: big, stale: true)
+        // Pollen bar in the real 2560 wide window: x 1340 to 1560, y about 30 to 58.
+        let bar = g[0]
+        XCTAssertLessThanOrEqual(bar.left, 1340); XCTAssertGreaterThanOrEqual(bar.left + bar.width, 1560)
+        XCTAssertLessThanOrEqual(bar.top, 36); XCTAssertGreaterThanOrEqual(bar.top + bar.height, 52)      // the digits
+        XCTAssertLessThan(bar.top + bar.height, 68, "it must stay above the banner")
+        // The banner "To Make Honey, Collect Pollen From Flower Fields": x 1105 to 1455, y 68 to 125.
+        let msg = g[1]
+        XCTAssertLessThanOrEqual(msg.left, 1105); XCTAssertGreaterThanOrEqual(msg.left + msg.width, 1455)
+        XCTAssertLessThanOrEqual(msg.top, 68); XCTAssertGreaterThanOrEqual(msg.top + msg.height, 125)
+    }
+
+    func testTheSameSpotsWorkInASmallerWindow() {
+        let small = WindowBounds(left: 40, top: 30, width: 1429, height: 885)
+        let g = grabs(in: small, stale: false)
+        XCTAssertEqual(g[0].left, 40 + 1429 / 2 + 59, "the bar starts 59 px right of the window centre")
+        XCTAssertEqual(g[1].top, 30 + 36 + 25)
+    }
+
+    func testABarPickedByHandStaysWhereItWasPicked() {
+        let big = WindowBounds(left: 0, top: 0, width: 2560, height: 1298)
+        let g = grabs(in: big, stale: true, customBar: true)
+        XCTAssertEqual(g[0].left, Int((0.5353 * 2560).rounded()))
+    }
+}

@@ -54,6 +54,7 @@ extension AppModel {
         }
         if key == "backpack_bar" {
             let w = Double(snapshot.width), h = Double(snapshot.height)
+            store.set("hud.backpack_bar_custom", true)
             store.set("hud.backpack_bar", ["fx": Double(x) / w, "fy": Double(y) / h, "fw": Double(crop.width) / w, "fh": Double(crop.height) / h])
             store.set("hud.calibrated", true)
             try? store.save()
@@ -76,10 +77,12 @@ extension AppModel {
                 l = min(l, old.fx); t = min(t, old.fy); r = max(r, old.fx + old.fw); b = max(b, old.fy + old.fh)
             }
             store.set("hud.hive_prompt_region", ["fx": l, "fy": t, "fw": r - l, "fh": b - t])
+            store.set("hud.hive_prompt_region_custom", true)
         } else if key != "cannon_prompt" {                                 // the cannon prompt looks in the hive prompt area
             let pad = 24
             let rx = max(0, x - pad), ry = max(0, y - pad)
             let rw = min(snapshot.width - rx, w + 2 * pad), rh = min(snapshot.height - ry, h + 2 * pad)
+            if key == "hive_prompt" { store.set("hud.hive_prompt_region_custom", true) }
             store.set("hud.\(key)_region", ["fx": Double(rx) / Double(snapshot.width), "fy": Double(ry) / Double(snapshot.height),
                                              "fw": Double(rw) / Double(snapshot.width), "fh": Double(rh) / Double(snapshot.height)])
         }
@@ -107,7 +110,11 @@ extension AppModel {
                                       ("hive_prompt_region", rg(d.hivePromptRegion)), ("hive_view_region", rg(d.hiveViewRegion)),
                                       ("hive_strip_region", rg(d.hiveStripRegion))]
         // The two reading spots follow the window every time Detect is pressed; the picture areas you picked stay.
-        let always: Set<String> = ["backpack_pixel", "health_pixel", "hive_message_region"]      // the picked backpack bar stays once you pick it
+        // The spots that sit at a fixed pixel place in Roblox are worked out from the window at every read, so Detect only
+        // seeds the picture areas (view, strip) and the saved values of the others are just a fallback.
+        var always: Set<String> = ["backpack_pixel", "health_pixel", "hive_message_region"]
+        if !store.bool("hud.backpack_bar_custom") { always.insert("backpack_bar") }               // only a bar you picked by hand stays
+        if !store.bool("hud.hive_prompt_region_custom") { always.insert("hive_prompt_region") }
         for (key, value) in seeds where always.contains(key) || store.get("hud.\(key)") == nil || store.get("hud.\(key)") is NSNull {
             store.set("hud.\(key)", value)
         }

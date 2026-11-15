@@ -34,6 +34,9 @@ public protocol Sensors: AnyObject {
     func point(fx: Double, fy: Double) -> (x: Int, y: Int)?
     /// The "Movespeed" number of the game's stats panel, when that panel is open. nil when it cannot be read.
     func moveSpeed() -> Double?
+    /// Screen position of the centre of the first line of text containing `word` inside a part of the window.
+    /// nil when it is not there or the text cannot be read with positions.
+    func textSpot(_ word: String, in region: RelRegion) -> (x: Int, y: Int)?
 }
 
 public extension Sensors {
@@ -47,6 +50,7 @@ public extension Sensors {
     func textIn(_ region: RelRegion) -> String? { nil }
     func point(fx: Double, fy: Double) -> (x: Int, y: Int)? { nil }
     func moveSpeed() -> Double? { nil }
+    func textSpot(_ word: String, in region: RelRegion) -> (x: Int, y: Int)? { nil }
 }
 
 public struct GameSettings: Equatable, Sendable {
@@ -308,7 +312,10 @@ public final class Game {
         }
         guard let ws = windowSize() else { tap("esc"); wait(s.keyGapS); tap("r"); wait(s.keyGapS); tap("enter"); return }
         func at(_ fx: Double, _ fy: Double) -> (Int, Int) { (ws.left + Int(Double(ws.width) * fx), ws.top + Int(Double(ws.height) * fy)) }
-        let burger = at(0.065, 0.048), respawn = at(0.076, 0.64)
+        // The Roblox top bar has a fixed pixel size, so the menu button sits at the same pixel spot in any window size
+        // (it was at 0.065 / 0.048 of a 1429 x 885 window and sent the click to the chat icon on a 2560 x 1298 one).
+        let k = s.uiScale
+        let burger = (ws.left + Int(94 * k), ws.top + Int(40 * k)), fallbackRespawn = at(0.076, 0.64)
         for attempt in 1...3 where !stopped {
             let (bx, by) = burger
             actuator.click(bx, by)
@@ -316,7 +323,8 @@ public final class Game {
             let open = robloxMenuOpen()
             status("resetting", "menu button clicked at \(bx),\(by) (try \(attempt)): menu \(open == true ? "open" : open == nil ? "unreadable" : "not open"), reads: \(lastMenuText)")
             if open == false { continue }
-            let (rx, ry) = respawn
+            // "Respawn" is found by its words in the menu on the left; the old spot is only the fallback.
+            let (rx, ry) = sensors.textSpot("respawn", in: RelRegion(fx: 0, fy: 0.05, fw: 0.3, fh: 0.95)) ?? fallbackRespawn
             actuator.click(rx, ry)
             // The "Are you sure you want to respawn your character?" box takes a moment: press Enter only once it shows.
             var sure = false

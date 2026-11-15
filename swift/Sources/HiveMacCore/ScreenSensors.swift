@@ -21,6 +21,13 @@ public struct HudConfig {
     public var hiveViewRegion: RelRegion?
     public var hiveStripRegion: RelRegion?
     public var deathRegion: RelRegion?
+    /// When true the HUD spots that sit at a fixed pixel place in Roblox (backpack bar and pixel, health pixel, hive message,
+    /// hive prompt area) are worked out from the window size at every read, so a bigger or smaller window still works.
+    /// Only a bar or prompt area picked by hand in Calibrate (the `custom` flags) is read from the saved shares.
+    public var followWindow = false
+    public var backpackBarCustom = false
+    public var hivePromptRegionCustom = false
+    public var uiOffsetY = 36
     public var hiveStripEnabled = false
     public var hiveStripMinPixels = 40
     public var filterSize = 6
@@ -59,6 +66,10 @@ public struct HudConfig {
         hiveViewRegion = Self.region(store.get("hud.hive_view_region"))
         hiveStripRegion = Self.region(store.get("hud.hive_strip_region"))
         deathRegion = Self.region(store.get("hud.death_region"))
+        followWindow = true
+        backpackBarCustom = store.bool("hud.backpack_bar_custom")
+        hivePromptRegionCustom = store.bool("hud.hive_prompt_region_custom")
+        uiOffsetY = store.int("game.ui_offset_y", 36)
         hiveStripEnabled = store.bool("hud.hive_strip_enabled")
         hiveStripMinPixels = store.int("hud.hive_strip_min_pixels", 40)
         filterSize = store.int("hud.backpack_filter_size", 6)
@@ -110,6 +121,16 @@ public final class ScreenSensors: Sensors {
         return p.absolute(in: w)
     }
 
+    /// Natro's pixel spots for the window as it is right now (nil when the config is not window-following).
+    private var live: Layout.Defaults? {
+        guard cfg.followWindow, let w = bounds() else { return nil }
+        return Layout.natroDefaults(w, offsetY: cfg.uiOffsetY)
+    }
+    private var backpackBarRegion: RelRegion? { cfg.backpackBarCustom ? cfg.backpackBar : (live?.backpackBar ?? cfg.backpackBar) }
+    private var backpackPixelSpot: RelPoint? { live?.backpackPixel ?? cfg.backpackPixel }
+    private var healthPixelSpot: RelPoint? { live?.healthPixel ?? cfg.healthPixel }
+    private var hivePromptArea: RelRegion? { cfg.hivePromptRegionCustom ? cfg.hivePromptRegion : (live?.hivePromptRegion ?? cfg.hivePromptRegion) }
+
     private func region(_ r: RelRegion?) -> RGBImage? {
         guard let w = bounds(), let r else { return nil }
         return screen.grab(r.absolute(in: w))
@@ -125,7 +146,7 @@ public final class ScreenSensors: Sensors {
     public func robloxPresent() -> Bool { bounds() != nil }
 
     public func backpackRaw() -> Int? {
-        if let bar = region(cfg.backpackBar) {
+        if let bar = region(backpackBarRegion) {
             // The numbers printed in the bar are exact; the fill colour is only the fallback.
             if let read = textReader {
                 let text = read(bar)
@@ -134,7 +155,7 @@ public final class ScreenSensors: Sensors {
             }
             return Hud.barPercent(bar)
         }
-        guard let p = point(cfg.backpackPixel) else { return nil }
+        guard let p = point(backpackPixelSpot) else { return nil }
         let rgb = screen.pixel(x: p.x, y: p.y)
         lastBackpackRGB = rgb
         guard let c = rgb else { return nil }
@@ -142,20 +163,20 @@ public final class ScreenSensors: Sensors {
     }
 
     /// What the backpack reading looks at right now, for showing it on screen.
-    public func backpackBarImage() -> RGBImage? { region(cfg.backpackBar) }
+    public func backpackBarImage() -> RGBImage? { region(backpackBarRegion) }
 
     public func backpackPercent() -> Int { filter.push(backpackRaw()) }
     public func backpackUnreadableStreak() -> Int { filter.unreadableStreak }
     public func resetBackpackFilter() { filter.reset() }
 
     public func healthGrey() -> Bool {
-        guard let p = point(cfg.healthPixel), let c = screen.pixel(x: p.x, y: p.y) else { return false }
+        guard let p = point(healthPixelSpot), let c = screen.pixel(x: p.x, y: p.y) else { return false }
         return Hud.isGrey(r: c.r, g: c.g, b: c.b)
     }
 
     /// The words of the hive message, lower case, nil when text cannot be read at all.
     private func hiveText() -> String? {
-        let area = cfg.hiveMessageRegion ?? bounds().map { Layout.natroDefaults($0, offsetY: 36).hiveMessageRegion }
+        let area = live?.hiveMessageRegion ?? cfg.hiveMessageRegion ?? bounds().map { Layout.natroDefaults($0, offsetY: cfg.uiOffsetY).hiveMessageRegion }
         guard let read = textReader, let img = region(area) else { return nil }
         let text = Self.withoutHudBars((read(img) ?? "").lowercased())
         lastHiveText = text
@@ -174,8 +195,11 @@ public final class ScreenSensors: Sensors {
     /// The words are read from the screen; saved pictures count too. nil when neither is possible.
     public func hivePromptVisible() -> Bool? {
         let pictures = [cfg.hivePromptTemplate, cfg.hivePromptStopTemplate, cfg.hivePromptEmptyTemplate]
-            .map { templateIn(cfg.hivePromptRegion, $0) }
-        let text = hiveText()
+            .map { templateIn(hivePromptArea, $0) }
+        var text = hiveText()
+        // The small hive message area can miss a banner that sits a few pixels off: the wide band across the top middle
+        // (the one the prompt reader uses) is the second try before giving up.
+        if text?.isEmpty ?? true, let wide = promptText(), !wide.isEmpty { text = wide }
         if text == nil && pictures.allSatisfy({ $0 == nil }) { return nil }
         // Words that were read beat the saved pictures: a picture of the hive message also matches the red banner of
         // "Use the Honey Dispenser", which made the macro think it stood at the hive when it was at the dispenser.
@@ -274,6 +298,15 @@ public final class ScreenSensors: Sensors {
         return read(img)
     }
 
+    public func textSpot(_ word: String, in r: RelRegion) -> (x: Int, y: Int)? {
+        guard let w = bounds(), let reader = linesReader, let img = region(r) else { return nil }
+        let area = r.absolute(in: w)
+        for l in reader(img) where l.text.lowercased().contains(word.lowercased()) {
+            return (area.left + Int(l.box.midX * Double(area.width)), area.top + Int(l.box.midY * Double(area.height)))
+        }
+        return nil
+    }
+
     public func mobBars() -> [Double]? {
         guard let w = bounds(), let img = screen.grab(w) else { return nil }
         return Hud.mobHealthBars(img)
@@ -299,7 +332,7 @@ public final class ScreenSensors: Sensors {
                 return false
             }
         }
-        return templateIn(cfg.hivePromptRegion, cfg.hivePromptStopTemplate)
+        return templateIn(hivePromptArea, cfg.hivePromptStopTemplate)
     }
 
     public func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? {
@@ -317,7 +350,7 @@ public final class ScreenSensors: Sensors {
     /// True when the prompt says "Fire the Red Cannon". The words are read like the hive message; the saved
     /// picture counts as a second chance. nil when neither is possible.
     public func cannonPromptVisible() -> Bool? {
-        let picture = templateIn(cfg.hivePromptRegion, cfg.cannonPromptTemplate)
+        let picture = templateIn(hivePromptArea, cfg.cannonPromptTemplate)
         guard let text = hiveText() else { return picture }
         return text.contains("cannon") || picture == true
     }

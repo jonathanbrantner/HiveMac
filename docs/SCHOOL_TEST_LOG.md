@@ -93,3 +93,11 @@ Next: find the first step where each failing route leaves Natro's path (frames),
 
 ## Window size fix 2026-11-14 (code only, check live)
 - On a 2560 x 1298 window the saved HUD shares from a 1429 x 885 window cut the hive banner ("hive prompt not seen"), read the backpack bar wrong (40 % with an empty bag) and clicked the chat icon instead of the menu button. Spots are now worked out from the window at every read, Start refits them, Respawn is found by its text. After the next build: Save snapshot at the hive must show "Hive prompt seen: true" and backpack 0 %; test once on each Mac and after resizing the window.
+
+## 2026-11-15 (code only, Roblox closed, NOT tested in the game)
+- Wealth clock cannon: two causes found in the code. The route used two slow taps for the glider (now the quick jump2, like every cannon route), and the Haste flight shortening only counted a flight when the route held d (the clock route holds w and a); any held movement key counts now.
+- Tool: a held mouse button counts as one click on macOS Roblox, so a helper thread clicks about 4 times a second during every gather (log line "tool: clicking about 4 times a second").
+- Sleep: HiveMac holds a power assertion (display and system) while a run is going, so the Mac never goes idle after 20 minutes and the pointer is never moved.
+- Cannon prompt: picture match first like Natro (fast), the words are read at most twice a second as the second look.
+- Pulled 6 commits from the other Mac (HUD spots follow the window size, Respawn found by text, skip the second convert after a walk back).
+- Still to prove in the game: cannon landing count (5 trips), clock cannon, sprinkler check, return to hive, tool swing, Pine Tree walk drift into the cactus and gate, Bamboo, Blue Flower and the other cannon fields.

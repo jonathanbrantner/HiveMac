@@ -349,10 +349,18 @@ public final class ScreenSensors: Sensors {
 
     /// True when the prompt says "Fire the Red Cannon". The words are read like the hive message; the saved
     /// picture counts as a second chance. nil when neither is possible.
+    private var lastCannonTextAt = -1e9
+    /// Like Natro, the red cannon prompt is looked for as a small picture first (a few milliseconds), so the scan along the
+    /// pad is not slowed down and the character does not run past it. Reading the words (slow) is only the second look,
+    /// at most about twice a second, or the only one when no picture is saved.
     public func cannonPromptVisible() -> Bool? {
         let picture = templateIn(hivePromptArea, cfg.cannonPromptTemplate)
+        if picture == true { return true }
+        let now = ProcessInfo.processInfo.systemUptime
+        if picture != nil, now - lastCannonTextAt < 0.5 { return false }
+        lastCannonTextAt = now
         guard let text = hiveText() else { return picture }
-        return text.contains("cannon") || picture == true
+        return text.contains("cannon")
     }
     public func deathTextVisible() -> Bool? { templateIn(cfg.deathRegion, cfg.deathTemplate) }
 }

@@ -54,8 +54,7 @@ public struct SpeedModel {
     public var multiplier: () -> Double
     /// The walk speed read from the game's stats panel ("Movespeed: 33") a moment ago. When set it wins over the settings.
     public var live: () -> Double? = { nil }
-    /// True when `live` is worked out from the buff bar (buffs only, no walking efficiency in it): the multiplier, which
-    /// holds the learned arrival factor of this Mac, still applies on top of it.
+    /// True when `live` is worked out from the buff bar (settings speed times the buffs): the multiplier still applies on top of it.
     public var liveIsBuffModel = false
 
     public init(baseSpeed: Double = 28, multiplier: @escaping () -> Double = { 1.0 }) {

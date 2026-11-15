@@ -56,11 +56,6 @@ public struct GameSettings: Equatable, Sendable {
     /// Natro's haste compensation: the walk speed is worked out from the buff bar (haste, coconut haste, haste+, oil,
     /// smoothie, bear morph) while walking. `walkSpeed` is then the speed without buffs.
     public var hasteCompensation = true
-    /// Seconds of gathering with no backpack percent gain after which the macro resets. 0 = never (the default: Diamond Drain and
-    /// Conversion Link keep the bag at 0% in a correct field, so the percent cannot tell a wrong field from a right one).
-    public var gatherStallS = 0.0
-    /// Real walking speed on this Mac divided by the speed in the game (1.0 = trust the game speed; 0.9 made the Pine Tree walk overshoot into Strawberry). The walks start from it.
-    public var walkEfficiency = 1.0
     /// What a Bear Morph adds to the walk speed. Natro's number is 4.
     public var bearBonus = 4.0
     public var hiveSlot = 1
@@ -103,7 +98,7 @@ public struct GameSettings: Equatable, Sendable {
     public init() {}
 
     public static func == (a: GameSettings, b: GameSettings) -> Bool {
-        a.walkSpeed == b.walkSpeed && a.walkEfficiency == b.walkEfficiency && a.bearMorph == b.bearMorph && a.hasteCompensation == b.hasteCompensation && a.bearBonus == b.bearBonus && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
+        a.walkSpeed == b.walkSpeed && a.bearMorph == b.bearMorph && a.hasteCompensation == b.hasteCompensation && a.bearBonus == b.bearBonus && a.hiveSlot == b.hiveSlot && a.gumdropsKey == b.gumdropsKey && a.travel == b.travel
             && a.zoomOutTaps == b.zoomOutTaps && a.resetWaitS == b.resetWaitS
             && a.mousePark.x == b.mousePark.x && a.mousePark.y == b.mousePark.y
     }
@@ -197,10 +192,7 @@ public final class Game {
         self.windowSize = windowSize; self.pathLookup = pathLookup
         self.walker = Walker(actuator: actuator, speed: SpeedModel(baseSpeed: settings.walkSpeed + (settings.bearMorph ? 4 : 0), multiplier: speedMultiplier),
                              clock: clock, stop: stop, pause: pause)
-        self.learnedSpeedFactor = max(0.5, min(1.6, settings.walkEfficiency))
-        let outer = speedMultiplier
-        self.walker.speed.multiplier = { [unowned self] in outer() * self.learnedSpeedFactor }
-        // The speed comes from the settings (and the learned arrival factor), not from the game stats panel.
+        // Like Natro, the speed is the setting times the buffs read from the buff bar: nothing is learned from arrivals.
         self.walker.speed.live = { [unowned self] in self.walker.liveSpeed }
     }
 
@@ -215,39 +207,6 @@ public final class Game {
         walker.speed.liveIsBuffModel = true
         walker.speedSampleEveryS = 0.15
         walker.speedSampler = { [unowned self] in self.buffReader?.read() }
-    }
-
-    /// The real walk speed divided by the speed in the settings, learned from walks that reached their pickup prompt
-    /// (it includes Haste, Bear Morph and every other speed buff at once). 1.0 until the first arrival.
-    public private(set) var learnedSpeedFactor = 1.0
-    public var onSpeedLearned: (Double) -> Void = { _ in }
-
-    /// Planned duration of a route at the current speed: walking and holds scale with speed, waits and taps do not.
-    func plannedSeconds(_ steps: [Step]) -> (scaled: Double, fixed: Double) {
-        var scaled = 0.0, fixed = 0.0
-        for st in steps {
-            switch st.type {
-            case "walk": scaled += speed.secondsForTiles(st.tiles)
-            case "hold": scaled += st.seconds
-            case "wait": fixed += st.seconds
-            case "rotate", "tap", "zoom": fixed += Double(st.count) * (Walker.tapHoldS + 0.12)
-            default: break
-            }
-        }
-        return (scaled, fixed)
-    }
-
-    /// One arrival: `walked` seconds of real time for a route whose scaled part was planned as `planned` seconds.
-    func learnSpeed(plannedScaled planned: Double, plannedFixed fixed: Double, elapsed: Double) {
-        let moving = elapsed - fixed
-        guard walker.liveSpeed == nil || walker.speed.liveIsBuffModel else { return }   // a speed read as text is already the real one: nothing to learn
-        guard planned > 3, moving > 1 else { return }
-        let observed = max(0.5, min(1.6, learnedSpeedFactor * planned / moving))     // faster arrival: higher speed
-        let blended = learnedSpeedFactor * 0.4 + observed * 0.6
-        learnedSpeedFactor = max(0.5, min(1.6, blended))
-        status("traveling", String(format: "speed learned: arrived after %.1f s, plan said %.1f s, real speed is about %.0f (settings %.0f)",
-                                   elapsed, planned + fixed, settings.walkSpeed * learnedSpeedFactor, settings.walkSpeed))
-        onSpeedLearned(learnedSpeedFactor)
     }
 
     public var stopped: Bool { stop.isSet }
@@ -599,11 +558,6 @@ public final class Game {
         probeEnded = false
         defer { walker.armProbe(nil) }
         var flightScale = 1.0, flying = false
-        let startedAt = clock.now()
-        let plan = plannedSeconds(steps)
-        defer {
-            if probeEnded, !stopped, testPrefix == nil { learnSpeed(plannedScaled: plan.scaled, plannedFixed: plan.fixed, elapsed: clock.now() - startedAt) }
-        }
         for (i, step) in steps.enumerated() {
             if stopped { return false }
             if walker.probeHit { probeEnded = true; stepHook?(path.name, i + 1, steps.count, "prompt-seen-end"); return true }
@@ -640,19 +594,19 @@ public final class Game {
     /// Natro nm_gotoCannon, simplified: jump right onto the pad, then creep right until the
     /// cannon prompt shows (when a check exists).
     public func goToCannon() -> Bool {
-        for _ in 0..<3 {
+        for _ in 0..<10 {                                      // Natro tries up to 10 times
             if stopped { return false }
             actuator.keyDown("space"); actuator.keyDown("d")
             wait(Walker.jumpHoldS)
             actuator.keyUp("space")
             walker.walk(["d"], tiles: 2)
             walker.walk(["w", "d"], tiles: 1.5)
-            actuator.keyUp("d")
-            var seen = sensors.cannonPromptVisible()
-            if seen == nil { return true }
-            let t0 = clock.now()
+            // Natro keeps Right held while it looks for the prompt, so there is no pause on the pad.
             actuator.keyDown("d")
-            while seen != true && clock.now() - t0 < 10.0 && !stopped {
+            var seen = sensors.cannonPromptVisible()
+            if seen == nil { actuator.keyUp("d"); return true }
+            let t0 = clock.now()
+            while seen != true && clock.now() - t0 < 20.0 && !stopped {   // Natro looks for 20 seconds
                 wait(0.1)
                 seen = sensors.cannonPromptVisible()
             }
@@ -690,10 +644,6 @@ public final class Game {
         var greyStreak = 0
         var reason = "stopped"
         var pct = sensors.backpackPercent()
-        // No pollen at all for this long means the walk did not end in the field (wrong spot, stuck on the hives):
-        // stop gathering and let the loop reset and try again instead of grinding there for the whole time.
-        var bestPct = pct, lastGainAt = clock.now()
-        let stallS = max(60.0, s.gatherStallS)
         setShiftLock(f.shiftLock)
         parkMouse()
         if s.useTool { actuator.mouseDown() }
@@ -713,11 +663,6 @@ public final class Game {
                     let deadText = sensors.deathTextVisible() == true
                     if greyStreak >= 2 || deadText { died = true; reason = "death"; break outer }
                     if pct >= f.backpackPercent { reason = "backpack"; break outer }
-                    if pct > bestPct { bestPct = pct; lastGainAt = now }
-                    else if s.gatherStallS > 0, now - lastGainAt >= stallS {
-                        status("warning", "\(f.name): no pollen for \(Int(stallS)) seconds, so this is not the field. Resetting to try again")
-                        reason = "stalled"; break outer
-                    }
                     if Double(sensors.backpackUnreadableStreak()) * s.backpackSampleS >= s.lostScreenS {
                         reason = "lost"; break outer
                     }

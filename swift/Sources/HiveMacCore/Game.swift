@@ -534,12 +534,20 @@ public final class Game {
         for attempt in 1...6 {
             wait(0.8)
             guard let r = refused() else { return true }           // unreadable: carry on as before
-            if !r { if attempt > 1 { status("traveling", "\(f.name): sprinkler placed after \(attempt - 1) step(s) left") }; return true }
+            if !r { if attempt > 1 { status("traveling", "\(f.name): sprinkler placed after \(attempt - 1) step(s) toward the middle") }; return true }
             if stopped { return false }
-            status("traveling", "\(f.name): the sprinkler was refused (not standing in the field), stepping left (\(attempt))")
+            status("traveling", "\(f.name): the sprinkler was refused (not standing in the field), stepping toward the middle (\(attempt))")
             var waited = 0.0
             while waited < 8, !stopped, refused() == true { wait(0.5); waited += 0.5 }   // let the old message fade first
-            run([.walk(["a"], tiles: 1.5)], [:])
+            // The start corner is outside the field (the landing was close to a wall): move toward the middle of the
+            // field, away from the corner, one side after the other. Left, the old step, only pushed deeper into the wall.
+            let loc = f.sprinklerLocation.lowercased()
+            let inwardH: String? = loc.contains("left") ? "d" : loc.contains("right") ? "a" : nil
+            let inwardV: String? = loc.contains("upper") ? "s" : loc.contains("lower") ? "w" : nil
+            let order = [inwardH, inwardV].compactMap { $0 }
+            if let key = order.isEmpty ? "s" : order[(attempt - 1) % order.count] as String? {
+                run([.walk([key], tiles: 2.0)], [:])
+            }
             run(Sprinkler.placementSteps(type: s.sprinklerType, location: f.sprinklerLocation,
                                          slotKey: s.sprinklerSlotKey, speed: speed.current()), [:])
         }

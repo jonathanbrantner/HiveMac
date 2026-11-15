@@ -569,6 +569,7 @@ public final class Game {
         else if walker.speedSampler != nil { status("traveling", "the buff bar could not be read, so the walk speed from the settings is used (\(Int(settings.walkSpeed)))") }
         probeEnded = false
         defer { walker.armProbe(nil) }
+        var flightScale = 1.0, flying = false
         let startedAt = clock.now()
         let plan = plannedSeconds(steps)
         defer {
@@ -579,7 +580,22 @@ public final class Game {
             if walker.probeHit { probeEnded = true; stepHook?(path.name, i + 1, steps.count, "prompt-seen-end"); return true }
             if step.type == "gotocannon" {
                 if !goToCannon() { return false }
+                // The flight is timed in real seconds (Natro), so Haste or a morph would carry the character farther and
+                // land it on a platform. Shorten the flight timings by the speed gain over the speed in the settings.
+                walker.sampleSpeed(force: true)
+                if let live = walker.liveSpeed, settings.walkSpeed > 0, walker.speed.liveIsBuffModel {
+                    flightScale = max(0.4, min(1.0, settings.walkSpeed / live))
+                    if flightScale < 0.99 { status("traveling", String(format: "cannon flight shortened to %.0f%% for the speed buffs (speed %.1f, settings %.0f)", flightScale * 100, live, settings.walkSpeed)) }
+                }
                 continue
+            }
+            if path.name.contains("cannon") {
+                if step.type == "keydown", step.keys.contains("d") { flying = true }
+                if step.type == "keyup", step.keys.contains("d") { flying = false }
+                if step.type == "wait", flying, flightScale < 1 {
+                    var scaled = step; scaled.seconds *= flightScale
+                    run([scaled]); continue
+                }
             }
             run([step])
             // No pictures during a flight or between key presses: a capture takes long enough to delay the glider (Natro has none).

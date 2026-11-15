@@ -315,7 +315,7 @@ public final class Game {
         // The Roblox top bar has a fixed pixel size, so the menu button sits at the same pixel spot in any window size
         // (it was at 0.065 / 0.048 of a 1429 x 885 window and sent the click to the chat icon on a 2560 x 1298 one).
         let k = s.uiScale
-        let burger = (ws.left + Int(94 * k), ws.top + Int(40 * k)), fallbackRespawn = (ws.left + Int(108 * k), ws.top + Int(566 * k))     // measured on a 885 px high window: menu items keep their pixel place, not a share of the height
+        let burger = (ws.left + Int(94 * k), ws.top + Int(40 * k)), fallbackRespawn = (ws.left + Int(108 * k), ws.top + Int(488 * k))     // measured on the real menu (2560 x 1298 window): menu items keep their pixel place, not a share of the height
         for attempt in 1...3 where !stopped {
             let (bx, by) = burger
             actuator.click(bx, by)
@@ -324,8 +324,11 @@ public final class Game {
             status("resetting", "menu button clicked at \(bx),\(by) (try \(attempt)): menu \(open == true ? "open" : open == nil ? "unreadable" : "not open"), reads: \(lastMenuText)")
             if open == false { continue }
             // "Respawn" is found by its words in the menu on the left; the old spot is only the fallback.
-            let found = sensors.textSpot("respawn", in: RelRegion(fx: 0, fy: 0.05, fw: 0.3, fh: 0.95))
-                ?? sensors.textSpot("respawn", in: RelRegion(fx: 0, fy: 0, fw: 1, fh: 1))
+            let leftMenu = RelRegion(fx: 0, fy: 0.05, fw: 0.3, fh: 0.95)
+            // The items sit in a fixed pixel list (Friends chat, Shop, Self View, Switch avatar, Music, Captures, Report, Respawn):
+            // when the word Respawn is not read, count down from the first item (Respawn is 393 px below Friends chat).
+            let found = sensors.textSpot("respawn", in: leftMenu)
+                ?? sensors.textSpot("friends chat", in: leftMenu).map { ($0.x, $0.y + Int(393 * k)) }
             let (rx, ry) = found ?? fallbackRespawn
             status("resetting", found != nil ? "Respawn found by its text at \(rx),\(ry)" : "Respawn text not found, using the fixed spot \(rx),\(ry)")
             actuator.click(rx, ry)

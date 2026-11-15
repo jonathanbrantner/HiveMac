@@ -2,10 +2,12 @@
 
 ## Unreleased
 
+- **Status: fields work. Everything else is untested** (bug runs, collecting things, planters, run modes, quests, memory match, balloon blessing, all cannon routes except Pine Tree).
+- The tool is swung by clicking about 4 times a second during a gather (a held button counts as one click on macOS Roblox). HiveMac keeps the Mac and display awake while a run is going. The cannon prompt is found by picture first, like Natro. The gather stall guard and the learned walk speed are removed.
 - Cannon routes now follow Natro more closely: speed is settings times buffs only, the cannon scan holds Right for 20 s with 10 tries, and every cannon route has a quick second jump.
 - Buff bar reading: haste, bear morph (optional setting) and oil are read while walking, so walk timing follows speed buffs.
 - Reset clicks the menu button, Respawn and presses Enter (Esc does not open the menu on the newer Roblox).
-- Return to hive looks for the hive prompt in short steps, left then right; backpack text accepts periods as thousands separators; a refused sprinkler placement steps left and retries; the run start line shows the hive slot.
+- Return to hive looks for the hive prompt in short steps, left then right; backpack text accepts periods as thousands separators; a refused sprinkler placement (the game says you are not in a field) steps toward the middle twice and then redoes the trip from a reset; the run start line shows the hive slot.
 - Fixed: a field cycle that walked back and converted then converted again after the reset. The second press is skipped and empty-bag presses no longer count as converts in the stats.
 - Fixed: screen spots follow the Roblox window size. The backpack bar, hive message, health pixel and hive prompt area are worked out from the window at every read (they were saved as shares of the window size at Detect time, so a bigger window cut the hive banner, read the backpack as 40 % with an empty bag and sent the reset click to the chat icon). The menu button click uses a fixed pixel spot, "Respawn" is found by its words, the buff strip uses the real window height, and every Start refits the spots like Detect Roblox. Only a bar or prompt area picked by hand in Calibrate stays as saved.
 - Tests brought up to date with the new reset, pickup retry, planter clicks and cannon routes (155 pass).

@@ -13,15 +13,16 @@ stay on each, and press Start. About 30 MB of memory, no Python, no extra instal
   <img src="docs/images/macro.png" width="360" alt="Macro tab: hive, walking, sprinkler and hotbar">
 </p>
 
-> **Beta.** The basics work in the real game: **gathering fields, mob runs (bug runs) and collecting
-> things** (the wealth clock, dispensers, passes and boosters). Everything else is still in beta and
-> being tested: planters, Mondo Chick and the other extras. Expect rough edges, and bug reports are welcome.
+> **Beta.** Status, plainly:
 >
-> **New and untested in the real game, so they may not work:** run modes (Booster mode and Quests),
-> quests for Black Bear, Polar Bear, Brown Bear, Bucko Bee and Riley Bee, keeping the balloon blessing,
-> the memory match, the reworked pickup routes (cannon and walking), and the Wealth clock in the modes.
-> Quest objectives with petals, rage tokens, fire ants or tokens are skipped. Watch the first runs
-> and keep your stop key ready.
+> 1. **Fields work.** Gathering in fields, with the walk or cannon trip to the field, the sprinkler, converting
+>    and the walk back to the hive, is what has been tried in the real game.
+> 2. **Everything else is untested.** That means bug runs, collecting things (the wealth clock, dispensers, passes
+>    and boosters), planters, Mondo Chick, run modes (Booster mode and Quests), quests, the balloon blessing, the
+>    memory match, and every cannon route except Pine Tree. Quest objectives with petals, rage tokens, fire ants
+>    or tokens are skipped. They may not work, so watch the first runs and keep your stop key ready.
+>
+> Expect rough edges. Bug reports are welcome.
 
 ## Read this first
 

@@ -1,5 +1,8 @@
 # HiveMac to do
 
+## Status (2026-11-15)
+Fields work. Everything else is untested in the real game: bug runs, collecting things, planters, run modes, quests, memory match, balloon blessing and every cannon route except Pine Tree.
+
 ## Next (written 2026-11-07, in the order to do it)
 1. **Live test the new things**, with the stop key ready, then send `hivemac.log` and the newest `snapshots/`:
    Quests mode (Black Bear first, then the other four givers), Booster mode, memory match (16 and 20 tiles),

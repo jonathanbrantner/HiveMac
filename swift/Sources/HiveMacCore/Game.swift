@@ -704,7 +704,7 @@ public final class Game {
                     pct = sensors.backpackPercent()
                     greyStreak = sensors.healthGrey() ? greyStreak + 1 : 0
                     let deadText = sensors.deathTextVisible() == true
-                    if greyStreak >= 2 || deadText { died = true; reason = "death"; break outer }
+                    if greyStreak >= 2 || deadText { died = true; reason = "death"; status("warning", "death check fired: health bar grey \(greyStreak)x, death text \(deadText ? "seen" : "not seen")"); break outer }
                     if pct >= f.backpackPercent { reason = "backpack"; break outer }
                     if Double(sensors.backpackUnreadableStreak()) * s.backpackSampleS >= s.lostScreenS {
                         reason = "lost"; break outer

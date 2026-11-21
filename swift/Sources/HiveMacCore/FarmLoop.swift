@@ -257,6 +257,7 @@ public final class FarmLoop {
             }
             let result = g.gather(f)
             stats.cycles += 1
+            g.status("gathering", "\(f.name) ended after \(Int(result.seconds))s: \(result.reason), backpack \(result.backpack)%")
             extras?.fieldGathered(f.name, seconds: result.seconds)
             stats.lastResult = result.reason
             stats.history.append(result)

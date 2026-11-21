@@ -16,6 +16,7 @@ final class ReportingSensors: Sensors {
     func backpackUnreadableStreak() -> Int { inner.backpackUnreadableStreak() }
     func resetBackpackFilter() { inner.resetBackpackFilter() }
     func healthGrey() -> Bool { practice ? false : inner.healthGrey() }
+    func healthPixelInfo() -> String { inner.healthPixelInfo() }
     func hivePromptVisible() -> Bool? { practice ? nil : inner.hivePromptVisible() }
     func hiveViewVisible() -> Bool? { practice ? nil : inner.hiveViewVisible() }
     func honeyRunning() -> Bool? { practice ? nil : inner.honeyRunning() }

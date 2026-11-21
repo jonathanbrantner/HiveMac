@@ -48,6 +48,7 @@ final class HudTests: XCTestCase {
         XCTAssertTrue(Hud.isGrey(r: 0x83, g: 0x83, b: 0x83))
         XCTAssertFalse(Hud.isGrey(r: 0x4C, g: 0x60, b: 0x60))
         XCTAssertFalse(Hud.isGrey(r: 0xF0, g: 0x20, b: 0x20))
+        XCTAssertFalse(Hud.isGrey(r: 0x50, g: 0x7A, b: 0x4C))   // muted green grass is not a dead bar
     }
 }
 

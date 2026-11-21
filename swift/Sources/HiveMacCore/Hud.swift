@@ -164,8 +164,11 @@ public enum Hud {
     }
 
     /// Natro's health bar check: dead when all three channels sit in the grey band.
-    public static func isGrey(r: Int, g: Int, b: Int, low: Int = 0x4D, high: Int = 0x83) -> Bool {
-        [r, g, b].allSatisfy { (low...high).contains($0) }
+    /// Also near-neutral (channels within `spread` of each other): a muted dark green such as strawberry grass sits
+    /// inside the band too and was read as a dead health bar.
+    public static func isGrey(r: Int, g: Int, b: Int, low: Int = 0x4D, high: Int = 0x83, spread: Int = 16) -> Bool {
+        guard [r, g, b].allSatisfy({ (low...high).contains($0) }) else { return false }
+        return max(r, g, b) - min(r, g, b) <= spread
     }
 }
 

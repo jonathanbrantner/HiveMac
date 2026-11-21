@@ -8,6 +8,8 @@ public protocol Sensors: AnyObject {
     func backpackUnreadableStreak() -> Int
     func resetBackpackFilter()
     func healthGrey() -> Bool
+    /// Where the health check looks and what colour it reads there, for the log.
+    func healthPixelInfo() -> String
     func hivePromptVisible() -> Bool?
     func hiveViewVisible() -> Bool?
     func cannonPromptVisible() -> Bool?
@@ -40,6 +42,7 @@ public protocol Sensors: AnyObject {
 }
 
 public extension Sensors {
+    func healthPixelInfo() -> String { "" }
     func find(_ template: String, in region: RelRegion?, tolerance: Int) -> (x: Int, y: Int)? { nil }
     func honeyRunning() -> Bool? { nil }
     func hiveMessage() -> String? { nil }
@@ -704,7 +707,7 @@ public final class Game {
                     pct = sensors.backpackPercent()
                     greyStreak = sensors.healthGrey() ? greyStreak + 1 : 0
                     let deadText = sensors.deathTextVisible() == true
-                    if greyStreak >= 2 || deadText { died = true; reason = "death"; status("warning", "death check fired: health bar grey \(greyStreak)x, death text \(deadText ? "seen" : "not seen")"); break outer }
+                    if greyStreak >= 2 || deadText { died = true; reason = "death"; status("warning", "death check fired: health bar grey \(greyStreak)x, death text \(deadText ? "seen" : "not seen"), \(sensors.healthPixelInfo())"); break outer }
                     if pct >= f.backpackPercent { reason = "backpack"; break outer }
                     if Double(sensors.backpackUnreadableStreak()) * s.backpackSampleS >= s.lostScreenS {
                         reason = "lost"; break outer

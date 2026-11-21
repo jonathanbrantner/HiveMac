@@ -169,6 +169,12 @@ public final class ScreenSensors: Sensors {
     public func backpackUnreadableStreak() -> Int { filter.unreadableStreak }
     public func resetBackpackFilter() { filter.reset() }
 
+    public func healthPixelInfo() -> String {
+        guard let p = point(healthPixelSpot) else { return "no health pixel set" }
+        guard let c = screen.pixel(x: p.x, y: p.y) else { return "health pixel at \(p.x),\(p.y) unreadable" }
+        return "health pixel at \(p.x),\(p.y) reads \(String(c.r, radix: 16)) \(String(c.g, radix: 16)) \(String(c.b, radix: 16)) (grey band is 4d to 83)"
+    }
+
     public func healthGrey() -> Bool {
         guard let p = point(healthPixelSpot), let c = screen.pixel(x: p.x, y: p.y) else { return false }
         return Hud.isGrey(r: c.r, g: c.g, b: c.b)
